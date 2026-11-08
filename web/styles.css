@@ -90,9 +90,11 @@ a { color: var(--sea); }
 /* The header search and the crime-type picker are solid fields that sit up off the glass with a soft shadow, so they
    read as the places to start, and lift a little more under the pointer */
 .head-search .search, .panel .picker { background: var(--search-bg); border-color: var(--line); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 14px rgba(0, 0, 0, 0.08);
-  transition: background-color 0.3s, color 0.3s, border-color 0.2s, box-shadow 0.2s; }
+  transition: background-color 0.3s, color 0.3s, border-color 0.2s, box-shadow 0.25s var(--ease), transform 0.25s var(--ease); }
 .head-search .search svg, .panel .picker svg { color: var(--ink); }
-.head-search .search:hover, .panel .picker:hover { border-color: var(--sea); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 20px rgba(0, 0, 0, 0.12); }
+/* Under the pointer, or while open, they rise a pixel on a deeper shadow; typing in the search adds a soft ink halo */
+.head-search .search:hover, .panel .picker:hover, .panel .picker[aria-expanded="true"] { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 10px 26px rgba(0, 0, 0, 0.14); }
+.head-search .search:focus-within { transform: translateY(-1px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 12%, transparent), 0 10px 26px rgba(0, 0, 0, 0.14); }
 .views { flex: none; display: flex; gap: 2px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
 .views button { border: 0; background: transparent; border-radius: 7px; padding: 6px 14px; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
 .views button svg { width: 16px; height: 16px; }
@@ -212,7 +214,7 @@ body { --side-w: 312px; }   /* the filter panel's width, which the header's bott
 /* ---------------- Filters panel ---------------- */
 .filters-top { display: none; gap: 8px; }   /* only used on phones (search and Filters button) */
 .search { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; }
-.search:focus-within { border-color: var(--sea); }
+.search:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 12%, transparent), 0 10px 26px rgba(0, 0, 0, 0.14); }   /* a soft ink halo while typing */
 .search input::placeholder { color: var(--faint); opacity: 1; }   /* the browser's own grey was 3.1:1 on dark */
 .search svg { flex: none; width: 17px; height: 17px; color: var(--faint); }
 .search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 0.95rem; }
@@ -237,7 +239,6 @@ legend { padding: 0; }
    the pointer or arrow keys is filled with the accent, and the current one has a tick */
 .picker { width: 100%; height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px 0 12px;
   background: var(--surface); border: 1px solid var(--line); border-radius: 10px; text-align: left; cursor: pointer; }
-.picker:hover, .picker[aria-expanded="true"] { border-color: var(--sea); }
 .picker svg { flex: none; width: 16px; height: 16px; color: var(--muted); transition: transform 0.2s var(--ease); }
 .picker[aria-expanded="true"] svg { transform: rotate(180deg); }
 .type-list { position: fixed; z-index: 1000; right: auto; }
