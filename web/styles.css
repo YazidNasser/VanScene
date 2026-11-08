@@ -17,6 +17,7 @@
   --on-sea: #ffffff;       /* text on the accent colour */
   --ring: #ffffff;         /* areas A and B on the map: white, edged by a soft shadow so it reads on the light land */
   --on-ring: #1c252d;      /* text on the ring colour */
+  --pin: #007aff;          /* the picked spot: the familiar blue of a phone's own location dot */
   --circle: #3a434c;       /* the 500 m circles' edge: a dark grey, as white was lost on the light land */
   --bar-bg: #ebe8e0;
   --hover: color-mix(in srgb, var(--ink) 14%, transparent);   /* a clear ink tint under the pointer, in either theme */
@@ -48,6 +49,7 @@
   --ink: #e6ebf1; --muted: #aab3bf; --faint: #959fae; --line: #2f3849;
   --page: #141a26; --surface: #1a2130; --surface-2: #232b3b;
   --sea: #e6ebf1; --sea-soft: #2c3546; --on-sea: #141a26; --ring: #e6ebf1; --on-ring: #141a26; --circle: var(--ring);
+  --pin: #0a84ff;
   --bar-bg: #2c3546; --map-bg: #2c333d;
   --search-bg: #313b50;
   --glass: rgba(26, 33, 48, 0.78); --glass-edge: rgba(230, 235, 241, 0.08);
@@ -133,7 +135,7 @@ a { color: var(--sea); }
 #map .leaflet-control-scale-line { background: transparent; border: 2px solid var(--ink); border-top: 0; color: var(--ink); font-size: 0.72rem; font-weight: 600;
   line-height: 1.3; padding: 0 6px; text-shadow: 0 0 2px var(--surface), 0 0 2px var(--surface), 0 0 4px var(--surface); }
 /* The clicked spot: a pin in the ring colour, edged in its text colour so it reads over the heat */
-#map .area-pin { border-radius: 50%; background: var(--ring); border: 2px solid var(--on-ring); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
+#map .area-pin { border-radius: 50%; background: var(--pin); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
 #map .leaflet-control-attribution { background: var(--surface); color: var(--muted); border-radius: 6px 0 0 0; padding: 2px 16px 2px 8px; }
 /* The credit line has a corner to itself, pinned to the map's true bottom right: the zoom buttons' corner slides left
    beside an open panel (below), which carried the credits into the middle of the screen. The panels end above it */
@@ -161,6 +163,7 @@ a { color: var(--sea); }
 /* A soft shadow under the area circles rather than an outline, just enough to lift a thin ring off the heat */
 #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.7)); }   /* a pale edge lifts the grey ring off the heat */
 :root[data-theme="dark"] #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 3px rgba(10, 14, 20, 0.45)); }
+#map .leaflet-overlay-pane path.area-circle { filter: none; }   /* the blue circle is its own edge */
 /* Areas A and B share one colour, for the map handles and the "Place A | B" toggle; their letters tell them apart */
 .ab-handle, .slot-pick .ab { --slot: var(--ring); }
 /* The A and B handles at the centre of each Compare circle: a disc of the header's frosted glass, the letter in the
