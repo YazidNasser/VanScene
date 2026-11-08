@@ -1584,18 +1584,25 @@ $("filters-btn").addEventListener("click", () => {
   if (open) $("toast").classList.remove("show");   // on a phone the note would sit on top of the open panel
 });
 // Wider screens: the header's sidebar button tucks the filters card away to give the map the whole width; remembered
+// While hidden, the name folds down to the mark, and the mark becomes a button that brings everything back
 function setSidebar(open) {
-  $("app").classList.toggle("side-hidden", !open);
+  document.body.classList.toggle("side-hidden", !open);
   const label = open ? "Hide filters" : "Show filters";
   $("side-toggle").setAttribute("aria-expanded", String(open));
   $("side-toggle").setAttribute("aria-label", label);
   $("side-toggle").title = label;
+  const brandLive = !open && !isPhone(), brand = $("brand-btn");
+  brand.tabIndex = brandLive ? 0 : -1;
+  if (brandLive) { brand.removeAttribute("aria-hidden"); brand.setAttribute("aria-label", "Show filters"); brand.title = "Show filters"; }
+  else { brand.setAttribute("aria-hidden", "true"); brand.removeAttribute("aria-label"); brand.removeAttribute("title"); }
 }
-$("side-toggle").addEventListener("click", () => {
-  const open = $("app").classList.contains("side-hidden");
+function toggleSidebar(open) {
   setSidebar(open);
   try { localStorage.setItem("sidebar", open ? "open" : "hidden"); } catch (e) {}
-});
+}
+$("side-toggle").addEventListener("click", () => toggleSidebar(document.body.classList.contains("side-hidden")));
+$("brand-btn").addEventListener("click", () => { if (document.body.classList.contains("side-hidden") && !isPhone()) toggleSidebar(true); });
+phoneQuery.addEventListener("change", () => setSidebar(!document.body.classList.contains("side-hidden")));
 try { if (localStorage.getItem("sidebar") === "hidden") setSidebar(false); } catch (e) {}
 
 function syncThemeButton() {

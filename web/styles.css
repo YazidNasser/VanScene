@@ -76,7 +76,11 @@ a { color: var(--sea); }
 .site-head { flex: none; height: 58px; display: flex; align-items: center; gap: 14px; padding: 0 18px; background: var(--surface); border-bottom: 1px solid var(--line); position: relative; z-index: 20; }
 /* The logo: the 500 m circle with a V cut through it; the wedge left over is a dropped pin (docs/logo/).
    At header size it's the small cut, without the hotspot hole, which would close up this small */
-.wordmark { display: inline-flex; align-items: center; gap: 0.32em; }
+.wordmark { display: inline-flex; align-items: center; }
+/* The name is a button only while the filters are hidden: then it shows just the mark, and a click brings the name
+   and the filters back, as Apple Maps' sidebar does */
+.brand-btn { border: 0; background: none; padding: 0; cursor: default; font-weight: inherit; }
+.wm-text { display: inline-block; overflow: hidden; white-space: nowrap; max-width: 6em; margin-left: 0.32em; }
 .mark { flex: none; width: 1.3em; height: 1.3em; overflow: visible; }
 .mark .v { fill: var(--ink); }
 /* About every 8 s the pin warms a little, partway to the next colour of the heat ramp, while a faint blurred copy
@@ -180,8 +184,12 @@ a { color: var(--sea); }
   .filters { top: var(--top); left: 0; max-height: calc(100% - var(--top)); border-width: 0 1px 1px 0; border-radius: 0 0 16px 0; }
   /* It slides out past the left edge and back in. The entrance animation must let go once it has played, or its
      held frame would override the slide and the drawer would just pop in and out */
-  .app .filters { transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1), visibility 0.45s; animation-fill-mode: backwards; }
-  .app.side-hidden .filters { transform: translateX(calc(-100% - 2px)); visibility: hidden; }
+  .app .filters { transition: transform 0.25s ease-in-out, visibility 0.25s; animation-fill-mode: backwards; }   /* Apple Maps' sidebar timing */
+  body.side-hidden .filters { transform: translateX(calc(-100% - 2px)); visibility: hidden; }
+  /* The name folds away into the mark as the drawer goes, and unfolds as it comes back */
+  .wm-text { transition: max-width 0.25s ease-in-out, margin-left 0.25s ease-in-out, opacity 0.2s ease-in-out; }
+  body.side-hidden .wm-text { max-width: 0; margin-left: 0; opacity: 0; }
+  body.side-hidden .brand-btn { cursor: pointer; }
   /* Solid where the browser can't blur, or the person has asked for less transparency */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .site-head, .panel { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .site-head, .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
