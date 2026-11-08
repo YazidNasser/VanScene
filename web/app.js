@@ -42,7 +42,7 @@ const TIPS = {
 };
 
 // Point layout the app works with: [lat, lng, typeIndex, hour (-1 = unknown), year, month*100 + day].
-// data.json version 2 stores points like this; version 3 stores one list per field, see pointRows() below.
+// data.json stores one list per field instead, see pointRows() below.
 const LAT = 0, LNG = 1, TYPE = 2, HOUR = 3, YEAR = 4, MD = 5;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -629,18 +629,14 @@ const isPartial = (y) => y === state.data.partialYear;
 const daysIn = (years) => Math.max(1, years.reduce((sum, y) => sum + (isPartial(y)
   ? Math.round((new Date(state.data.latestDate + "T12:00:00") - new Date(y, 0, 1, 12)) / 864e5) + 1
   : new Date(y, 1, 29).getMonth() === 1 ? 366 : 365), 0));
-// Years inside the data's range that have no incidents at all (e.g. a year missing from the CSV)
-function missingYears() {
-  const ys = state.data.years, out = [];
-  for (let y = ys[0]; y <= ys[ys.length - 1]; y++) if (!ys.includes(y)) out.push(y);
-  return out;
-}
 // Every year from the first to the last in the data, oldest first, missing years included
 function yearSpan() {
   const ys = state.data.years, span = [];
   for (let y = ys[0]; y <= ys[ys.length - 1]; y++) span.push(y);
   return span;
 }
+// Years inside the data's range that have no incidents at all (e.g. a year missing from the CSV)
+const missingYears = () => yearSpan().filter((y) => !state.data.years.includes(y));
 const selectedYears = () => state.data.years.filter((y) => state.years.has(y));   // oldest first
 const allSelected = () => state.years.size === state.data.years.length;
 
@@ -655,18 +651,14 @@ function buildPeriods() {
   }
 }
 
-// Does an incident pass the type and time-of-day filters? (years not checked)
-// Runs for every incident on each filter change, so the options are read directly rather than through a default object
-function passesFilters(p, opts) {
-  if (!opts?.ignoreType && state.type !== "all" && p[TYPE] !== state.type) return false;
-  if (!opts?.ignoreTime && state.hours) {
-    if (p[HOUR] < 0 || !state.hours.has(p[HOUR])) return false;
-  }
-  return true;
+// Does an incident pass the type and (unless ignoreTime) time-of-day filters? Years are not checked
+function passesFilters(p, ignoreTime = false) {
+  if (state.type !== "all" && p[TYPE] !== state.type) return false;
+  return ignoreTime || !state.hours || (p[HOUR] >= 0 && state.hours.has(p[HOUR]));
 }
-function matches(p, period, opts) {
+function matches(p, period, ignoreTime = false) {
   if (!period || !period.years.has(p[YEAR]) || p[MD] > period.maxMd) return false;
-  return passesFilters(p, opts);
+  return passesFilters(p, ignoreTime);
 }
 
 // "in 2026 (Jan 1 to Oct 2)", "from 2016 to 2026", or "in 2016–2018 and 2024"
@@ -917,7 +909,7 @@ function updateHeat() {
   // the filters show, used for both the city-wide totals and the heat
   const shown = [], byHour = new Array(24).fill(0);
   if (n) for (const p of state.data.points) {
-    if (!matches(p, state.shown, { ignoreTime: true })) continue;
+    if (!matches(p, state.shown, true)) continue;
     if (p[HOUR] >= 0) byHour[p[HOUR]]++;
     if (passesFilters(p)) shown.push(p);
   }
@@ -1083,7 +1075,7 @@ function areaStats(ll) {
   for (const p of local) {
     if (matches(p, state.compare)) before++;
     if (passesFilters(p)) bump(perYear, p[YEAR]);   // every year, for the trend
-    if (matches(p, state.shown, { ignoreTime: true })) {                            // time of day uses all times
+    if (matches(p, state.shown, true)) {                            // time of day uses all times
       if (p[HOUR] < 0) unknownHour++; else hours[p[HOUR]]++;
     }
     if (!matches(p, state.shown)) continue;
@@ -1864,15 +1856,15 @@ async function start() {
     const res = await fetch(CONFIG.dataUrl);
     if (!res.ok) throw new Error(res.status);
     state.data = await res.json();
-    if (state.data.version >= 3) state.data.points = pointRows(state.data.points);
   } catch (err) {
     showError(`couldn't load ${CONFIG.dataUrl} (${err.message}). Run python scripts/prepare_data.py from the project folder to create it, then reload this page.`);
     return;
   }
-  if (!Array.isArray(state.data.years)) {
-    showError("this data.json was made by the old script. Run python scripts/prepare_data.py from version 2, then reload this page.");
+  if (state.data.version !== 3) {
+    showError("this data.json was made by an older script. Run python scripts/prepare_data.py from the project folder, then reload this page.");
     return;
   }
+  state.data.points = pointRows(state.data.points);
   $("status").classList.remove("show");
   addCoverageMask(state.data.points);
   // Neighbourhood names for the map's label layer (see mapStyle), ranked busiest first by reports within about 1 km of
