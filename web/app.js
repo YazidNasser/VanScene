@@ -173,17 +173,19 @@ function mapStyle(labels) {
   return { ...ofmStyle, layers };
 }
 let hoodNames = null;   // GeoJSON of the neighbourhood names, made once the data has loaded
-const emptyStyle = { version: 8, sources: {}, layers: [] };
+// What MapLibre starts with until the style arrives; it names the fonts too, or MapLibre logs "glyphsUrl is not set"
+const emptyStyle = { version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", sources: {}, layers: [] };
 const ofmCredit = '&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 // If MapLibre or the style can't be fetched, fall back to plain OpenStreetMap tiles, greyed out, so there's always a map
 const osmFallback = () => L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { className: "osm-fallback", maxZoom: 19,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
 const glBase = L.maplibreGL ? L.maplibreGL({ style: emptyStyle, attribution: ofmCredit }).addTo(map) : null;
 const glLabels = L.maplibreGL ? L.maplibreGL({ style: emptyStyle, pane: "labels" }).addTo(map) : null;
-function paintBasemap() {
+// Draws the basemap and its labels in the current theme; labelsOnly when only our names changed. Waits for the style
+function paintBasemap(labelsOnly = false) {
   if (!ofmStyle) return;
   // diff: false replaces the style outright; patching it can't add the font (glyphs) setting the labels need
-  glBase.getMaplibreMap().setStyle(mapStyle(false), { diff: false });
+  if (!labelsOnly) glBase.getMaplibreMap().setStyle(mapStyle(false), { diff: false });
   glLabels.getMaplibreMap().setStyle(mapStyle(true), { diff: false });
 }
 if (glBase) {
@@ -479,9 +481,10 @@ function buildPeriods() {
 }
 
 // Does an incident pass the type and time-of-day filters? (years not checked)
-function passesFilters(p, { ignoreType = false, ignoreTime = false } = {}) {
-  if (!ignoreType && state.type !== "all" && p[TYPE] !== state.type) return false;
-  if (!ignoreTime && state.hours) {
+// Runs for every incident on each filter change, so the options are read directly rather than through a default object
+function passesFilters(p, opts) {
+  if (!opts?.ignoreType && state.type !== "all" && p[TYPE] !== state.type) return false;
+  if (!opts?.ignoreTime && state.hours) {
     if (p[HOUR] < 0 || !state.hours.has(p[HOUR])) return false;
   }
   return true;
@@ -606,11 +609,9 @@ function hourStrip(hours) {
     ${HOUR_AXIS}`;
 }
 
-// The chart inside the time-of-day track: reports per hour for the chosen years and crime type. Each bar is
-// a button for its hour; the picked hours are in the accent. Returns the counts per clock hour.
-function drawTrackBars() {
-  const hours = new Array(24).fill(0);
-  for (const p of state.data.points) if (p[HOUR] >= 0 && matches(p, state.shown, { ignoreTime: true })) hours[p[HOUR]]++;
+// The chart inside the time-of-day track: `hours` is reports per clock hour for the chosen years and crime type
+// (counted by updateHeat). Each bar is a button for its hour; the picked hours are in the accent.
+function drawTrackBars(hours) {
   const max = Math.max(1, ...hours), strip = $("track-bars");
   if (strip.children.length !== 24)   // made once, so later changes animate
     strip.innerHTML = TRACK_ORDER.map((h) => `<button type="button" class="hr" data-hour="${h}"><i></i></button>`).join("");
@@ -626,7 +627,6 @@ function drawTrackBars() {
   // One Tab stop for the 24 hours (the focused one, else the first picked, else 6 am); arrows move between them
   const stop = strip.contains(document.activeElement) ? document.activeElement : strip.querySelector('[aria-pressed="true"]') || strip.firstChild;
   for (const bar of strip.children) bar.tabIndex = bar === stop ? 0 : -1;
-  return hours;
 }
 function syncTimeButtons() {
   $("time").classList.toggle("any", !state.hours);
@@ -727,10 +727,9 @@ function yearWeight(y) {
 
 // Many incidents share the same hundred-block location, so count repeats as one spot.
 // This looks the same and keeps the map fast with ten years of data.
-function spotsPerYear(test, years, scale = 1) {
+function spotsPerYear(points, years, scale = 1) {
   const spots = new Map(), weight = {};
-  for (const p of state.data.points) {
-    if (!test(p)) continue;
+  for (const p of points) {
     const key = Math.round(p[LAT] * 1e4) * 1e7 + Math.round((p[LNG] + 180) * 1e4);
     const w = (weight[p[YEAR]] ??= (yearWeight(p[YEAR]) / years) * scale);
     const spot = spots.get(key);
@@ -741,26 +740,32 @@ function spotsPerYear(test, years, scale = 1) {
 
 function updateHeat() {
   const n = state.shown.years.size;
-  // City-wide totals for the current filters, overall and per crime type, for the area card's comparisons
-  let count = 0;
-  const cityTypes = new Map();
-  if (n) for (const p of state.data.points) if (matches(p, state.shown)) { count++; bump(cityTypes, p[TYPE]); }
-  state.city = { count, types: cityTypes };
+  // One pass over every incident: per clock hour ignoring the time of day (for the track's chart), and the ones
+  // the filters show, used for both the city-wide totals and the heat
+  const shown = [], byHour = new Array(24).fill(0);
+  if (n) for (const p of state.data.points) {
+    if (!matches(p, state.shown, { ignoreTime: true })) continue;
+    if (p[HOUR] >= 0) byHour[p[HOUR]]++;
+    if (passesFilters(p)) shown.push(p);
+  }
+  const count = shown.length, cityTypes = new Map();
+  for (const p of shown) bump(cityTypes, p[TYPE]);
+  state.city = { count, types: cityTypes };   // overall and per crime type, for the area card's comparisons
   // A part of the day is drawn per hour (scaled up by 24 / its hours) against the all-day reference, so a part
   // exactly as busy per hour as the whole day looks like "Any time"; busier parts glow more, quieter ones less.
   const hrs = state.hours ? state.hours.size : 0;   // 0 for "Any time"
-  heatSpots = n ? spotsPerYear((p) => matches(p, state.shown), n, hrs ? 24 / hrs : 1) : [];
+  heatSpots = n ? spotsPerYear(shown, n, hrs ? 24 / hrs : 1) : [];
   // refSpots only changes when a time of day is turned on or off, so it isn't rebuilt on every filter change
   if (refHours !== !!hrs) {
     refHours = !!hrs;
-    refSpots = spotsPerYear((p) => !hrs || p[HOUR] >= 0, state.data.years.length);
+    refSpots = spotsPerYear(hrs ? state.data.points.filter((p) => p[HOUR] >= 0) : state.data.points, state.data.years.length);
     refScale = null;
   }
   fadeHeat();
   drawHeat();
   // With a time of day picked, say how its share of reports compares with its share of the clock
   let share = "";
-  const byHour = drawTrackBars();
+  drawTrackBars(byHour);
   if (n && hrs && count) {
     const known = sum(byHour);   // reports with a known time, at any hour
     const rate = count / known / (hrs / 24);
@@ -1627,16 +1632,17 @@ async function start() {
   // Neighbourhood names for the map's label layer (see mapStyle), ranked busiest first by reports within about 1 km of
   // each centre, so where names would collide the busier area keeps its name. The city's own name sits in the open
   // space between Fairview, Mount Pleasant and Shaughnessy, roughly where Apple Maps puts it
-  const busy = new Map(state.data.neighbourhoods.map((h) => [h, 0]));
-  for (const p of state.data.points) {
-    for (const h of busy.keys()) if (Math.abs(p[0] - h.lat) < 0.009 && Math.abs(p[1] - h.lng) < 0.014) busy.set(h, busy.get(h) + 1);
+  const hoods = state.data.neighbourhoods, busy = new Array(hoods.length).fill(0);
+  for (const p of state.data.points) {   // plain index loops: this runs hoods × incidents times at startup
+    for (let i = 0; i < hoods.length; i++) if (Math.abs(p[LAT] - hoods[i].lat) < 0.009 && Math.abs(p[LNG] - hoods[i].lng) < 0.014) busy[i]++;
   }
   const point = (lat, lng, properties) => ({ type: "Feature", geometry: { type: "Point", coordinates: [lng, lat] }, properties });
+  const byBusy = hoods.map((h, i) => [h, busy[i]]).sort((a, b) => b[1] - a[1]);
   hoodNames = { type: "FeatureCollection", features: [
     point(49.2555, -123.123, { name: "Vancouver", city: true }),
-    ...[...busy.keys()].sort((a, b) => busy.get(b) - busy.get(a)).map((h, rank) => point(h.lat, h.lng, { name: h.name, rank })),
+    ...byBusy.map(([h], rank) => point(h.lat, h.lng, { name: h.name, rank })),
   ] };
-  if (ofmStyle) glLabels.getMaplibreMap().setStyle(mapStyle(true), { diff: false });   // else paintBasemap() adds them once the style arrives
+  paintBasemap(true);
   buildControls();
   const linked = readUrl();
   buildPeriods();
