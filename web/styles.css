@@ -139,9 +139,8 @@ a { color: var(--sea); }
    beside an open panel (below), which carried the credits into the middle of the screen. The panels end above it */
 #map .leaflet-bottom.leaflet-left { left: auto; right: 0; }
 #map .leaflet-control-attribution a { color: var(--sea); }
-/* Lift the zoom buttons off the bottom-right corner: the earlier host (Netlify) floated a badge there over the page,
-   which covered them. The map's credit line stays at the very bottom. */
-#map .leaflet-bottom.leaflet-right .leaflet-control-zoom { margin-bottom: 60px; }
+/* The zoom buttons sit just above the credit line (21px tall), which keeps the very bottom of the map */
+#map .leaflet-bottom.leaflet-right .leaflet-control-zoom { margin-bottom: 31px; }
 /* Compare's and Trends' panels run down the right, so the zoom buttons move beside them
    (wider screens only: on phones the zoom buttons are hidden and these panels are bottom sheets) */
 @media (min-width: 761px) {
@@ -199,11 +198,11 @@ a { color: var(--sea); }
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .site-head, .panel { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .site-head, .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 }
-/* The view panels: a column down the right, so the map stays open, ending 64px up */
+/* The view panels: a column down the right, so the map stays open, ending 16px above the credit line */
 .area, .compare, .trends { top: calc(var(--top) + 16px); right: 16px; overflow-y: auto; padding: 18px; display: none; }
-.area { width: 344px; max-height: calc(100% - var(--top) - 80px); }
-.compare { width: 420px; max-height: calc(100% - var(--top) - 80px); padding: 16px 18px; }
-.trends { width: 420px; bottom: 64px; }
+.area { width: 344px; max-height: calc(100% - var(--top) - 53px); }
+.compare { width: 420px; max-height: calc(100% - var(--top) - 53px); padding: 16px 18px; }
+.trends { width: 420px; bottom: 37px; }
 .app[data-view="map"] .area, .app[data-view="compare"] .compare, .app[data-view="trends"] .trends { display: block; }
 .app[data-view="map"] .area:empty { display: none; }
 .sheet-handle { display: none; }
