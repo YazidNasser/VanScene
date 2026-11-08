@@ -18,6 +18,8 @@ concurrency:
 
 jobs:
   update:
+    # Only on the main repo: forks get this schedule too, and their own data commit then clashes with the main repo's
+    if: github.repository == 'YazidNasser/VanScene'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
