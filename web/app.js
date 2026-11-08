@@ -1584,26 +1584,27 @@ $("filters-btn").addEventListener("click", () => {
   if (open) $("toast").classList.remove("show");   // on a phone the note would sit on top of the open panel
 });
 // Wider screens: the header's sidebar button tucks the filters card away to give the map the whole width; remembered
-// While hidden, the name folds down to the mark, and the mark becomes a button that brings everything back
+// While hidden, the name folds down to the mark. The name (or mark) is a second toggle, as on Apple Maps
 function setSidebar(open) {
   document.body.classList.toggle("side-hidden", !open);
-  const label = open ? "Hide filters" : "Show filters";
+  const label = open ? "Hide filters" : "Show filters", brand = $("brand-btn"), live = !isPhone();
   $("side-toggle").setAttribute("aria-expanded", String(open));
   $("side-toggle").setAttribute("aria-label", label);
   $("side-toggle").title = label;
-  const brandLive = !open && !isPhone(), brand = $("brand-btn");
-  brand.tabIndex = brandLive ? 0 : -1;
-  if (brandLive) { brand.removeAttribute("aria-hidden"); brand.setAttribute("aria-label", "Show filters"); brand.title = "Show filters"; }
-  else { brand.setAttribute("aria-hidden", "true"); brand.removeAttribute("aria-label"); brand.removeAttribute("title"); }
+  brand.tabIndex = live ? 0 : -1;   // phones have no sidebar, so there the name is just the name
+  if (live) { brand.removeAttribute("aria-hidden"); brand.setAttribute("aria-label", label); brand.setAttribute("aria-expanded", String(open)); brand.title = label; }
+  else { brand.setAttribute("aria-hidden", "true"); ["aria-label", "aria-expanded", "title"].forEach((a) => brand.removeAttribute(a)); }
 }
 function toggleSidebar(open) {
   setSidebar(open);
   try { localStorage.setItem("sidebar", open ? "open" : "hidden"); } catch (e) {}
 }
 $("side-toggle").addEventListener("click", () => toggleSidebar(document.body.classList.contains("side-hidden")));
-$("brand-btn").addEventListener("click", () => { if (document.body.classList.contains("side-hidden") && !isPhone()) toggleSidebar(true); });
+$("brand-btn").addEventListener("click", () => { if (!isPhone()) toggleSidebar(document.body.classList.contains("side-hidden")); });
 phoneQuery.addEventListener("change", () => setSidebar(!document.body.classList.contains("side-hidden")));
-try { if (localStorage.getItem("sidebar") === "hidden") setSidebar(false); } catch (e) {}
+let startOpen = true;
+try { startOpen = localStorage.getItem("sidebar") !== "hidden"; } catch (e) {}
+setSidebar(startOpen);
 
 function syncThemeButton() {
   const label = isDark() ? "Switch to light mode" : "Switch to dark mode";
