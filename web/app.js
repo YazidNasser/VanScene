@@ -356,11 +356,13 @@ Object.assign(L.HeatLayer.prototype, {
     if (this._heat._width !== w) this._canvas.width = this._heat._width = w;
     if (this._heat._height !== h) this._canvas.height = this._heat._height = h;
     this._redraw();
-    endMorph(this);   // in the same frame as the redraw, so the hand-over from the zoom's last frame doesn't show
+    settleMorph(this);   // after a zoom, ease from the zoomed picture into this one
   },
   _redraw() {
     this._frame = null;
     if (!this._pad || !this._heat._width || !this._heat._height) return;
+    // Hidden under a zoom's own frames: wait for them to finish (endMorph), so this ~70 ms doesn't stall them
+    if (this._morph?.parentNode) { this._stale = true; return; }
     const map = this._map, pad = this._pad, w = this._heat._width, h = this._heat._height, r = this._heat._r, data = [];
     for (const [lat, lng, v] of cellsAt(map.getZoom())) {
       const c = map.latLngToContainerPoint([lat, lng]), x = c.x + pad.x, y = c.y + pad.y;
@@ -397,78 +399,103 @@ function cellsAt(z) {
   return out;
 }
 
-// While the map zooms, Leaflet only stretches the last picture. Instead, the heat is redrawn every frame at the
-// in-between zoom. Each frame blends the cells of the quarter steps on either side (cellsAt is worked out per quarter
-// step, like the zoom snaps) and grows the blobs smoothly, so hotspots split as you zoom in and merge as you zoom
-// out without jumping. A frame on a quarter step is exactly the picture the full redraw then hands over to.
+// Zooming, in two parts, so it feels like zooming into the same map rather than switching to another one:
+// 1. While the map zooms, the heat you were looking at stays stuck to it: every blob moves and grows with the
+//    streets under it, redrawn each frame (Leaflet would only stretch the old picture, which blurs).
+// 2. Once the zoom stops, the heat eases into the new zoom's own detail: blobs settle back to their usual size and
+//    split into the finer hotspots (or merge, zooming out).
 // Frames go to a second canvas covering only the visible map, at half resolution and stretched back up: a full
 // redraw takes ~70 ms, too slow for every frame, and the blur hides the softer pixels
-const MORPH_Q = 0.5;
-const quarterZoom = (z) => Math.round(z * 4) / 4;
-// `place(cell, q)` gives a cell of quarter step q its [x, y] on screen this frame
-function drawMorph(layer, z, place) {
+const MORPH_Q = 0.5, SETTLE_MS = 400;
+// Draw `sets` of [cells, weight, place] with blobs of `radius`: place(cell, i) gives a cell's [x, y] on screen
+function drawMorph(layer, radius, sets) {
   const view = map.getSize(), cv = layer._morph ??= Object.assign(document.createElement("canvas"), { className: "leaflet-layer heat-morph" });
   const w = Math.ceil(view.x * MORPH_Q), h = Math.ceil(view.y * MORPH_Q);
   if (cv.width !== w || cv.height !== h || !layer._morphHeat) {
     cv.width = w; cv.height = h; cv.style.width = `${view.x}px`; cv.style.height = `${view.y}px`;
     layer._morphHeat = simpleheat(cv);   // leaflet.heat's drawing engine, a global from its script
   }
-  const sh = layer._morphHeat, radius = heatRadius(z);
+  const sh = layer._morphHeat;
   sh._grad = layer._heat._grad;
   sh.radius(radius * MORPH_Q, heatBlur(radius) * MORPH_Q);
   L.DomUtil.setPosition(cv, map.containerPointToLayerPoint([0, 0]));
   if (!cv.parentNode) layer._canvas.parentNode.appendChild(cv);
-  const lo = Math.floor(z * 4 + 1e-6) / 4, f = Math.min(1, Math.max(0, (z - lo) * 4)), data = [], r = sh._r;
-  for (const [q, weight] of [[lo, 1 - f], [lo + 0.25, f]]) {
+  const r = sh._r, data = [];
+  for (const [cells, weight, place] of sets) {
     if (weight < 0.002) continue;
-    cellsAt(q).forEach((cell, i) => {
-      const [x, y] = place(cell, q, i);
+    cells.forEach((cell, i) => {
+      const [x, y] = place(cell, i);
       if (x > -r && y > -r && x < w + r && y < h + r) data.push([x, y, cell[2] * weight]);
     });
   }
   sh.data(data).draw(layer.options.minOpacity);
   layer._canvas.style.visibility = "hidden";
 }
-// An animated zoom (buttons, wheel, trackpad, the end of a pinch). The stretching canvas stays, hidden, because its
-// transition tells us how far along the zoom is, so the heat moves in step with the streets
+const onScreen = ([lat, lng]) => { const c = map.latLngToContainerPoint([lat, lng]); return [c.x * MORPH_Q, c.y * MORPH_Q]; };
+// Part 1 for an animated zoom (buttons, wheel, trackpad, the end of a pinch). The stretching canvas stays, hidden,
+// because its transition tells us how far along the zoom is, so the heat moves in step with the streets
 function startMorph(layer, e) {
   cancelAnimationFrame(layer._morphFrame);
+  layer._morphRun = (layer._morphRun || 0) + 1;   // a settle still running (part 2) is cut short
   const s1 = map.getZoomScale(e.zoom, layer._zoom), pane = map._getMapPanePos(), q = MORPH_Q;
   if (reduceMotion || !heatSpots.length || !layer._pad || Math.abs(s1 - 1) < 1e-3) return endMorph(layer);
-  // Where each cell sits on screen before and after the zoom, by Leaflet's own (rounded) sums so it lands exactly
+  // Keep following the picture the gesture started from (z0) through every step of a scroll or the end of a pinch,
+  // so it never swaps mid-zoom; sNow and sEnd are how far the map is zoomed against it now and at the end
+  const z0 = layer._morphFrom ?? layer._zoom, cells = cellsAt(z0), r0 = heatRadius(z0);
+  const sNow = map.getZoomScale(map.getZoom(), z0), sEnd = map.getZoomScale(e.zoom, z0);
+  // Where each cell sits on screen now and after the zoom, by Leaflet's own (rounded) sums so it lands exactly
   // where the streets do; in between it moves in a straight line, as the map's own zoom transition does
-  const ends = new Map();
-  const endsOf = (step) => {
-    if (!ends.has(step)) ends.set(step, cellsAt(step).map(([lat, lng]) => {
-      const a = map.latLngToContainerPoint([lat, lng]), b = map._latLngToNewLayerPoint(L.latLng(lat, lng), e.zoom, e.center).add(pane);
-      return [a.x * q, a.y * q, (b.x - a.x) * q, (b.y - a.y) * q];
-    }));
-    return ends.get(step);
-  };
+  const ends = cells.map(([lat, lng]) => {
+    const a = map.latLngToContainerPoint([lat, lng]), b = map._latLngToNewLayerPoint(L.latLng(lat, lng), e.zoom, e.center).add(pane);
+    return [a.x * q, a.y * q, (b.x - a.x) * q, (b.y - a.y) * q];
+  });
+  layer._morphFrom = z0;
   const frame = () => {
     const t = new DOMMatrixReadOnly(getComputedStyle(layer._canvas).transform).a;   // the stretch so far
     const p = Math.min(1, Math.max(0, (t - 1) / (s1 - 1)));
-    drawMorph(layer, layer._zoom + Math.log2(t > 0 ? t : 1), (cell, step, i) => {
-      const [x, y, dx, dy] = endsOf(step)[i];
+    drawMorph(layer, r0 * (sNow + (sEnd - sNow) * p), [[cells, 1, (cell, i) => {
+      const [x, y, dx, dy] = ends[i];
       return [x + dx * p, y + dy * p];
-    });
+    }]]);
     layer._morphFrame = requestAnimationFrame(frame);
   };
   frame();
 }
-// A pinch on a touch screen moves the map itself, frame by frame, with no zoom animation: redraw as it goes
+// Part 1 for a pinch on a touch screen, which moves the map itself frame by frame with no zoom animation
 map.on("zoom", (e) => {
   if (!e.pinch || reduceMotion || !heatSpots.length) return;
   cancelAnimationFrame(heat._morphFrame);
-  heat._morphFrame = requestAnimationFrame(() => drawMorph(heat, map.getZoom(), ([lat, lng]) => {
-    const c = map.latLngToContainerPoint([lat, lng]);
-    return [c.x * MORPH_Q, c.y * MORPH_Q];
-  }));
+  heat._morphRun = (heat._morphRun || 0) + 1;
+  heat._morphFrame = requestAnimationFrame(() => {
+    const z0 = heat._morphFrom ?? heat._zoom;
+    heat._morphFrom = z0;
+    drawMorph(heat, heatRadius(z0) * map.getZoomScale(map.getZoom(), z0), [[cellsAt(z0), 1, onScreen]]);
+  });
 });
-function endMorph(layer) {
-  if (!layer._morph?.parentNode) return;
+// Part 2, once the map has stopped at its new zoom (from _reset, just after the full redraw underneath)
+function settleMorph(layer) {
+  const z0 = layer._morphFrom, z1 = map.getZoom();
+  if (z0 === undefined || z0 === z1 || !layer._morph?.parentNode) return endMorph(layer);
   cancelAnimationFrame(layer._morphFrame);
-  layer._morph.remove();
+  const from = cellsAt(z0), to = cellsAt(z1), r0 = heatRadius(z0) * map.getZoomScale(z1, z0), r1 = heatRadius(z1);
+  const fromXY = from.map(onScreen), toXY = to.map(onScreen), start = performance.now(), run = ++layer._morphRun;
+  const frame = () => {
+    const u = Math.min(1, (performance.now() - start) / SETTLE_MS), k = 1 - (1 - u) ** 3;   // ease out
+    drawMorph(layer, r0 + (r1 - r0) * k, [[from, 1 - k, (c, i) => fromXY[i]], [to, k, (c, i) => toXY[i]]]);
+    layer._morphFrame = u < 1 ? requestAnimationFrame(frame) : (endMorph(layer), 0);
+  };
+  frame();
+  // Frames pause in a background tab, which would leave the half-way picture up: finish anyway
+  setTimeout(() => { if (layer._morphRun === run) endMorph(layer); }, SETTLE_MS + 300);
+}
+function endMorph(layer) {
+  layer._morphRun = (layer._morphRun || 0) + 1;
+  layer._morphFrom = undefined;
+  cancelAnimationFrame(layer._morphFrame);
+  if (layer._morph?.parentNode) {
+    layer._morph.remove();
+    if (layer._stale) { layer._stale = false; layer._redraw(); }   // in the same frame, so the swap doesn't show
+  }
   layer._canvas.style.visibility = "";
 }
 // The colours come from --ramp-1..5, so the map and its legend always match the theme. Below the first stop the
