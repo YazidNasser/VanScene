@@ -22,6 +22,7 @@
   --bar-bg: #ebe8e0;
   --hover: color-mix(in srgb, var(--ink) 14%, transparent);   /* a clear ink tint under the pointer, in either theme */
   /* The frosted header and panels: their tint, their edge, and the see-through fills inside them */
+  --search-bg: #fff;
   --glass: rgba(255, 255, 255, 0.8); --glass-edge: rgba(28, 37, 45, 0.08);
   --glass-fill: rgba(28, 37, 45, 0.05); --glass-fill-2: rgba(28, 37, 45, 0.09);
   /* Heat map colours, fewest to most, the same in both themes: green through yellow and orange to a solid red where
@@ -49,6 +50,7 @@
   --page: #141a26; --surface: #1a2130; --surface-2: #232b3b;
   --sea: #e6ebf1; --sea-soft: #2c3546; --on-sea: #141a26; --ring: #e6ebf1; --on-ring: #141a26; --circle: var(--ring);
   --bar-bg: #2c3546; --map-bg: #2c333d;
+  --search-bg: #313b50;
   --glass: rgba(26, 33, 48, 0.78); --glass-edge: rgba(230, 235, 241, 0.08);
   --glass-fill: rgba(230, 235, 241, 0.06); --glass-fill-2: rgba(230, 235, 241, 0.11);
   --status-bg: rgba(28, 33, 41, 0.92);
@@ -85,10 +87,22 @@ a { color: var(--sea); }
 .brand h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; white-space: nowrap; }
 .head-search { flex: 1; min-width: 0; display: flex; justify-content: center; }
 .head-search .search { flex: 0 1 420px; height: 38px; }
+/* The header search and the crime-type picker are solid fields that sit up off the glass with a soft shadow, so they
+   read as the places to start, and lift a little more under the pointer */
+.head-search .search, .panel .picker { background: var(--search-bg); border-color: var(--line); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 14px rgba(0, 0, 0, 0.08);
+  transition: background-color 0.3s, color 0.3s, border-color 0.2s, box-shadow 0.2s; }
+.head-search .search svg, .panel .picker svg { color: var(--ink); }
+.head-search .search:hover, .panel .picker:hover { border-color: var(--sea); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 20px rgba(0, 0, 0, 0.12); }
 .views { flex: none; display: flex; gap: 2px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
 .views button { border: 0; background: transparent; border-radius: 7px; padding: 6px 14px; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
 .views button svg { width: 16px; height: 16px; }
 .views button[aria-pressed="true"] { background: var(--ink); color: var(--surface); font-weight: 700; }
+/* Under the pointer a view lights up and its icon hops up a touch (pointer devices only, so taps don't leave it stuck) */
+.views button svg { transition: transform 0.25s var(--ease); }
+@media (hover: hover) {
+  .views button:not([aria-pressed="true"]):hover { color: var(--ink); background: var(--hover); }
+  .views button:hover svg { transform: translateY(-1.5px) scale(1.12); }
+}
 .theme-toggle { flex: none; display: grid; place-items: center; width: 36px; height: 36px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; cursor: pointer; }
 .theme-toggle:hover { border-color: var(--sea); }
 .theme-toggle svg { width: 16px; height: 16px; }
@@ -152,7 +166,8 @@ a { color: var(--sea); }
 .panel { position: absolute; z-index: 10; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
 /* --top is how far the header reaches over the map: nothing on phones, where the header sits above it */
 .app { --top: 0px; }
-.filters { top: 16px; left: 16px; max-height: calc(100% - 32px); width: 312px; padding: 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
+body { --side-w: 312px; }   /* the filter panel's width, which the header's bottom edge makes room for */
+.filters { top: 16px; left: 16px; max-height: calc(100% - 32px); width: var(--side-w); padding: 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
 /* Wider screens: the map runs under the header, and the header and every panel are one frosted material, like
    Apple Maps', so they read as a single layer over the map, whose colours show softly through. Fills inside
    are see-through tints of the ink, and hints use the secondary grey, so text keeps 4.5:1 even over the brightest heat */
@@ -165,7 +180,11 @@ a { color: var(--sea); }
     --surface-2: var(--glass-fill); --bar-bg: var(--glass-fill-2); --faint: var(--muted); }
   /* Light theme: the glass lets the darkest heat through, so the grey and accent are a step deeper to keep 4.5:1 over it */
   :root:not([data-theme="dark"]) :is(.site-head, .panel) { --muted: #48525c; --sea: #155a96; }
-  .site-head { position: absolute; top: 0; left: 0; right: 0; }
+  .site-head { position: absolute; top: 0; left: 0; right: 0; border-bottom: 0; }
+  /* The header's bottom edge stops where the open drawer starts, so the two read as one sheet of glass; it runs
+     the whole width again as the drawer slides away */
+  .site-head::after { content: ""; position: absolute; left: var(--side-w); right: 0; bottom: 0; border-bottom: 1px solid var(--glass-edge); transition: left 0.25s ease-in-out; }
+  body.side-hidden .site-head::after { left: 0; }
   .site-head .theme-toggle { background: transparent; }
   /* The filters are a drawer docked to the left edge, flush under the header: as tall as their content, rounded only
      at the free corner. The header's sidebar button (or the name) slides it away to give the map the whole width */
@@ -199,6 +218,11 @@ a { color: var(--sea); }
 .suggest { position: absolute; z-index: 40; top: calc(100% + 6px); left: -1px; right: -1px; margin: 0; padding: 4px; list-style: none;
   max-height: min(320px, 60vh); overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
+/* Both lists (this one and the crime types) drop in from just under their box and fade, and fade back out on close.
+   display is animated too, so the hidden attribute waits for the fade; browsers without that just skip the close fade */
+.suggest { transform-origin: top; transition: opacity 0.18s var(--ease), transform 0.22s var(--ease), display 0.22s allow-discrete; }
+.suggest[hidden] { display: none; opacity: 0; transform: translateY(-6px) scale(0.98); }
+@starting-style { .suggest:not([hidden]) { opacity: 0; transform: translateY(-6px) scale(0.98); } }
 .suggest li { padding: 8px 10px; border-radius: 7px; font-size: 0.92rem; cursor: pointer; }
 .suggest li:hover, .suggest li[aria-selected="true"] { background: var(--surface-2); }
 .filters-btn { display: none; }
@@ -421,7 +445,7 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
 
 /* Medium screens: slimmer panels */
 @media (max-width: 1150px) {
-  .filters { width: 288px; }
+  body { --side-w: 288px; }
   /* Inter sets a little wider than a narrow card's columns allow: "Overnight" and the tiles' figures */
   .day-track > button:not(.all) { font-size: 0.78rem; }
   .tiles p:nth-child(2) { font-size: 0.94rem; }
