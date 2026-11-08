@@ -1992,7 +1992,6 @@ try { setRail(localStorage.getItem("rail") === "on"); } catch (e) {}
 
 function syncThemeButton() {
   const label = isDark() ? "Switch to light mode" : "Switch to dark mode";
-  $("theme-toggle").title = label;
   $("theme-toggle").setAttribute("aria-label", label);
 }
 $("theme-toggle").addEventListener("click", () => {
