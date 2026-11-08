@@ -43,7 +43,7 @@ OUT = REPO_ROOT / "web" / "data.json"
 
 FIRST_YEAR = 2016   # the app's data starts here
 URL = "https://geodash.vpd.ca/opendata/crimedata_download/AllNeighbourhoods_{year}/crimedata_csv_AllNeighbourhoods_{year}.zip"
-USER_AGENT = "VanScene weekly data refresh (+https://github.com/YazidNasser/Datathon-Project)"
+USER_AGENT = "VanScene weekly data refresh (+https://github.com/YazidNasser/VanScene)"
 MAX_DROP = 0.05     # more than 5% fewer incidents than before is treated as a bad download
 
 
