@@ -183,7 +183,7 @@ a { color: var(--sea); }
   /* The header's bottom edge stops where the open drawer starts, so the two read as one sheet of glass; it runs
      the whole width again as the drawer slides away */
   .site-head::after { content: ""; position: absolute; left: var(--side-w); right: 0; bottom: 0; border-bottom: 1px solid var(--glass-edge); transition: left 0.25s ease-in-out; }
-  body.side-hidden .site-head::after { left: var(--rail-w); }
+  body.side-hidden .site-head::after { left: 0; }
   .site-head .theme-toggle { background: transparent; }
   /* The filters are a drawer docked to the left edge, flush under the header: as tall as their content, rounded only
      at the free corner. The header's sidebar button (or the name) slides it away to give the map the whole width */
@@ -195,19 +195,16 @@ a { color: var(--sea); }
   /* The name folds away into the mark as the drawer goes, and unfolds as it comes back */
   .wm-text { transition: max-width 0.25s ease-in-out, margin-left 0.25s ease-in-out, opacity 0.2s ease-in-out; }
   body.side-hidden .wm-text { max-width: 0; margin-left: 0; opacity: 0; }
-  /* With the filters away, the views leave the header for a slim rail down the left edge, sliding in as the drawer
-     slides out. The header's views only fade, so the search beside them stays put */
-  body { --rail-w: 60px; }
-  .rail { display: flex; flex-direction: column; align-items: center; gap: 8px; top: var(--top); left: 0; bottom: 0; width: var(--rail-w); padding: 12px 0;
-    border-width: 0 1px 0 0; border-radius: 0; transform: translateX(calc(-100% - 2px)); visibility: hidden; transition: transform 0.25s ease-in-out, visibility 0.25s; }
-  body.side-hidden .rail { transform: none; visibility: visible; }
-  .rail button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--glass-fill); color: var(--muted); cursor: pointer;
+  /* The views' rail runs down the right edge under the header. The map stops at its edge, so the panels, zoom buttons,
+     credits and notes all keep their places beside it without each needing to know the rail is there */
+  .app { margin-right: 60px; }
+  .rail { display: flex; flex-direction: column; align-items: center; gap: 8px; position: absolute; z-index: 10; top: 58px; right: 0; bottom: 0; width: 60px; padding: 12px 0;
+    background: var(--surface); border-left: 1px solid var(--line); }
+  .rail button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--muted); cursor: pointer;
     transition: background-color 0.2s, color 0.2s, transform 0.12s; }
   .rail button svg { width: 18px; height: 18px; transition: transform 0.25s var(--ease); }
   .rail button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
   .rail button:active { transform: scale(0.94); }
-  .views { transition: opacity 0.25s ease-in-out, visibility 0.25s; }
-  body.side-hidden .views { opacity: 0; visibility: hidden; }
   /* Solid where the browser can't blur, or the person has asked for less transparency */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .site-head, .panel { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .site-head, .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
