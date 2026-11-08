@@ -103,9 +103,11 @@ map.getPane("labels").style.zIndex = 395;        // above the heat (390), below 
 map.getPane("labels").style.pointerEvents = "none";
 const MAP_COLOURS = {
   light: { land: "#f5f3ee", built: "#efece6", building: "#e5e1d8", park: "#cbe7bd", water: "#9ecff2", road: "#ffffff",
-    casing: "#e0dbcf", highway: "#f6d27c", rail: "#d6d1c7", text: "#4f5a64", halo: "#ffffff", waterText: "#3d6c9a", parkText: "#3c7f37" },
+    casing: "#e0dbcf", highway: "#f6d27c", rail: "#d6d1c7", text: "#323b44", halo: "rgba(245, 243, 238, 0.8)", waterText: "#3d6c9a", parkText: "#3c7f37",
+    district: "#5d6670", city: "#1c252d" },
   dark: { land: "#2c333d", built: "#2f3640", building: "#363e49", park: "#1e5d55", water: "#1d2c76", road: "#4b5668",
-    casing: "#2c333d", highway: "#7c8aa3", rail: "#3a4351", text: "#cfd6df", halo: "#20262e", waterText: "#93a6e6", parkText: "#74d38f" },
+    casing: "#2c333d", highway: "#7c8aa3", rail: "#3a4351", text: "#e6ebf1", halo: "rgba(36, 42, 51, 0.8)", waterText: "#93a6e6", parkText: "#74d38f",
+    district: "#aab3bf", city: "#f3f5f8" },
 };
 const OFM = "https://tiles.openfreemap.org/styles/positron";
 let ofmStyle = null;   // OpenFreeMap's Positron style, which mapStyle() recolours for the theme
@@ -118,6 +120,9 @@ const PAINT = [
   [/^railway/, "line-color", "rail"],
   [/water_name/, "text-color", "waterText"], [/highway-name-(minor|major)|label_(city|town)$/, "text-color", "text"],
 ];
+// Every label's outline, as Apple Maps draws it: thin, soft and close to the land colour, so letters lift off busy
+// ground without looking stickered on
+const halo = (c) => ({ "text-halo-color": c.halo, "text-halo-width": 1, "text-halo-blur": 0.6 });
 function mapStyle(labels) {
   const c = MAP_COLOURS[isDark() ? "dark" : "light"];
   const layers = [];
@@ -125,7 +130,8 @@ function mapStyle(labels) {
     const rule = PAINT.find(([re]) => re.test(l.id));
     if (!rule || (l.type === "symbol") !== labels) continue;
     const paint = { ...l.paint, [rule[1]]: c[rule[2]] };
-    if (l.type === "symbol") Object.assign(paint, { "text-halo-color": c.halo, "text-halo-width": 1.4, "text-halo-blur": 0.5 });
+    // Full-strength text (the style fades some names), so street names stay readable over the heat
+    if (l.type === "symbol") Object.assign(paint, { "text-opacity": 1, ...halo(c) });
     if (l.id === "building") paint["fill-outline-color"] = c.building;
     const layer = { ...l, paint };
     // Neighbouring cities named large, as Apple Maps does; Vancouver itself is left out, since our neighbourhood names fill it
@@ -133,10 +139,11 @@ function mapStyle(labels) {
       layer.filter = ["all", l.filter, ["!=", ["get", "name"], "Vancouver"]];
       layer.layout = { ...l.layout, "text-size": 17, "text-font": ["Noto Sans Bold"] };
     }
-    // Main streets named from city zoom in small spaced capitals, as Apple Maps names its arterials
+    // Main streets named from city zoom in small capitals, as Apple Maps names its arterials: a regular weight and
+    // smaller than the bold, wider-spaced district names, so the two never read as the same kind of label
     if (l.id === "highway-name-major") {
-      layer.layout = { ...l.layout, "text-transform": "uppercase", "text-letter-spacing": 0.08,
-        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 9, 15, 11] };
+      layer.layout = { ...l.layout, "text-transform": "uppercase", "text-letter-spacing": 0.04,
+        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 9, 15, 10.5] };
     }
     layers.push(layer);
   }
@@ -146,12 +153,26 @@ function mapStyle(labels) {
   if (labels) {
     const parkName = (id, sourceLayer, filter, minzoom) => ({ id, type: "symbol", source: "openmaptiles", "source-layer": sourceLayer, minzoom, filter,
       layout: { "text-field": ["coalesce", ["get", "name_en"], ["get", "name"]], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-max-width": 7 },
-      paint: { "text-color": c.parkText, "text-halo-color": c.halo, "text-halo-width": 1.4, "text-halo-blur": 0.5 } });
+      paint: { "text-color": c.parkText, ...halo(c) } });
     layers.push(parkName("park-name-big", "park", ["all", ["==", ["geometry-type"], "Point"], ["!=", ["get", "name"], "Stanley Park"]], 9));
     layers.push(parkName("park-name", "poi", ["==", ["get", "class"], "park"], 13));
   }
+  // Our neighbourhood names and the city's name, last so MapLibre places them first: every label on the map is then
+  // placed by one system, and a street or park name that would collide with one of them is the one left out.
+  // Both go at street zoom (MapLibre zoom 14 = Leaflet zoom 15), where street and park names take over
+  if (labels && hoodNames) {
+    const named = (id, filter, layout, color) => ({ id, type: "symbol", source: "hoods", maxzoom: 14, filter,
+      layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Bold"], ...layout },
+      paint: { "text-color": color, ...halo(c) } });
+    layers.push(named("hood-names", ["!", ["has", "city"]], { "text-size": 11, "text-transform": "uppercase", "text-letter-spacing": 0.12,
+      "text-max-width": 7, "text-padding": 4, "symbol-sort-key": ["get", "rank"] }, c.district));
+    // As Apple Maps sets it: large and bold at a fixed size, so it stays big while the map zooms in around it
+    layers.push(named("city-name", ["has", "city"], { "text-size": 28, "text-letter-spacing": -0.01 }, c.city));
+    return { ...ofmStyle, sources: { ...ofmStyle.sources, hoods: { type: "geojson", data: hoodNames } }, layers };
+  }
   return { ...ofmStyle, layers };
 }
+let hoodNames = null;   // GeoJSON of the neighbourhood names, made once the data has loaded
 const emptyStyle = { version: 8, sources: {}, layers: [] };
 const ofmCredit = '&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 // If MapLibre or the style can't be fetched, fall back to plain OpenStreetMap tiles, greyed out, so there's always a map
@@ -170,22 +191,6 @@ if (glBase) {
     .then((s) => { ofmStyle = s; paintBasemap(); })
     .catch(() => { map.removeLayer(glBase); map.removeLayer(glLabels); osmFallback(); });
 } else osmFallback();
-// Less detail far out, more close in: neighbourhood names give way to street names at street zoom
-const hoodMarkers = [];
-function syncLabelDetail() {
-  map.getContainer().classList.toggle("street-zoom", map.getZoom() >= 15);
-  // Like Apple Maps, a name that would overlap one already placed is left out until there's room (shorter names first)
-  const placed = [];
-  for (const m of hoodMarkers) {
-    const el = m.getElement()?.firstElementChild;
-    if (!el) continue;
-    el.style.visibility = "";
-    const r = el.getBoundingClientRect();
-    if (placed.some((p) => r.left < p.right + 6 && r.right + 6 > p.left && r.top < p.bottom + 3 && r.bottom + 3 > p.top)) el.style.visibility = "hidden";
-    else placed.push(r);
-  }
-}
-map.on("zoomend", syncLabelDetail);
 
 // ---------------------------------------------------------------------
 // Step 1b: lighter colour where our data covers, darker everywhere else
@@ -1619,21 +1624,19 @@ async function start() {
   }
   $("status").classList.remove("show");
   addCoverageMask(state.data.points);
-  // Neighbourhood names in the page's own type, on the label layer above the heat (the basemap leaves them out at city zoom)
-  // Busiest first (reports within about 1 km of each centre), so where names would collide the busier area keeps its name
+  // Neighbourhood names for the map's label layer (see mapStyle), ranked busiest first by reports within about 1 km of
+  // each centre, so where names would collide the busier area keeps its name. The city's own name sits in the open
+  // space between Fairview, Mount Pleasant and Shaughnessy, roughly where Apple Maps puts it
   const busy = new Map(state.data.neighbourhoods.map((h) => [h, 0]));
   for (const p of state.data.points) {
     for (const h of busy.keys()) if (Math.abs(p[0] - h.lat) < 0.009 && Math.abs(p[1] - h.lng) < 0.014) busy.set(h, busy.get(h) + 1);
   }
-  // The city's own name, as Apple Maps sets it: large and bold at a fixed size, so it stays big while the map zooms in
-  // around it, until street zoom hides it. Placed first, so neighbourhood names give way to it rather than the reverse
-  const city = L.divIcon({ className: "hood-label city-label", html: "<span>Vancouver</span>", iconSize: [0, 0] });
-  hoodMarkers.push(L.marker([49.2555, -123.123], { icon: city, pane: "labels", interactive: false, keyboard: false }).addTo(map));
-  for (const h of [...busy.keys()].sort((a, b) => busy.get(b) - busy.get(a))) {
-    const icon = L.divIcon({ className: "hood-label", html: `<span>${h.name}</span>`, iconSize: [0, 0] });
-    hoodMarkers.push(L.marker([h.lat, h.lng], { icon, pane: "labels", interactive: false, keyboard: false }).addTo(map));
-  }
-  syncLabelDetail();
+  const point = (lat, lng, properties) => ({ type: "Feature", geometry: { type: "Point", coordinates: [lng, lat] }, properties });
+  hoodNames = { type: "FeatureCollection", features: [
+    point(49.2555, -123.123, { name: "Vancouver", city: true }),
+    ...[...busy.keys()].sort((a, b) => busy.get(b) - busy.get(a)).map((h, rank) => point(h.lat, h.lng, { name: h.name, rank })),
+  ] };
+  if (ofmStyle) glLabels.getMaplibreMap().setStyle(mapStyle(true), { diff: false });   // else paintBasemap() adds them once the style arrives
   buildControls();
   const linked = readUrl();
   buildPeriods();
