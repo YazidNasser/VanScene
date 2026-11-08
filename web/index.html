@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>VanScene</title>
   <meta name="description" content="See where and when crime is reported in Vancouver, in plain language. Built from VPD open data.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%2212 12 232 232%22%3E%3Cstyle%3E.b{fill:#1c252d}@media (prefers-color-scheme:dark){.b{fill:#e6ebf1}}%3C/style%3E%3Cpath class=%22b%22 d=%22M54.57 48.81A108 108 0 1 0 201.43 48.81L128 176Z%22/%3E%3Cpath fill=%22#d9607e%22 d=%22M128 95.98L88.46 27.5A108 108 0 0 1 167.54 27.5Z%22/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%2212 12 232 232%22%3E%3Cstyle%3Epath{fill:%231c252d}@media (prefers-color-scheme:dark){path{fill:%23e6ebf1}}%3C/style%3E%3Cpath d=%22M24 36L104 57.4L122 216L104 216ZM232 36L152 57.4L134 216L152 216Z%22/%3E%3C/svg%3E">
   <script>
     // Pick light or dark before the page draws so it doesn't flash: the saved choice, else the device setting
     (function () {
@@ -27,8 +27,8 @@
 </head>
 <body>
   <header class="site-head">
-    <!-- The name's first letter is the mark: a V whose point is a map pin, holding a hotspot that heats up and cools down -->
-    <div class="brand"><h1><span class="sr-only">VanScene</span><button type="button" class="wordmark brand-btn" id="brand-btn" aria-hidden="true" tabindex="-1"><svg class="mark" viewBox="12 12 232 232"><defs><filter id="mark-glow" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="16"/></filter></defs><path class="v" d="M54.57 48.81A108 108 0 1 0 201.43 48.81L128 176Z"/><path class="glow" d="M128 95.98L88.46 27.5A108 108 0 0 1 167.54 27.5Z"/><path class="spot" d="M128 95.98L88.46 27.5A108 108 0 0 1 167.54 27.5Z"/></svg><span class="wm-text">VanScene</span></button></h1></div>
+    <!-- The name's first letter is the mark: a V of two map panels meeting at a crease -->
+    <div class="brand"><h1><span class="sr-only">VanScene</span><button type="button" class="wordmark brand-btn" id="brand-btn" aria-hidden="true" tabindex="-1"><svg class="mark" viewBox="12 12 232 232"><path class="v" d="M24 36L104 57.4L122 216L104 216ZM232 36L152 57.4L134 216L152 216Z"/></svg><span class="wm-text">VanScene</span></button></h1></div>
     <button type="button" class="side-toggle" id="side-toggle" aria-controls="filters" aria-expanded="true" aria-label="Hide filters" title="Hide filters">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9.5 4v16"/></svg>
     </button>
