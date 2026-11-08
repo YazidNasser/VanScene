@@ -86,10 +86,59 @@ const map = L.map("map", {
   minZoom: CONFIG.minZoom, maxZoom: CONFIG.maxZoom, zoomControl: false,
   // Quarter steps: whole steps made the opening view round down to half size whenever the city
   // didn't quite fit at the next level, and made each scroll a jarring jump
-  zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 100,
+  zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 160,   // a quarter step per mouse-wheel notch
+  scrollWheelZoom: false,   // our own wheel zoom below
   // Leaflet's fling has no top speed, so a quick swipe kept gliding for ten seconds or more; this caps it near two
   inertiaMaxSpeed: 1500,
 }).setView(CONFIG.center, CONFIG.zoom);
+
+// Zooming glides. Leaflet zooms in fixed 0.25 s steps by stretching a picture of the old view, so street names grew
+// or shrank and then snapped to size, and a wheel spin queued up jumps. Instead the wheel, the +/- buttons,
+// double-click, the keyboard and every animated setView or fitBounds move the map a little each frame towards
+// where it's heading, the way a touch pinch does: MapLibre redraws the streets and names at their real size
+// (the bridge's pinch path), the heat moves with them and settles once they stop (see glideHeat), and more
+// scrolling just moves the target on, so the zoom follows the wheel without steps
+const GLIDE_MS = 70;   // how fast the zoom closes in on its target: a half step settles in ~0.3 s
+let glide = null;      // { at: the screen point that stays put, ll: the place under it, target: zoom, stopped, t }
+map._tryAnimatedZoom = function (center, zoom, options = {}) {
+  const z0 = this._zoom, s = this.getZoomScale(zoom, z0);
+  if (options.animate === false || reduceMotion || Math.abs(s - 1) < 1e-3
+      || Math.abs(zoom - z0) > this.options.zoomAnimationThreshold) return false;   // Leaflet jumps there
+  // The one point that sits at the same place on screen before and after, so the zoom happens around it
+  const shift = this.project(center, z0).subtract(this.project(this.getCenter(), z0));
+  const at = this.getSize().divideBy(2).add(shift.divideBy(1 - 1 / s));
+  if (!glide) { glide = { t: performance.now() }; this._moveStart(true, false); requestAnimationFrame(glideFrame); }
+  Object.assign(glide, { at, ll: this.containerPointToLatLng(at), target: zoom, stopped: false });
+  return true;
+};
+function glideFrame(now) {
+  const g = glide, dt = Math.min(Math.max(now - g.t, 0), 50);   // capped, so a stalled frame doesn't leap
+  g.t = now;
+  if (g.stopped) { glide = null; map._moveEnd(true); return; }   // left where the drag or jump put it
+  let z = g.target + (map._zoom - g.target) * Math.exp(-dt / GLIDE_MS);
+  const done = Math.abs(z - g.target) < 0.01;   // the last hundredth of a step is too small to see
+  if (done) z = g.target;
+  // The centre that keeps g.ll under g.at at zoom z
+  const c = map.unproject(map.project(g.ll, z).subtract(g.at).add(map.getSize().divideBy(2)), z);
+  if (!done) { map._move(c, z, { pinch: true, glide: true }); requestAnimationFrame(glideFrame); return; }
+  glide = null;
+  map._move(c, z)._moveEnd(true);
+}
+// A drag or another move stops the glide where it is (setView carries it on, by calling _tryAnimatedZoom straight after)
+const leafletStop = map._stop;
+map._stop = function () { if (glide) glide.stopped = true; return leafletStop.call(this); };
+// The wheel moves a target zoom, in quarter steps around the pointer (shortcut: no faster rate for trackpad pinches,
+// add one if they feel slow)
+let wheelZoom = 0;
+L.DomEvent.on(map.getContainer(), "wheel", (e) => {
+  L.DomEvent.preventDefault(e);
+  if (!glide || Math.abs(wheelZoom - glide.target) > 0.13) wheelZoom = glide ? glide.target : map.getZoom();
+  wheelZoom = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), wheelZoom + L.DomEvent.getWheelDelta(e) / map.options.wheelPxPerZoomLevel));
+  map.setZoomAround(map.mouseEventToContainerPoint(e), map._limitZoom(wheelZoom));
+});
+// The basemap bridge sizes MapLibre at 1.2 × the map, which is a fraction of a pixel on many window widths: MapLibre
+// then took it for a resize and cleared its picture after every move
+L.MaplibreGL && (L.MaplibreGL.prototype.getSize = function () { return this._map.getSize().multiplyBy(1 + 2 * this.options.padding).round(); });
 // Only the credits the licences require (see ofmCredit); Leaflet's own "Leaflet" link is optional
 map.attributionControl.setPrefix(false).setPosition("bottomleft");   // its own corner: see the styles
 // Keeps people near Vancouver, with room to slide any part of the city out from behind the side panels
@@ -504,6 +553,7 @@ function startMorph(layer, e) {
 // passes a quarter zoom (the steps cellsAt works in), drawn as it goes
 map.on("zoom", (e) => {
   if (!e.pinch || reduceMotion || !heatSpots.length) return;
+  if (e.glide) return glideHeat(heat);
   cancelAnimationFrame(heat._morphFrame);
   heat._morphRun = (heat._morphRun || 0) + 1;
   heat._morphFrame = requestAnimationFrame(() => {
@@ -513,6 +563,22 @@ map.on("zoom", (e) => {
   });
 });
 const quarterZoom = (z) => Math.round(z * 4) / 4;
+// A glide (see the top) moves the map every frame, and a heat frame takes ~20 ms, which made the whole zoom judder.
+// So its first frame is drawn once and then moved and scaled with the streets, as a picture; once the map stops,
+// zoomStopped eases it into the new zoom's detail as usual
+function glideHeat(layer) {
+  if (!layer._step?.glide || !layer._morph?.parentNode) {
+    cancelAnimationFrame(layer._morphFrame);
+    layer._morphRun = (layer._morphRun || 0) + 1;
+    const z = map.getZoom();
+    beginStep(layer, quarterZoom(z), z).glide = true;
+    drawStep(layer, 1, liveSpots(layer));
+    layer._glideFrom = [map.containerPointToLatLng([0, 0]), z];   // where the picture's top-left corner was drawn
+    layer._morph.style.transformOrigin = "0 0";
+  }
+  const [ll, z] = layer._glideFrom;
+  L.DomUtil.setTransform(layer._morph, map.latLngToLayerPoint(ll), map.getZoomScale(map.getZoom(), z));
+}
 // The map has stopped (from _reset, just after the full redraw underneath, which waits for these frames to end):
 // finish settling where everything now is
 function zoomStopped(layer) {
@@ -520,6 +586,7 @@ function zoomStopped(layer) {
   if (!m || !layer._morph?.parentNode) return endMorph(layer);
   cancelAnimationFrame(layer._morphFrame);
   m.target = layer._zoom;   // the same, unless a pinch let go between quarter steps
+  if (m.glide) m.start = performance.now();   // the glide only moved the picture: settle from it, not part-way
   const run = layer._morphRun, live = liveSpots(layer), sEnd = map.getZoomScale(layer._zoom, m.zNow);
   const frame = () => {
     if (drawStep(layer, sEnd, live) >= 1) return endMorph(layer);
