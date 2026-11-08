@@ -174,7 +174,7 @@ Built by **Crimes Against Humanity** for the Build Trilemma Datathon 2026. The [
 
 <br>
 
-- **The map:** clearer colours and labels, a green-to-red heat map redrawn live as you zoom so hotspots split and merge, and a calm dark mode.
+- **The map:** clearer colours and labels, smooth zooming that follows the scroll wheel, a green-to-red heat map that redraws as you zoom so hotspots split and merge, and a calm dark mode.
 - **The look:** a frosted sidebar that slides away, the Fold logo, and raised search and filter fields.
 - **Phones:** views in a bottom bar, 44 px touch targets, and both Compare areas kept clear of the panels.
 - **Clearer charts:** 2026 drawn at its full-year pace, time-of-day shares that add up to 100%, and the busiest day and hour in words.
