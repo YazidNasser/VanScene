@@ -5,6 +5,9 @@ on:
     # Sundays at 19:00 UTC: noon in Vancouver in summer, 11 am in winter.
     # VPD republishes GeoDASH on Sunday mornings (about 10:15 am Vancouver time), so this runs after that.
     - cron: "0 19 * * 0"
+    # A backup on Tuesdays: GitHub can start a scheduled run hours late or skip it, and VPD asks that our copy is never
+    # more than 7 days old. When Sunday's run already got the data, this one finds no change and commits nothing.
+    - cron: "0 19 * * 2"
   workflow_dispatch:   # also lets you run it by hand from the Actions tab
     inputs:
       force:
