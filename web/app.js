@@ -1493,11 +1493,13 @@ function compareInsight(A, B, rows) {
   return `<div class="tip">${ICON_INFO}<span>${parts.join(" ")}</span></div>`;
 }
 
+// Compare and Trends close back to the map view with their own close button
+const closeView = (what) => `<button type="button" class="x" data-action="open-map" aria-label="Close ${what}">${ICON_X}</button>`;
 function renderCompare() {
   const A = state.a && areaStats(state.a), B = state.b && areaStats(state.b), rows = compareRows(A, B);
   $("compare").innerHTML = `${sheetHandle}
-    <div class="cmp-head"><div><h2>Compare two areas</h2>
-      <p>Within ${CONFIG.radiusMeters} m of each spot, ${periodLabel()} · ${filterLine()}.</p></div>
+    <div class="cmp-head"><div class="card-head"><div><h2>Compare two areas</h2>
+      <p>Within ${CONFIG.radiusMeters} m of each spot, ${periodLabel()} · ${filterLine()}.</p></div>${closeView("Compare")}</div>
       <div class="cmp-actions">
         <div class="slot-pick" role="group" aria-label="Which area a map click places"><span>Place</span>
           <button type="button" class="ab a" data-action="slot-a" aria-pressed="${state.nextSlot === "a"}">A</button><button type="button" class="ab b" data-action="slot-b" aria-pressed="${state.nextSlot === "b"}">B</button></div>
@@ -1516,7 +1518,7 @@ function weekday(y, m, d) {   // 0 = Sunday (Sakamoto's method)
 
 function renderTrends() {
   if (noYears()) {
-    $("trends").innerHTML = `${sheetHandle}<h2>Vancouver</h2><p class="sub">${filterLine()}.</p>${pickYear}`;
+    $("trends").innerHTML = `${sheetHandle}<div class="card-head"><div><h2>Vancouver</h2><p class="sub">${filterLine()}.</p></div>${closeView("Trends")}</div>${pickYear}`;
     return;
   }
   const perYear = new Map(), types = new Map(), hours = new Array(24).fill(0), days = new Array(7).fill(0);
@@ -1545,8 +1547,8 @@ function renderTrends() {
   }
 
   $("trends").innerHTML = `${sheetHandle}
-    <h2>Vancouver ${periodLabel()}</h2>
-    <p class="sub">${filterLine()}. Click the map to add an area.</p>
+    <div class="card-head"><div><h2>Vancouver ${periodLabel()}</h2>
+      <p class="sub">${filterLine()}. Click the map to add an area.</p></div>${closeView("Trends")}</div>
     ${trendMetrics({ total, before, perYear, top, hours, days })}
     <div class="tsec"><h3>Year by year</h3>
       <div class="ybars" role="img" aria-label="${attr(yearSummary(span, perYear, "Reports city-wide"))}">${span.map((y, i) => `<div>${missing.includes(y)
@@ -1654,7 +1656,7 @@ function setView(view) {
   panelScroll[state.view] = $(PANEL_FOR[state.view]).scrollTop;   // remember the panel you're leaving
   state.view = view;
   $("app").dataset.view = view;
-  for (const b of document.querySelectorAll(".views button")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
+  for (const b of document.querySelectorAll(".views button, .rail button")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
   if (view === "compare" && !state.a && state.selected) { state.a = state.selected; state.nextSlot = "b"; }
   syncCircles();
   enter($(PANEL_FOR[view]));
@@ -1925,7 +1927,7 @@ function showError(devHint) {
 }
 
 // Header buttons: views and theme
-for (const b of document.querySelectorAll(".views button")) {
+for (const b of document.querySelectorAll(".views button, .rail button")) {
   b.addEventListener("click", () => {
     if (!state.data) return;
     if (isPhone()) closeFilters();   // the open filters hide every view panel, so the tap would look like it did nothing
@@ -1972,6 +1974,17 @@ phoneQuery.addEventListener("change", () => setSidebar(!document.body.classList.
 let startOpen = true;
 try { startOpen = localStorage.getItem("sidebar") !== "hidden"; } catch (e) {}
 setSidebar(startOpen);
+// The rail button moves the views between the header and a slim rail down the right edge, in every view; remembered
+function setRail(on) {
+  document.body.classList.toggle("rail-on", on);
+  $("rail-toggle").setAttribute("aria-pressed", String(on));
+}
+$("rail-toggle").addEventListener("click", () => {
+  const on = !document.body.classList.contains("rail-on");
+  setRail(on);
+  try { localStorage.setItem("rail", on ? "on" : "off"); } catch (e) {}
+});
+try { setRail(localStorage.getItem("rail") === "on"); } catch (e) {}
 
 function syncThemeButton() {
   const label = isDark() ? "Switch to light mode" : "Switch to dark mode";

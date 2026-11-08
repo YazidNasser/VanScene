@@ -101,8 +101,8 @@ a { color: var(--sea); }
 /* Under the pointer a view lights up and its icon hops up a touch (pointer devices only, so taps don't leave it stuck) */
 .views button svg { transition: transform 0.25s var(--ease); }
 @media (hover: hover) {
-  .views button:not([aria-pressed="true"]):hover { color: var(--ink); background: var(--hover); }
-  .views button:hover svg { transform: translateY(-1.5px) scale(1.12); }
+  :is(.views, .rail) button:not([aria-pressed="true"]):hover { color: var(--ink); background: var(--hover); }
+  :is(.views, .rail) button:hover svg { transform: translateY(-1.5px) scale(1.12); }
 }
 .theme-toggle { flex: none; display: grid; place-items: center; width: 36px; height: 36px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; cursor: pointer; }
 .theme-toggle:hover { border-color: var(--sea); }
@@ -144,12 +144,19 @@ a { color: var(--sea); }
 /* Compare's and Trends' panels run down the right, so the zoom buttons move beside them
    (wider screens only: on phones the zoom buttons are hidden and these panels are bottom sheets) */
 @media (min-width: 761px) {
+  #map .leaflet-bottom { transition: right 0.25s ease-in-out; }   /* glides aside with the panels and the rail */
   .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 436px; }   /* the 420px panel + 16px gutter */
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 360px; }   /* an open area card: 344px + 16px */
+  /* With the right-edge rail in (see below), all of that steps a further 60px left */
+  body.rail-on .app[data-view="map"] #map .leaflet-bottom.leaflet-right { right: 60px; }
+  body.rail-on .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 496px; }
+  body.rail-on .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 420px; }
 }
 @media (min-width: 761px) and (max-width: 1150px) {
   .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 356px; }   /* the slimmer 340px panels */
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 316px; }   /* the slimmer 300px area card */
+  body.rail-on .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 416px; }
+  body.rail-on .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 376px; }
 }
 /* A soft shadow under the area circles rather than an outline, just enough to lift a thin ring off the heat */
 #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.7)); }   /* a pale edge lifts the grey ring off the heat */
@@ -164,6 +171,7 @@ a { color: var(--sea); }
 #map .ab-handle.placing { box-shadow: 0 0 0 4px color-mix(in srgb, var(--slot) 30%, transparent); }   /* a soft ring on the handle a click will move */
 #map .ab-handle.leaflet-drag-target, #map .ab-handle:active { cursor: grabbing; transform: scale(1.1); }
 
+.rail { display: none; }   /* wider screens only: phones keep the views in the bottom bar */
 .panel { position: absolute; z-index: 10; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
 .filters { top: 16px; left: 16px; max-height: calc(100% - 32px); width: var(--side-w); padding: 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
 /* Wider screens: the map runs under the header, and the header and every panel are one frosted material, like
@@ -181,7 +189,7 @@ a { color: var(--sea); }
   .site-head { position: absolute; top: 0; left: 0; right: 0; border-bottom: 0; }
   /* The header's bottom edge stops where the open drawer starts, so the two read as one sheet of glass; it runs
      the whole width again as the drawer slides away */
-  .site-head::after { content: ""; position: absolute; left: var(--side-w); right: 0; bottom: 0; border-bottom: 1px solid var(--glass-edge); transition: left 0.25s ease-in-out; }
+  .site-head::after { content: ""; position: absolute; left: var(--side-w); right: 0; bottom: 0; border-bottom: 1px solid var(--glass-edge); transition: left 0.25s ease-in-out, right 0.25s ease-in-out; }
   body.side-hidden .site-head::after { left: 0; }
   .site-head .theme-toggle { background: transparent; }
   /* The filters are a drawer docked to the left edge, flush under the header: as tall as their content, rounded only
@@ -194,6 +202,25 @@ a { color: var(--sea); }
   /* The name folds away into the mark as the drawer goes, and unfolds as it comes back */
   .wm-text { transition: max-width 0.25s ease-in-out, margin-left 0.25s ease-in-out, opacity 0.2s ease-in-out; }
   body.side-hidden .wm-text { max-width: 0; margin-left: 0; opacity: 0; }
+  /* The views' slim rail down the right edge, in every view while the header's rail button has it on (rail-on). While
+     it's in, the panels, zoom buttons and credits step left to clear it, and the header's views fade out so they're
+     never shown twice */
+  body { --rail-w: 60px; }
+  .rail { display: flex; flex-direction: column; align-items: center; gap: 8px; top: 58px; right: 0; bottom: 0; width: var(--rail-w); padding: 12px 0;
+    border-width: 0 0 0 1px; border-radius: 0; }
+  .panel.rail { transition: transform 0.25s ease-in-out, visibility 0.25s, background-color 0.3s, border-color 0.3s; }   /* beats .panel's own list */
+  body:not(.rail-on) .rail { transform: translateX(calc(100% + 2px)); visibility: hidden; }
+  .app :is(.area, .compare, .trends) { transition: right 0.25s ease-in-out, background-color 0.3s, color 0.3s, border-color 0.3s; }
+  body.rail-on :is(.area, .compare, .trends) { right: calc(var(--rail-w) + 16px); }
+  body.rail-on #map .leaflet-bottom.leaflet-left { right: var(--rail-w); }
+  .views { transition: opacity 0.25s ease-in-out, visibility 0.25s; }   /* only fades, so the search beside it stays put */
+  body.rail-on .views { opacity: 0; visibility: hidden; }
+  body.rail-on .site-head::after { right: var(--rail-w); }   /* header and rail meet as one sheet of glass */
+  .rail button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--muted); cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, transform 0.12s; }
+  .rail button svg { width: 18px; height: 18px; transition: transform 0.25s var(--ease); }
+  .rail button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  .rail button:active { transform: scale(0.94); }
   /* Solid where the browser can't blur, or the person has asked for less transparency */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .site-head, .panel { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .site-head, .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
@@ -345,6 +372,7 @@ details.about p { margin-top: 8px; }
 .cmp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .cmp-head h2 { font-size: 1rem; font-weight: 700; }
 .cmp-head p { font-size: 0.82rem; color: var(--muted); }
+.cmp-head > .card-head { flex: 1 1 100%; }   /* the title and its close button take the whole first line */
 .cmp-actions { display: flex; align-items: center; gap: 6px; }
 .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 12px; font-size: 0.82rem; cursor: pointer; }
 .btn:hover { border-color: var(--sea); }
