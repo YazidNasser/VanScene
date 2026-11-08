@@ -195,7 +195,7 @@ a { color: var(--sea); }
   /* The name folds away into the mark as the drawer goes, and unfolds as it comes back */
   .wm-text { transition: max-width 0.25s ease-in-out, margin-left 0.25s ease-in-out, opacity 0.2s ease-in-out; }
   body.side-hidden .wm-text { max-width: 0; margin-left: 0; opacity: 0; }
-  /* While Compare or Trends is open, the views also show as a slim rail down the right edge, sliding in with the panel
+  /* While Compare or Trends is open, the views show as a slim rail down the right edge, sliding in with the panel
      and away again on the plain map; the panel, zoom buttons and credits step left to clear it */
   body { --rail-w: 60px; }
   .rail { display: flex; flex-direction: column; align-items: center; gap: 8px; top: 58px; right: 0; bottom: 0; width: var(--rail-w); padding: 12px 0;
@@ -203,6 +203,10 @@ a { color: var(--sea); }
   .app[data-view="map"] ~ .rail { transform: translateX(calc(100% + 2px)); visibility: hidden; }
   .app:not([data-view="map"]) :is(.compare, .trends) { right: calc(var(--rail-w) + 16px); }
   .app:not([data-view="map"]) #map .leaflet-bottom.leaflet-left { right: var(--rail-w); }
+  /* The rail takes over from the header's views rather than repeating them: those fade out while it's in, and back
+     when it leaves. They only fade, so the search beside them stays put */
+  .views { transition: opacity 0.25s ease-in-out, visibility 0.25s; }
+  body:has(.app:not([data-view="map"])) .views { opacity: 0; visibility: hidden; }
   .rail button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--muted); cursor: pointer;
     transition: background-color 0.2s, color 0.2s, transform 0.12s; }
   .rail button svg { width: 18px; height: 18px; transition: transform 0.25s var(--ease); }
