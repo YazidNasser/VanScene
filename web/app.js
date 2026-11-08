@@ -417,8 +417,9 @@ function fadeHeat() {
   setTimeout(() => snap.remove(), 600);
 }
 
-// Circles for the clicked area (Map view) and the two areas (Compare view)
-const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 3, fillOpacity: 0.06, interactive: false });
+// Circles for the clicked area (Map view) and the two areas (Compare view): the true 500 m edge, drawn faint so the
+// handle at the centre is what reads first
+const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 1.5, opacity: 0.6, fillOpacity: 0.04, interactive: false });
 const areaCircle = L.circle(CONFIG.center, circleStyle(cssVar("--ring")));
 // A pin at the clicked spot, so the selection reads at a glance as well as by its outline
 const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin", iconSize: [14, 14] }), interactive: false, keyboard: false });

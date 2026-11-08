@@ -2,7 +2,7 @@
    Colours: change these to restyle the whole page. Dark mode reuses the names.
    Taken from the basemap (MAP_COLOURS in app.js), so panels and map read as one: the map's slate label ink,
    its cream land for tiles and fills, a deeper shade of its water for the accent (the ink itself at night).
-   Areas A and B share one ring colour, gold by day and white at night, and are told apart by their letters
+   Areas A and B share one white ring colour and are told apart by their letters
    --------------------------------------------------------------------- */
 :root {
   --ink: #1c252d;          /* main text: the map's city-name ink */
@@ -15,7 +15,7 @@
   --sea: #1a67ab;          /* accent: the map's water, deepened to 5.9:1 on white; selected hours and years, links */
   --sea-soft: #e4eef8;
   --on-sea: #ffffff;       /* text on the accent colour */
-  --ring: #b7800c;         /* areas A and B on the map: a warm gold, like the map's highways deepened to read on its land */
+  --ring: #ffffff;         /* areas A and B on the map: white, edged by a soft shadow so it reads on the light land */
   --on-ring: #1c252d;      /* text on the ring colour */
   --b: var(--ring);        /* area B: the same colour as A, told apart by its letter */
   --bar-bg: #ebe8e0;
@@ -129,7 +129,7 @@ a { color: var(--sea); }
 #map .leaflet-control-scale-line { background: transparent; border: 2px solid var(--ink); border-top: 0; color: var(--ink); font-size: 0.72rem; font-weight: 600;
   line-height: 1.3; padding: 0 6px; text-shadow: 0 0 2px var(--surface), 0 0 2px var(--surface), 0 0 4px var(--surface); }
 /* The clicked spot: a pin in the accent, ringed in the surface colour so it reads over the heat */
-#map .area-pin { border-radius: 50%; background: var(--ring); border: 2px solid var(--surface); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
+#map .area-pin { border-radius: 50%; background: var(--ring); border: 2px solid var(--on-ring); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
 #map .leaflet-control-attribution { background: var(--surface); color: var(--muted); border-radius: 6px 0 0 0; padding: 2px 16px 2px 8px; }
 #map .leaflet-control-attribution a { color: var(--sea); }
 /* Lift the zoom buttons off the bottom-right corner: the earlier host (Netlify) floated a badge there over the page,
@@ -146,7 +146,7 @@ a { color: var(--sea); }
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 316px; }   /* the slimmer 300px area card */
 }
 /* A soft shadow under the area circles rather than an outline, just enough to lift a thin ring off the heat */
-#map .leaflet-overlay-pane path { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.7)); }
+#map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1.5px rgba(28, 37, 45, 0.5)); }   /* white rings need a dark edge on the light land */
 :root[data-theme="dark"] #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 3px rgba(10, 14, 20, 0.45)); }
 /* Area A's and B's colour, for the map handles and the "Place A | B" toggle */
 .ab-a, .slot-pick .ab.a { --slot: var(--ring); }
@@ -314,7 +314,7 @@ details.about p { margin-top: 8px; }
 .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .cmp { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; justify-items: start; }
 .cmp .who { display: flex; align-items: flex-start; gap: 8px; font-weight: 700; font-size: 0.9rem; line-height: 1.3; }
-.cmp .who b { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: var(--on-ring); font-size: 0.75rem; }
+.cmp .who b { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: var(--on-ring); font-size: 0.75rem; box-shadow: inset 0 0 0 1.5px var(--line); }   /* an edge, so a white badge shows on a white card */
 .cmp .big { font-size: 1.6rem; }
 .cmp .pill { margin-top: 0; font-size: 0.75rem; padding: 2px 8px; }
 /* A and B side by side, one row per crime type or part of the day */
@@ -335,7 +335,7 @@ button.cmp.empty:hover { border-color: var(--muted); }
 .slot-pick .ab { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; background: var(--surface-2); color: var(--muted);
   font-weight: 700; cursor: pointer; transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.12s; }
 .slot-pick .ab:active { transform: scale(0.94); }
-.slot-pick .ab[aria-pressed="true"] { background: var(--slot); color: var(--on-ring); }
+.slot-pick .ab[aria-pressed="true"] { background: var(--slot); color: var(--on-ring); border-color: var(--line); }
 .slot-pick .ab:not([aria-pressed="true"]):hover { border-color: var(--line); color: var(--ink); }
 
 /* ---------------- Trends ---------------- */
