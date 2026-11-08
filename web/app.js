@@ -603,7 +603,7 @@ const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin
 const circleA = L.circle(CONFIG.center, circleStyle(cssVar("--circle")));
 const circleB = L.circle(CONFIG.center, circleStyle(cssVar("--circle")));
 // The A and B labels in the middle of each circle are handles: drag one to move that area
-const handleIcon = (slot) => L.divIcon({ className: `ab-handle ab-${slot}`, html: slot.toUpperCase(), iconSize: [34, 34] });
+const handleIcon = (slot) => L.divIcon({ className: "ab-handle", html: slot.toUpperCase(), iconSize: [34, 34] });
 const handleA = L.marker(CONFIG.center, { icon: handleIcon("a"), draggable: true, title: "Drag to move area A" });
 const handleB = L.marker(CONFIG.center, { icon: handleIcon("b"), draggable: true, title: "Drag to move area B" });
 const OUTSIDE_NOTE = "That's outside the City of Vancouver, so there's no VPD data for it. Pick a spot in the lit area.";
@@ -1279,11 +1279,11 @@ for (const [slot, handle, circle] of [["a", handleA, circleA], ["b", handleB, ci
 
 // One area's card, or an empty card for an area not placed yet (slot is "A" or "B")
 function compareCard(s, slot) {
-  const colour = slot === "A" ? "var(--ring)" : "var(--b)", placing = state.nextSlot === slot.toLowerCase();
+  const placing = state.nextSlot === slot.toLowerCase();
   // An empty card is a button: click it to pick that area, then click the map
   if (!s) return `<button type="button" class="cmp empty${placing ? " placing" : ""}" data-action="slot-${slot.toLowerCase()}">
     <span><b>${slot}</b> · ${placing ? `Click the map to place area ${slot}, then drag its label to move it` : `Pick ${slot}, then click the map`}</span></button>`;
-  return `<div class="cmp${placing ? " placing" : ""}"><h3 class="who"><b style="background:${colour}">${slot}</b>Near ${s.name}</h3>
+  return `<div class="cmp${placing ? " placing" : ""}"><h3 class="who"><b>${slot}</b>Near ${s.name}</h3>
     <p class="big" data-count="${s.now}" data-key="${slot}">${fmt(s.now)}</p>${s.change ? `<span class="pill ${s.change.cls}" title="${s.change.text}">${s.change.text.replace("same dates ", "")}</span>` : ""}
     <p class="hint">Busiest per hour: ${busiestShort(s.buckets)}</p></div>`;
 }

@@ -17,7 +17,6 @@
   --on-sea: #ffffff;       /* text on the accent colour */
   --ring: #ffffff;         /* areas A and B on the map: white, edged by a soft shadow so it reads on the light land */
   --on-ring: #1c252d;      /* text on the ring colour */
-  --b: var(--ring);        /* area B: the same colour as A, told apart by its letter */
   --circle: #3a434c;       /* the 500 m circles' edge: a dark grey, as white was lost on the light land */
   --bar-bg: #ebe8e0;
   --hover: color-mix(in srgb, var(--ink) 14%, transparent);   /* a clear ink tint under the pointer, in either theme */
@@ -61,7 +60,8 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html { height: 100%; }
-body { margin: 0; height: 100%; display: flex; flex-direction: column; font: 15px/1.45 var(--font); color: var(--ink); background: var(--page); }
+body { margin: 0; height: 100%; display: flex; flex-direction: column; font: 15px/1.45 var(--font); color: var(--ink); background: var(--page);
+  --side-w: 312px; }   /* the filter panel's width, which the header's bottom edge makes room for */
 button, input { font: inherit; color: inherit; }
 h1, h2, h3, p { margin: 0; }
 p { text-wrap: pretty; }   /* no one-word last lines */
@@ -75,8 +75,7 @@ a { color: var(--sea); }
 
 /* ---------------- Site header ---------------- */
 .site-head { flex: none; height: 58px; display: flex; align-items: center; gap: 14px; padding: 0 18px; background: var(--surface); border-bottom: 1px solid var(--line); position: relative; z-index: 20; }
-/* The logo: the 500 m circle with a V cut through it; the wedge left over is a dropped pin (docs/logo/).
-   At header size it's the small cut, without the hotspot hole, which would close up this small */
+/* The logo: the name's first letter is the mark, a V of two map panels meeting at a crease */
 .wordmark { display: inline-flex; align-items: center; }
 /* On wider screens the name is also the sidebar toggle: a click hides the filters (the name folding into the mark)
    or brings them back, as Apple Maps' sidebar does */
@@ -118,7 +117,7 @@ a { color: var(--sea); }
 :root[data-theme="dark"] .theme-toggle .sun { display: block; }
 
 /* ---------------- Map and floating panels ---------------- */
-.app { position: relative; flex: 1; min-height: 0; }
+.app { position: relative; flex: 1; min-height: 0; --top: 0px; }   /* --top: how far the header reaches over the map (none on phones) */
 #map { position: absolute; inset: 0; z-index: 0; background: var(--map-bg); cursor: crosshair; }
 #map .osm-fallback { filter: grayscale(1) var(--tile-filter); }
 /* Map controls float over busy colour, so they get a thin stroke and a light shadow to stand off it (Apple's map guidance) */
@@ -133,7 +132,7 @@ a { color: var(--sea); }
 #map .leaflet-control-scale { margin-bottom: 8px; }
 #map .leaflet-control-scale-line { background: transparent; border: 2px solid var(--ink); border-top: 0; color: var(--ink); font-size: 0.72rem; font-weight: 600;
   line-height: 1.3; padding: 0 6px; text-shadow: 0 0 2px var(--surface), 0 0 2px var(--surface), 0 0 4px var(--surface); }
-/* The clicked spot: a pin in the accent, ringed in the surface colour so it reads over the heat */
+/* The clicked spot: a pin in the ring colour, edged in its text colour so it reads over the heat */
 #map .area-pin { border-radius: 50%; background: var(--ring); border: 2px solid var(--on-ring); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
 #map .leaflet-control-attribution { background: var(--surface); color: var(--muted); border-radius: 6px 0 0 0; padding: 2px 16px 2px 8px; }
 /* The credit line has a corner to itself, pinned to the map's true bottom right: the zoom buttons' corner slides left
@@ -156,9 +155,8 @@ a { color: var(--sea); }
 /* A soft shadow under the area circles rather than an outline, just enough to lift a thin ring off the heat */
 #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.7)); }   /* a pale edge lifts the grey ring off the heat */
 :root[data-theme="dark"] #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 3px rgba(10, 14, 20, 0.45)); }
-/* Area A's and B's colour, for the map handles and the "Place A | B" toggle */
-.ab-a, .slot-pick .ab.a { --slot: var(--ring); }
-.ab-b, .slot-pick .ab.b { --slot: var(--b); }
+/* Areas A and B share one colour, for the map handles and the "Place A | B" toggle; their letters tell them apart */
+.ab-handle, .slot-pick .ab { --slot: var(--ring); }
 /* The A and B handles at the centre of each Compare circle: a disc of the header's frosted glass, the letter in the
    ink and a ring in the area's colour. Drag one to move that area */
 #map .ab-handle { display: grid; place-items: center; border-radius: 50%; font-weight: 700; font-size: 1rem; cursor: grab;
@@ -168,9 +166,6 @@ a { color: var(--sea); }
 #map .ab-handle.leaflet-drag-target, #map .ab-handle:active { cursor: grabbing; transform: scale(1.1); }
 
 .panel { position: absolute; z-index: 10; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
-/* --top is how far the header reaches over the map: nothing on phones, where the header sits above it */
-.app { --top: 0px; }
-body { --side-w: 312px; }   /* the filter panel's width, which the header's bottom edge makes room for */
 .filters { top: 16px; left: 16px; max-height: calc(100% - 32px); width: var(--side-w); padding: 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
 /* Wider screens: the map runs under the header, and the header and every panel are one frosted material, like
    Apple Maps', so they read as a single layer over the map, whose colours show softly through. Fills inside
@@ -204,9 +199,11 @@ body { --side-w: 312px; }   /* the filter panel's width, which the header's bott
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .site-head, .panel { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .site-head, .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 }
-.area { top: calc(var(--top) + 16px); right: 16px; width: 344px; max-height: calc(100% - var(--top) - 80px); overflow-y: auto; padding: 18px; display: none; }   /* ends 64px up, like Compare and Trends, clear of a host badge */
-.compare { top: calc(var(--top) + 16px); right: 16px; width: 420px; max-height: calc(100% - var(--top) - 80px); overflow-y: auto; padding: 16px 18px; display: none; }   /* a column on the right, like Trends, so the map stays open */
-.trends { top: calc(var(--top) + 16px); right: 16px; bottom: 64px; width: 420px; overflow-y: auto; padding: 18px; display: none; }
+/* The view panels: a column down the right, so the map stays open, ending 64px up */
+.area, .compare, .trends { top: calc(var(--top) + 16px); right: 16px; overflow-y: auto; padding: 18px; display: none; }
+.area { width: 344px; max-height: calc(100% - var(--top) - 80px); }
+.compare { width: 420px; max-height: calc(100% - var(--top) - 80px); padding: 16px 18px; }
+.trends { width: 420px; bottom: 64px; }
 .app[data-view="map"] .area, .app[data-view="compare"] .compare, .app[data-view="trends"] .trends { display: block; }
 .app[data-view="map"] .area:empty { display: none; }
 .sheet-handle { display: none; }
@@ -355,7 +352,7 @@ details.about p { margin-top: 8px; }
 .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .cmp { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; justify-items: start; }
 .cmp .who { display: flex; align-items: flex-start; gap: 8px; font-weight: 700; font-size: 0.9rem; line-height: 1.3; }
-.cmp .who b { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: var(--on-ring); font-size: 0.75rem; box-shadow: inset 0 0 0 1.5px var(--line); }   /* an edge, so a white badge shows on a white card */
+.cmp .who b { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--ring); color: var(--on-ring); font-size: 0.75rem; box-shadow: inset 0 0 0 1.5px var(--line); }   /* an edge, so a white badge shows on a white card */
 .cmp .big { font-size: 1.6rem; }
 .cmp .pill { margin-top: 0; font-size: 0.75rem; padding: 2px 8px; }
 /* A and B side by side, one row per crime type or part of the day */
@@ -410,6 +407,7 @@ button.cmp.empty:hover { border-color: var(--muted); }
   opacity: 0; visibility: hidden; transition: opacity 0.5s ease, visibility 0.5s; }
 .status.show { opacity: 1; visibility: visible; }
 .status:not(.show) { pointer-events: none; }   /* clicks reach the map as soon as it starts fading out */
+.status div { max-width: 46ch; }
 /* A note in the panels' own surface, at the top of the map, centred between the filter drawer (312px, docked)
    and an area card on the right (376px with its gutters), so it sits in the open map whether or not a card is there */
 .toast { position: absolute; z-index: 15; top: calc(var(--top) + 16px); left: calc(50% - 32px); width: max-content; max-width: min(420px, calc(100% - 752px));
@@ -444,7 +442,6 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
 }
-.status div { max-width: 46ch; }
 
 /* Medium screens: slimmer panels */
 @media (max-width: 1150px) {
