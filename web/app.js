@@ -9,11 +9,11 @@ const CONFIG = {
   maxZoom: 16,          // capped on purpose: VPD offsets locations, so street-level detail would mislead
   radiusMeters: 500,    // size of the area summarized when you click
   defaultView: "map",   // "map", "compare" or "trends"
-  defaultYears: [2026], // years selected when the page opens: [2026], "all", or several like [2024, 2025, 2026]
+  defaultYears: [],     // years selected when the page opens: [] = none (a clear map), [2026], "all", or several like [2024, 2025]
   defaultType: "all",   // or a label such as "Bike theft" to open on your demo situation
   defaultTime: "any",   // "any", "morning", "afternoon", "evening" or "overnight" (more can be picked in the app)
-  heatStrength: 1,      // higher = more of the city lights up; lower = only the strongest hotspots show
-  heatFloor: 0.05,      // faintest a reported spot can be: 0 = quiet areas fully see-through
+  heatStrength: 1.5,    // higher = more of the city lights up; lower = only the strongest hotspots show
+  heatFloor: 0,         // faintest a reported spot can be: 0 = quiet areas fully see-through
   hotspotLevel: 0.99,   // how busy a spot must be to show in the top colour: 0.99 = the busiest 1% of the map
   minForChange: 10,     // don't show a % change when the previous year had fewer incidents than this
 };
@@ -379,8 +379,9 @@ Object.assign(L.HeatLayer.prototype, {
     L.DomUtil.setTransform(this._canvas, topLeft, scale);
   },
 });
-// The colours come from --ramp-1..5, so the map and its legend always match the theme
-const heatGradient = () => ({ 0.2: cssVar("--ramp-1"), 0.4: cssVar("--ramp-2"), 0.6: cssVar("--ramp-3"), 0.8: cssVar("--ramp-4"), 1: cssVar("--ramp-5") });
+// The colours come from --ramp-1..5, so the map and its legend always match the theme. Below the first stop the
+// ramp fades to nothing, so streets with only the odd report stay clear instead of a haze over the whole city
+const heatGradient = () => ({ 0.4: `${cssVar("--ramp-1")}00`, 0.6: cssVar("--ramp-1"), 0.74: cssVar("--ramp-2"), 0.84: cssVar("--ramp-3"), 0.92: cssVar("--ramp-4"), 1: cssVar("--ramp-5") });
 const heat = L.heatLayer([], {
   radius: 11,
   blur: 14,
@@ -388,7 +389,14 @@ const heat = L.heatLayer([], {
   minOpacity: CONFIG.heatFloor,
   gradient: heatGradient(),
 }).addTo(map);
-// Its own pane, so it can blend with the map below it (see --heat-blend) and street names show through
+// leaflet.heat keeps each pixel's own strength as its opacity and ignores the ramp's; take the ramp's, so it can fade in
+Object.getPrototypeOf(heat._heat)._colorize = (px, grad) => {
+  for (let i = 3; i < px.length; i += 4) {
+    const j = px[i] * 4;
+    if (j) { px[i - 3] = grad[j]; px[i - 2] = grad[j + 1]; px[i - 1] = grad[j + 2]; px[i] = grad[j + 3]; }
+  }
+};
+// Its own pane, drawn see-through (see --heat-opacity) so streets and names show through
 map.createPane("heat");
 map.getPane("heat").style.zIndex = 390;          // above the inside tint, below the circles (400)
 map.getPane("heat").style.pointerEvents = "none";
@@ -1373,7 +1381,8 @@ function buildYearPicker() {
   $("year-hint").textContent = missing.length ? `No data for ${missing.join(", ")}.` : "";
 
   const start = CONFIG.defaultYears === "all" ? ys : [].concat(CONFIG.defaultYears).map(Number).filter((y) => ys.includes(y));
-  state.years = new Set(start.length ? start : [ys[ys.length - 1]]);   // fall back to the latest year
+  // Fall back to the latest year only when the settings named years that aren't in the data
+  state.years = new Set(start.length || ![].concat(CONFIG.defaultYears).length ? start : [ys[ys.length - 1]]);
 
   $("years").addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-year]");
@@ -1683,7 +1692,8 @@ async function start() {
   setView(linked || (Object.hasOwn(PANEL_FOR, CONFIG.defaultView) ? CONFIG.defaultView : "map"));
   refresh();
   const spotted = state.view === "compare" ? state.a : state.selected;
-  if (!spotted) showToast(`Click anywhere on the map to see what's been reported within ${CONFIG.radiusMeters} m, or search a neighbourhood.`, 7000);
+  if (noYears()) showToast("Pick a year in the filters to see where incidents were reported.", 7000);
+  else if (!spotted) showToast(`Click anywhere on the map to see what's been reported within ${CONFIG.radiusMeters} m, or search a neighbourhood.`, 7000);
   requestAnimationFrame(() => {
     map.invalidateSize();
     if (spotted) fitForView();   // a link with a spot opens on it

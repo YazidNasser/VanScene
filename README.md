@@ -21,7 +21,7 @@ VanScene turns the Vancouver Police Department's open crime data into a map you 
 
 ## What you can do
 
-- **Read the map.** A heat map of reported incidents across the City of Vancouver, from pale amber for fewer to deep plum for more. The colour scale stays the same across years, so 2019 and 2025 can be compared directly.
+- **Read the map.** A heat map of reported incidents across the City of Vancouver, from green where reports cluster, through yellow, to red where they are densest; streets with only the odd report stay clear. The colour scale stays the same across years, so 2019 and 2025 can be compared directly.
 - **Filter it.** Pick any years from 2016 on, a crime type (for example "Home break-ins" or "Bike theft"), and a time of day. The day is split into four equal six-hour parts, so they compare fairly. You can also click or drag across single hours on the chart under them.
 - **Look at one spot.** Click anywhere for a summary of what was reported within 500 metres: how it compares with the city average for a circle that size, the most common types, when they happen, and year by year.
 - **Search a neighbourhood** to jump straight to it.

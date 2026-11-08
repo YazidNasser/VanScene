@@ -21,12 +21,12 @@
   --bar-bg: #ebe8e0;
   --hover: color-mix(in srgb, var(--ink) 14%, transparent);   /* a clear ink tint under the pointer, in either theme */
   /* The frosted header and panels: their tint, their edge, and the see-through fills inside them */
-  --glass: rgba(255, 255, 255, 0.94); --glass-edge: rgba(28, 37, 45, 0.08);
+  --glass: rgba(255, 255, 255, 0.8); --glass-edge: rgba(28, 37, 45, 0.08);
   --glass-fill: rgba(28, 37, 45, 0.05); --glass-fill-2: rgba(28, 37, 45, 0.09);
-  /* Heat map colours, fewest to most: on a light map "more" gets darker, on a dark map it gets brighter.
-     Pale amber to deep plum (the dark theme's magma ramp run the other way), so busy reads as dense, not as danger red */
-  --ramp-1: #fde3a7; --ramp-2: #f7ad6a; --ramp-3: #d9607e; --ramp-4: #92307f; --ramp-5: #45125e;
-  --heat-blend: multiply;  /* lets street names show through the heat */
+  /* Heat map colours, fewest to most, the same in both themes: green through yellow and orange to a solid red where
+     reports are densest. Quiet streets get no colour at all (the ramp fades in, see heatGradient in app.js) */
+  --ramp-1: #3fd46a; --ramp-2: #a6e03a; --ramp-3: #ffd21f; --ramp-4: #ff8a1f; --ramp-5: #f0321e;
+  --heat-opacity: 0.75;    /* laid over the map at three-quarters, so streets and parks show through */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --map-bg: #f5f3ee;       /* the basemap's land colour, so nothing flashes while it loads */
   --status-bg: rgba(245, 243, 238, 0.92);
@@ -48,14 +48,11 @@
   --page: #141a26; --surface: #1a2130; --surface-2: #232b3b;
   --sea: #e6ebf1; --sea-soft: #2c3546; --on-sea: #141a26; --ring: #e6ebf1; --on-ring: #141a26;
   --bar-bg: #2c3546; --map-bg: #2c333d;
-  --glass: rgba(26, 33, 48, 0.94); --glass-edge: rgba(230, 235, 241, 0.08);
+  --glass: rgba(26, 33, 48, 0.78); --glass-edge: rgba(230, 235, 241, 0.08);
   --glass-fill: rgba(230, 235, 241, 0.06); --glass-fill-2: rgba(230, 235, 241, 0.11);
   --status-bg: rgba(28, 33, 41, 0.92);
   --tile-filter: invert(1) brightness(0.85) contrast(0.85);   /* only used by the fallback raster tiles */
   --control-shadow: 0 1px 3px rgba(10, 14, 20, 0.5), 0 4px 12px rgba(10, 14, 20, 0.3);
-  /* Calm at night: violet to a soft amber, never white, laid over the map rather than added on as light */
-  --ramp-1: #4a2f7a; --ramp-2: #8a3f8c; --ramp-3: #c9577a; --ramp-4: #e8835c; --ramp-5: #f2b35e;
-  --heat-blend: normal;
   color-scheme: dark;
 }
 
@@ -87,12 +84,12 @@ a { color: var(--sea); }
 /* About every 8 s the pin warms a little, partway to the next colour of the heat ramp, while a faint blurred copy
    behind it glows: a quick swell, a slow fade, then a long rest so it never competes with the map.
    The first pulse comes a moment after the page settles */
-.mark .spot { fill: var(--ramp-3); animation: heat-up 8s 1.2s infinite; }
-.mark .glow { fill: var(--ramp-4); opacity: 0; filter: url(#mark-glow); animation: glow 8s 1.2s infinite; }
+.mark .spot { fill: var(--ramp-5); animation: heat-up 8s 1.2s infinite; }
+.mark .glow { fill: var(--ramp-5); opacity: 0; filter: url(#mark-glow); animation: glow 8s 1.2s infinite; }
 @keyframes heat-up {
-  0% { fill: var(--ramp-3); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
-  9% { fill: color-mix(in oklab, var(--ramp-3) 55%, var(--ramp-4)); animation-timing-function: ease-in-out; }
-  24%, 100% { fill: var(--ramp-3); }
+  0% { fill: var(--ramp-5); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+  9% { fill: color-mix(in oklab, var(--ramp-5) 55%, var(--ramp-4)); animation-timing-function: ease-in-out; }
+  24%, 100% { fill: var(--ramp-5); }
 }
 @keyframes glow {
   0% { opacity: 0; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
@@ -169,14 +166,17 @@ a { color: var(--sea); }
 .app { --top: 0px; }
 .filters { top: 16px; left: 16px; max-height: calc(100% - 32px); width: 312px; padding: 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
 /* Wider screens: the map runs under the header, and the header and every panel are one frosted material, like
-   Apple Maps', so they read as a single layer over the map, which shows faintly through. Tinted with the panels'
-   own slate or white and kept neutral (no colour boost), so the heat under a panel doesn't stain it. Fills inside
+   Apple Maps', so they read as a single layer over the map, whose colours show softly through. Fills inside
    are see-through tints of the ink, and hints use the secondary grey, so text keeps 4.5:1 even over the brightest heat */
 @media (min-width: 761px) {
   body { position: relative; }
   .app { --top: 58px; }
-  .site-head, .panel { background: var(--glass); border-color: var(--glass-edge); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);   /* at 94% opaque a light blur already reads as frost, and costs less to redraw as the map pans */
+  /* Apple Maps' material: a strong blur with a colour boost, so the map's colours glow softly through the panel */
+  .site-head, .panel { background: var(--glass); border-color: var(--glass-edge);
+    -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
     --surface-2: var(--glass-fill); --bar-bg: var(--glass-fill-2); --faint: var(--muted); }
+  /* Light theme: the glass lets the darkest heat through, so the grey and accent are a step deeper to keep 4.5:1 over it */
+  :root:not([data-theme="dark"]) :is(.site-head, .panel) { --muted: #48525c; --sea: #155a96; }
   .site-head { position: absolute; top: 0; left: 0; right: 0; }
   .site-head .theme-toggle { background: transparent; }
   /* The filters are a drawer docked to the left edge, flush under the header: as tall as their content, rounded only
@@ -262,7 +262,7 @@ select { width: 100%; height: 40px; background: var(--surface); border: 1px soli
 .citywide { font-size: 0.86rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
 .citywide strong { display: block; font-size: 1.6rem; line-height: 1.15; letter-spacing: -0.01em; color: var(--ink); font-variant-numeric: tabular-nums; }
 .citywide .share { display: block; margin-top: 6px; color: var(--ink); }
-.legend .ramp { height: 9px; /* taste-skill-ignore: the legend swatch is the heat map's own colour ramp */ border-radius: 5px; background: linear-gradient(90deg, var(--ramp-1), var(--ramp-2), var(--ramp-3), var(--ramp-4), var(--ramp-5)); }
+.legend .ramp { height: 9px; /* taste-skill-ignore: the legend swatch is the heat map's own colour ramp */ border-radius: 5px; background: linear-gradient(90deg, transparent, var(--ramp-1) 20%, var(--ramp-2), var(--ramp-3), var(--ramp-4), var(--ramp-5)); }
 .legend .ends { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--faint); margin-top: 3px; }
 .legend-note { font-size: 0.78rem; color: var(--muted); margin-top: 6px; }
 .legend .lab { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
@@ -394,7 +394,7 @@ button.cmp.empty:hover { border-color: var(--muted); }
 .spinner { display: block; width: 28px; height: 28px; margin: 0 auto 12px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--sea); animation: spin 0.8s linear infinite; }
 
 /* ---------------- Motion ---------------- */
-.leaflet-heat-pane { mix-blend-mode: var(--heat-blend); }
+.leaflet-heat-pane { opacity: var(--heat-opacity); }
 .leaflet-heatmap-layer, .heat-snap { transition: opacity 0.5s ease; }
 body, .site-head, .panel, select, .search { transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
 .views button, .year-pick button, .day-track button, .btn, .x, .theme-toggle, .filters-btn {
