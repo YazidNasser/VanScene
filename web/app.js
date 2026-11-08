@@ -104,10 +104,10 @@ map.getPane("labels").style.pointerEvents = "none";
 // Roads in three steps, as Apple Maps draws them: quiet side streets (road), stand-out main roads (major) and the
 // brightest highways, so the city's structure reads at a glance
 const MAP_COLOURS = {
-  light: { land: "#f5f3ee", built: "#efece6", building: "#e5e1d8", park: "#cbe7bd", water: "#9ecff2", road: "#ffffff", major: "#ffffff",
+  light: { land: "#f5f3ee", built: "#efece6", building: "#e5e1d8", park: "#cbe7bd", water: "#9ecff2", road: "#ffffff", major: "#ffffff", secondary: "#ffffff",
     casing: "#e0dbcf", highway: "#f6d27c", rail: "#d6d1c7", text: "#323b44", halo: "rgba(245, 243, 238, 0.8)", waterText: "#3d6c9a", parkText: "#3c7f37",
     district: "#5d6670", city: "#1c252d" },
-  dark: { land: "#2c333d", built: "#2f3640", building: "#363e49", park: "#1e5d55", water: "#1d2c76", road: "#3e4757", major: "#8a99b8",
+  dark: { land: "#2c333d", built: "#2f3640", building: "#363e49", park: "#1e5d55", water: "#1d2c76", road: "#3e4757", major: "#8a99b8", secondary: "#56627a",
     casing: "#2c333d", highway: "#b3c0db", rail: "#3a4351", text: "#e6ebf1", halo: "rgba(36, 42, 51, 0.8)", waterText: "#93a6e6", parkText: "#74d38f",
     district: "#aab3bf", city: "#f3f5f8" },
 };
@@ -136,6 +136,9 @@ function mapStyle(labels) {
     // Full-strength text (the style fades some names), so street names stay readable over the heat
     if (l.type === "symbol") Object.assign(paint, { "text-opacity": 1, ...halo(c) });
     if (l.id === "building") paint["fill-outline-color"] = c.building;
+    // Only the arterials stand out, as in Apple Maps: primary roads in full, secondary ones softer, and the many
+    // tertiary roads drawn like side streets
+    if (rule[2] === "major") paint["line-color"] = ["match", ["get", "class"], ["primary", "trunk"], c.major, "secondary", c.secondary, c.road];
     const layer = { ...l, paint };
     // Neighbouring cities named large, as Apple Maps does; Vancouver itself is left out, since our neighbourhood names fill it
     if (/label_(city|town)$/.test(l.id)) {
