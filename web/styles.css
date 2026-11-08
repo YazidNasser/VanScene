@@ -18,6 +18,7 @@
   --ring: #ffffff;         /* areas A and B on the map: white, edged by a soft shadow so it reads on the light land */
   --on-ring: #1c252d;      /* text on the ring colour */
   --b: var(--ring);        /* area B: the same colour as A, told apart by its letter */
+  --circle: #3a434c;       /* the 500 m circles' edge: a dark grey, as white was lost on the light land */
   --bar-bg: #ebe8e0;
   --hover: color-mix(in srgb, var(--ink) 14%, transparent);   /* a clear ink tint under the pointer, in either theme */
   /* The frosted header and panels: their tint, their edge, and the see-through fills inside them */
@@ -46,7 +47,7 @@
      neutral like Apple Maps' own marks, so the heat keeps all the colour */
   --ink: #e6ebf1; --muted: #aab3bf; --faint: #959fae; --line: #2f3849;
   --page: #141a26; --surface: #1a2130; --surface-2: #232b3b;
-  --sea: #e6ebf1; --sea-soft: #2c3546; --on-sea: #141a26; --ring: #e6ebf1; --on-ring: #141a26;
+  --sea: #e6ebf1; --sea-soft: #2c3546; --on-sea: #141a26; --ring: #e6ebf1; --on-ring: #141a26; --circle: var(--ring);
   --bar-bg: #2c3546; --map-bg: #2c333d;
   --glass: rgba(26, 33, 48, 0.78); --glass-edge: rgba(230, 235, 241, 0.08);
   --glass-fill: rgba(230, 235, 241, 0.06); --glass-fill-2: rgba(230, 235, 241, 0.11);
@@ -148,7 +149,7 @@ a { color: var(--sea); }
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 316px; }   /* the slimmer 300px area card */
 }
 /* A soft shadow under the area circles rather than an outline, just enough to lift a thin ring off the heat */
-#map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1.5px rgba(28, 37, 45, 0.5)); }   /* white rings need a dark edge on the light land */
+#map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.7)); }   /* a pale edge lifts the grey ring off the heat */
 :root[data-theme="dark"] #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 3px rgba(10, 14, 20, 0.45)); }
 /* Area A's and B's colour, for the map handles and the "Place A | B" toggle */
 .ab-a, .slot-pick .ab.a { --slot: var(--ring); }
