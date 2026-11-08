@@ -98,11 +98,11 @@ const map = L.map("map", {
 // where it's heading, the way a touch pinch does: MapLibre redraws the streets and names at their real size
 // (the bridge's pinch path), and the heat is moved along as a picture and redrawn once the map stops (see glideHeat).
 // More scrolling just moves the target on, so the zoom follows the wheel without steps
-let glide = null;   // { at: the screen point that stays put, ll: the place under it, target: zoom, ms, dir, input, t, stopped }
-// Glide towards `zoom` around container point `at`. `ms` is how fast it closes in: most of the way in ~3 × ms
+let glide = null;   // { at: the screen point that stays put, ll: the place under it, target: zoom, raw: the wheel's unrounded target, v: its speed, ms, input, t, stopped }
+// Glide towards `zoom` around container point `at`. `ms` sets the pace: most of the way in ~4 × ms
 function glideTo(at, zoom, ms) {
-  if (!glide) { glide = { t: performance.now() }; map._moveStart(true, false); requestAnimationFrame(glideFrame); }
-  Object.assign(glide, { at, ll: map.containerPointToLatLng(at), target: zoom, ms, dir: Math.sign(zoom - map._zoom), input: performance.now(), stopped: false });
+  if (!glide) { glide = { t: performance.now(), v: 0 }; map._moveStart(true, false); requestAnimationFrame(glideFrame); }
+  Object.assign(glide, { at, ll: map.containerPointToLatLng(at), target: zoom, raw: zoom, ms, input: performance.now(), stopped: false });
 }
 map._tryAnimatedZoom = function (center, zoom, options = {}) {
   const z0 = this._zoom, s = this.getZoomScale(zoom, z0);
@@ -110,39 +110,44 @@ map._tryAnimatedZoom = function (center, zoom, options = {}) {
       || Math.abs(zoom - z0) > this.options.zoomAnimationThreshold) return false;   // Leaflet jumps there
   // The one point that sits at the same place on screen before and after, so the zoom happens around it
   const shift = this.project(center, z0).subtract(this.project(this.getCenter(), z0));
-  glideTo(this.getSize().divideBy(2).add(shift.divideBy(1 - 1 / s)), zoom, 70);
+  glideTo(this.getSize().divideBy(2).add(shift.divideBy(1 - 1 / s)), zoom, 45);
   return true;
 };
 function glideFrame(now) {
   const g = glide, dt = Math.min(Math.max(now - g.t, 0), 50);   // capped, so a stalled frame doesn't leap
   g.t = now;
   if (g.stopped) { glide = null; map._moveEnd(true); return; }   // left where the drag or jump put it
-  let z = g.target + (map._zoom - g.target) * Math.exp(-dt / g.ms);
-  if (Math.abs(z - g.target) < 0.01) z = g.target;   // the last hundredth of a step is too small to see
+  // A spring with just enough damping not to overshoot, worked out exactly over the frame: it eases in from rest and
+  // keeps its speed when more scrolling moves the target, where plain easing started every notch at full speed, a jolt
+  const w = 1000 / g.ms, t = dt / 1000, x = map._zoom - g.target, k = Math.exp(-w * t);
+  let z = g.target + (x + (g.v + w * x) * t) * k;
+  g.v = (g.v - w * (g.v + w * x) * t) * k;
+  if (Math.abs(z - g.target) < 0.005 && Math.abs(g.v) < 0.05) { z = g.target; g.v = 0; }   // too little left to see
   if (z !== map._zoom) {
     // The centre that keeps g.ll under g.at at zoom z
     map._move(map.unproject(map.project(g.ll, z).subtract(g.at).add(map.getSize().divideBy(2)), z), z, { pinch: true, glide: true });
   } else if (now - g.input > 200) {
-    // Arrived, and no more scrolling for a moment: end on a quarter step (what the heat is worked out at), on in the
-    // same direction so it doesn't bounce back, then stop. Waiting first means slow scrolling stays one glide, rather
-    // than a stop and the heat's redraw at every notch
-    const q = map._limitZoom((g.dir < 0 ? Math.floor : Math.ceil)(z * 4) / 4);
-    if (z !== q) g.target = q;
-    else { glide = null; map._moveEnd(true); return; }
+    // Arrived, and no more scrolling for a moment. Waiting first means slow scrolling stays one glide, rather than a
+    // stop and the heat's redraw at every notch
+    glide = null; map._moveEnd(true); return;
   }
   requestAnimationFrame(glideFrame);
 }
 // A drag or another move stops the glide where it is (setView carries it on, by calling _tryAnimatedZoom straight after)
 const leafletStop = map._stop;
 map._stop = function () { if (glide) glide.stopped = true; return leafletStop.call(this); };
-// The wheel moves the target zoom around the pointer, by any amount: it's rounded to a quarter step only once the
-// scrolling stops (shortcut: no faster rate for trackpad pinches, add one if they feel slow)
+// The wheel moves the target zoom around the pointer. Scrolling adds up exactly, and the target is that total rounded
+// on to the next quarter step (what the heat is worked out at), so the map never has to round off after it stops
+// (shortcut: no faster rate for trackpad pinches, add one if they feel slow)
 L.DomEvent.on(map.getContainer(), "wheel", (e) => {
   L.DomEvent.preventDefault(e);
-  const at = map.mouseEventToContainerPoint(e), from = glide && !glide.stopped ? glide.target : map.getZoom();
-  const zoom = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), from + L.DomEvent.getWheelDelta(e) / map.options.wheelPxPerZoomLevel));
-  if (reduceMotion) map.setZoomAround(at, map._limitZoom(zoom));   // jumps there, see _tryAnimatedZoom
-  else if (zoom !== map.getZoom()) glideTo(at, zoom, 110);   // a little softer than the buttons, so notches run together
+  const at = map.mouseEventToContainerPoint(e), d = L.DomEvent.getWheelDelta(e) / map.options.wheelPxPerZoomLevel;
+  const raw = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), (glide && !glide.stopped ? glide.raw : map.getZoom()) + d));
+  const zoom = map._limitZoom(d > 0 ? Math.ceil(raw * 4 - 1e-6) / 4 : Math.floor(raw * 4 + 1e-6) / 4);
+  if (reduceMotion) return map.setZoomAround(at, zoom);   // jumps there, see _tryAnimatedZoom
+  if (zoom === map.getZoom() && !glide) return;
+  glideTo(at, zoom, 65);   // a little softer than the buttons, so notches run together
+  glide.raw = raw;
 });
 // The basemap bridge sizes MapLibre at 1.2 × the map, which is a fraction of a pixel on many window widths: MapLibre
 // then took it for a resize and cleared its picture after every move
