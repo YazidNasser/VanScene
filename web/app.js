@@ -93,12 +93,19 @@ const map = L.map("map", {
 // Keeps people near Vancouver, with room to slide any part of the city out from behind the side panels
 map.setMaxBounds([[49.10, -123.55], [49.40, -122.70]]);
 L.control.zoom({ position: "bottomright" }).addTo(map);
+L.control.scale({ position: "bottomright", imperial: false, maxWidth: 110 }).addTo(map);   // sits above the zoom buttons
 
-// OpenStreetMap tiles, greyed out with CSS (see --tile-filter) so the heat colours stand out
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  maxZoom: 19,
+// A muted basemap (Esri's grey canvas, no key needed) so the heat is the only strong colour. Its street names are a
+// separate layer in their own pane above the heat, so they stay readable where reports are densest
+map.createPane("labels");
+map.getPane("labels").style.zIndex = 395;        // above the heat (390), below the circles (400) and the outside shade (450)
+map.getPane("labels").style.pointerEvents = "none";
+const canvasUrl = (part) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${isDark() ? "Dark" : "Light"}_Gray_${part}/MapServer/tile/{z}/{y}/{x}`;
+const baseTiles = L.tileLayer(canvasUrl("Base"), {
+  attribution: 'Tiles &copy; <a href="https://www.esri.com">Esri</a>, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  maxZoom: 16,
 }).addTo(map);
+const labelTiles = L.tileLayer(canvasUrl("Reference"), { maxZoom: 16, pane: "labels" }).addTo(map);
 
 // ---------------------------------------------------------------------
 // Step 1b: lighter colour where our data covers, darker everywhere else
@@ -317,8 +324,10 @@ function fadeHeat() {
 }
 
 // Circles for the clicked area (Map view) and the two areas (Compare view)
-const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 2, fillOpacity: 0.06, interactive: false });
+const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 3, fillOpacity: 0.1, interactive: false });
 const areaCircle = L.circle(CONFIG.center, circleStyle(cssVar("--sea")));
+// A pin at the clicked spot, so the selection reads at a glance as well as by its outline
+const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin", iconSize: [16, 16] }), interactive: false, keyboard: false });
 const circleA = L.circle(CONFIG.center, circleStyle(cssVar("--sea")));
 const circleB = L.circle(CONFIG.center, circleStyle(cssVar("--b")));
 // The A and B labels in the middle of each circle are handles: drag one to move that area
@@ -1211,6 +1220,8 @@ function readUrl() {
 function syncCircles() {
   const show = (layer, on) => { if (on && !map.hasLayer(layer)) layer.addTo(map); if (!on && map.hasLayer(layer)) map.removeLayer(layer); };
   show(areaCircle, state.view !== "compare" && !!state.selected);
+  if (state.selected) areaPin.setLatLng(state.selected);
+  show(areaPin, state.view !== "compare" && !!state.selected);
   if (state.a) { circleA.setLatLng(state.a); handleA.setLatLng(state.a); }
   if (state.b) { circleB.setLatLng(state.b); handleB.setLatLng(state.b); }
   show(circleA, state.view === "compare" && !!state.a);
@@ -1487,6 +1498,8 @@ $("theme-toggle").addEventListener("click", () => {
   syncThemeButton();
   paintCoverage();                                            // re-colour the inside/outside shading
   paintCircles();
+  baseTiles.setUrl(canvasUrl("Base"));
+  labelTiles.setUrl(canvasUrl("Reference"));
   heat.setOptions({ gradient: heatGradient() });
   if (state.data) labelLegend();
 });
@@ -1526,6 +1539,11 @@ async function start() {
   }
   $("status").classList.remove("show");
   addCoverageMask(state.data.points);
+  // Neighbourhood names in the page's own type, on the label layer above the heat (the basemap leaves them out at city zoom)
+  for (const h of state.data.neighbourhoods) {
+    const icon = L.divIcon({ className: "hood-label", html: `<span>${h.name}</span>`, iconSize: [0, 0] });
+    L.marker([h.lat, h.lng], { icon, pane: "labels", interactive: false, keyboard: false }).addTo(map);
+  }
   buildControls();
   const linked = readUrl();
   buildPeriods();
