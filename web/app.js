@@ -753,12 +753,12 @@ function fadeHeat() {
   setTimeout(() => snap.remove(), 600);
 }
 
-// Circles for the clicked area (Map view) and the two areas (Compare view): the true 500 m edge, drawn faint so the
-// handle at the centre is what reads first
+// Circles for the two areas (Compare view): the true 500 m edge, drawn faint so the handle at the centre is what reads first
 const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 1.5, opacity: 0.6, fillOpacity: 0.04, interactive: false });
-const areaCircle = L.circle(CONFIG.center, circleStyle(cssVar("--circle")));
-// A pin at the clicked spot, so the selection reads at a glance as well as by its outline
-const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin", iconSize: [14, 14] }), interactive: false, keyboard: false });
+// The clicked spot reads like a phone's own location: a blue dot ringed in white, in a soft blue 500 m circle
+const pinStyle = () => ({ color: cssVar("--pin"), fillColor: cssVar("--pin") });
+const areaCircle = L.circle(CONFIG.center, { radius: CONFIG.radiusMeters, ...pinStyle(), weight: 1, opacity: 0.5, fillOpacity: 0.22, interactive: false, className: "area-circle" });
+const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin", iconSize: [22, 22] }), interactive: false, keyboard: false });
 const circleA = L.circle(CONFIG.center, circleStyle(cssVar("--circle")));
 const circleB = L.circle(CONFIG.center, circleStyle(cssVar("--circle")));
 // The A and B labels in the middle of each circle are handles: drag one to move that area
@@ -769,7 +769,8 @@ const OUTSIDE_NOTE = "That's outside the City of Vancouver, so there's no VPD da
 // A dashed preview of the area under the cursor, so you can see what a click will summarize
 const ghost = L.circle(CONFIG.center, { radius: CONFIG.radiusMeters, weight: 1.5, dashArray: "4 6", fill: false, interactive: false });
 function paintCircles() {
-  for (const c of [areaCircle, circleA, circleB, ghost]) c.setStyle({ color: cssVar("--circle") });
+  for (const c of [circleA, circleB, ghost]) c.setStyle({ color: cssVar("--circle") });
+  areaCircle.setStyle(pinStyle());
 }
 // A clicked area grows out from the click instead of appearing at full size
 function growCircle(c) {
