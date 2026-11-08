@@ -342,6 +342,10 @@ function paintCoverage() {
 // heat just off screen (under the top bar, say) had never been drawn. These versions of its methods paint
 // a margin of HEAT_PAD around the view, the way Leaflet's own vector layers do. They also skip drawing
 // while the map has no size: leaflet.heat threw there and stopped this whole script before the data loaded.
+// What the heat draws (filled in by updateHeat, explained there), declared here because the layer draws on creation
+let heatSpots = [], refSpots = [];
+let refHours = null;                       // whether refSpots was last worked out for a time of day
+const refScales = new Map();               // the colour scale at each zoom, for refSpots (see heatScale)
 const HEAT_PAD = 0.35;   // of the map's size, on each side: covers a half-step zoom out or a short pan
 Object.assign(L.HeatLayer.prototype, {
   _reset() {
@@ -352,16 +356,19 @@ Object.assign(L.HeatLayer.prototype, {
     if (this._heat._width !== w) this._canvas.width = this._heat._width = w;
     if (this._heat._height !== h) this._canvas.height = this._heat._height = h;
     this._redraw();
-    endMorph(this);   // in the same frame as the redraw, so the hand-over from the zoom's last frame doesn't show
+    settleMorph(this);   // after a zoom, ease from the zoomed picture into this one
   },
   _redraw() {
     this._frame = null;
     if (!this._pad || !this._heat._width || !this._heat._height) return;
-    const map = this._map, r = this._heat._r, pad = this._pad, size = map.getSize();
-    const max = this.options.max ?? 1, maxZoom = this.options.maxZoom ?? map.getMaxZoom();
-    const fade = 1 / Math.pow(2, Math.max(0, Math.min(maxZoom - map.getZoom(), 12)));
-    const pts = this._latlngs.map((ll) => { const c = map.latLngToContainerPoint(ll); return [c.x + pad.x, c.y + pad.y, (ll[2] ?? 1) * fade]; });
-    this._heat.data(heatCells(pts, r, map._getMapPanePos(), size.add(pad.multiplyBy(2)), max)).draw(this.options.minOpacity);
+    // Hidden under a zoom's own frames: wait for them to finish (endMorph), so this ~70 ms doesn't stall them
+    if (this._morph?.parentNode) { this._stale = true; return; }
+    const map = this._map, pad = this._pad, w = this._heat._width, h = this._heat._height, r = this._heat._r, data = [];
+    for (const [lat, lng, v] of cellsAt(map.getZoom())) {
+      const c = map.latLngToContainerPoint([lat, lng]), x = c.x + pad.x, y = c.y + pad.y;
+      if (x > -r && y > -r && x < w + r && y < h + r) data.push([Math.round(x), Math.round(y), v]);
+    }
+    this._heat.data(data).draw(this.options.minOpacity);
   },
   _animateZoom(e) {   // the same arithmetic as Leaflet's padded renderers, with a top-left transform origin
     const map = this._map, scale = map.getZoomScale(e.zoom, this._zoom);
@@ -371,74 +378,124 @@ Object.assign(L.HeatLayer.prototype, {
     startMorph(this, e);
   },
 });
-// Points [x, y, weight] in canvas pixels are merged into cells of half the radius, as leaflet.heat does
-function heatCells(pts, r, pane, size, max) {
-  const cell = r / 2, ox = pane.x % cell, oy = pane.y % cell, cells = new Map();
-  for (const [x, y, k] of pts) {
-    if (x < -r || y < -r || x > size.x + r || y > size.y + r) continue;
-    const key = Math.floor((x - ox) / cell) * 1e5 + Math.floor((y - oy) / cell), s = cells.get(key);
-    if (s) { s[0] = (s[0] * s[2] + x * k) / (s[2] + k); s[1] = (s[1] * s[2] + y * k) / (s[2] + k); s[2] += k; }
-    else cells.set(key, [x, y, k]);
+// Spots are merged into cells of half the radius + blur, as leaflet.heat does, but on a grid fixed to the map at each
+// zoom rather than to the screen, so the same spots stay together while the map moves. Cells are [lat, lng, strength]
+// at their spots' weighted centre. Kept per zoom until the heat's data changes (see updateHeat)
+const heatCellCache = new Map();
+function cellsAt(z) {
+  if (!heatSpots.length) return [];   // also the layer's first draw, before the helpers below exist
+  if (heatCellCache.has(z)) return heatCellCache.get(z);
+  const radius = heatRadius(z), size = (radius + heatBlur(radius)) / 2, scale = heatScale(z), cells = new Map();
+  for (const [lat, lng, n] of heatSpots) {
+    const p = map.project([lat, lng], z), key = Math.floor(p.x / size) * 1e8 + Math.floor(p.y / size), s = cells.get(key);
+    if (s) { s[0] += p.x * n; s[1] += p.y * n; s[2] += n; } else cells.set(key, [p.x * n, p.y * n, n]);
   }
   // Square root: the busiest cells are many times the rest, so on a straight scale downtown saturated into one blob
-  return [...cells.values()].map(([x, y, k]) => [Math.round(x), Math.round(y), Math.min(Math.sqrt(k), max)]);
+  const out = [...cells.values()].map(([x, y, n]) => {
+    const ll = map.unproject([x / n, y / n], z);
+    return [ll.lat, ll.lng, Math.min(Math.sqrt(n * scale), 1)];
+  });
+  heatCellCache.set(z, out);
+  return out;
 }
 
-// While the map zooms, Leaflet only stretches the last picture. Instead, the heat is redrawn every frame at the
-// in-between zoom, so blobs split into smaller hotspots as you zoom in, and merge as you zoom out, in real time.
+// Zooming, in two parts, so it feels like zooming into the same map rather than switching to another one:
+// 1. While the map zooms, the heat you were looking at stays stuck to it: every blob moves and grows with the
+//    streets under it, redrawn each frame (Leaflet would only stretch the old picture, which blurs).
+// 2. Once the zoom stops, the heat eases into the new zoom's own detail: blobs settle back to their usual size and
+//    split into the finer hotspots (or merge, zooming out).
 // Frames go to a second canvas covering only the visible map, at half resolution and stretched back up: a full
 // redraw takes ~70 ms, too slow for every frame, and the blur hides the softer pixels
-const MORPH_Q = 0.5;
-const quarterZoom = (z) => Math.round(z * 4) / 4;   // heatScale is worked out per quarter step, like the zoom snaps
-function drawMorph(layer, pts, z) {
+const MORPH_Q = 0.5, SETTLE_MS = 400;
+// Draw `sets` of [cells, weight, place] with blobs of `radius`: place(cell, i) gives a cell's [x, y] on screen
+function drawMorph(layer, radius, sets) {
   const view = map.getSize(), cv = layer._morph ??= Object.assign(document.createElement("canvas"), { className: "leaflet-layer heat-morph" });
   const w = Math.ceil(view.x * MORPH_Q), h = Math.ceil(view.y * MORPH_Q);
   if (cv.width !== w || cv.height !== h || !layer._morphHeat) {
     cv.width = w; cv.height = h; cv.style.width = `${view.x}px`; cv.style.height = `${view.y}px`;
     layer._morphHeat = simpleheat(cv);   // leaflet.heat's drawing engine, a global from its script
   }
-  layer._morphHeat._grad = layer._heat._grad;
+  const sh = layer._morphHeat;
+  sh._grad = layer._heat._grad;
+  sh.radius(radius * MORPH_Q, heatBlur(radius) * MORPH_Q);
   L.DomUtil.setPosition(cv, map.containerPointToLayerPoint([0, 0]));
   if (!cv.parentNode) layer._canvas.parentNode.appendChild(cv);
-  const r = heatRadius(z) * MORPH_Q;
-  layer._morphHeat.radius(r, r * 1.25);
-  layer._morphHeat.data(heatCells(pts, r, map._getMapPanePos().multiplyBy(MORPH_Q), L.point(w, h), 1)).draw(layer.options.minOpacity);
+  const r = sh._r, data = [];
+  for (const [cells, weight, place] of sets) {
+    if (weight < 0.002) continue;
+    cells.forEach((cell, i) => {
+      const [x, y] = place(cell, i);
+      if (x > -r && y > -r && x < w + r && y < h + r) data.push([x, y, cell[2] * weight]);
+    });
+  }
+  sh.data(data).draw(layer.options.minOpacity);
   layer._canvas.style.visibility = "hidden";
 }
-// An animated zoom (buttons, wheel, trackpad, the end of a pinch). The stretching canvas stays, hidden, because its
-// transition tells us how far along the zoom is, so the heat moves in step with the streets
+const onScreen = ([lat, lng]) => { const c = map.latLngToContainerPoint([lat, lng]); return [c.x * MORPH_Q, c.y * MORPH_Q]; };
+// Part 1 for an animated zoom (buttons, wheel, trackpad, the end of a pinch). The stretching canvas stays, hidden,
+// because its transition tells us how far along the zoom is, so the heat moves in step with the streets
 function startMorph(layer, e) {
   cancelAnimationFrame(layer._morphFrame);
-  const s1 = map.getZoomScale(e.zoom, layer._zoom), z0 = map.getZoom(), q = MORPH_Q;
+  layer._morphRun = (layer._morphRun || 0) + 1;   // a settle still running (part 2) is cut short
+  const s1 = map.getZoomScale(e.zoom, layer._zoom), pane = map._getMapPanePos(), q = MORPH_Q;
   if (reduceMotion || !heatSpots.length || !layer._pad || Math.abs(s1 - 1) < 1e-3) return endMorph(layer);
-  const mid = map.getSize().divideBy(2), c0 = map.project(map.getCenter(), z0), c1 = map.project(e.center, e.zoom);
-  const k0 = heatScale(quarterZoom(z0)), k1 = heatScale(e.zoom);
-  // Where each spot sits on screen before and after the zoom; in between it moves in a straight line
-  const pts = heatSpots.map(([lat, lng, n]) => {
-    const a = map.project([lat, lng], z0).subtract(c0).add(mid), b = map.project([lat, lng], e.zoom).subtract(c1).add(mid);
-    return [a.x * q, a.y * q, (b.x - a.x) * q, (b.y - a.y) * q, n];
+  // Keep following the picture the gesture started from (z0) through every step of a scroll or the end of a pinch,
+  // so it never swaps mid-zoom; sNow and sEnd are how far the map is zoomed against it now and at the end
+  const z0 = layer._morphFrom ?? layer._zoom, cells = cellsAt(z0), r0 = heatRadius(z0);
+  const sNow = map.getZoomScale(map.getZoom(), z0), sEnd = map.getZoomScale(e.zoom, z0);
+  // Where each cell sits on screen now and after the zoom, by Leaflet's own (rounded) sums so it lands exactly
+  // where the streets do; in between it moves in a straight line, as the map's own zoom transition does
+  const ends = cells.map(([lat, lng]) => {
+    const a = map.latLngToContainerPoint([lat, lng]), b = map._latLngToNewLayerPoint(L.latLng(lat, lng), e.zoom, e.center).add(pane);
+    return [a.x * q, a.y * q, (b.x - a.x) * q, (b.y - a.y) * q];
   });
+  layer._morphFrom = z0;
   const frame = () => {
     const t = new DOMMatrixReadOnly(getComputedStyle(layer._canvas).transform).a;   // the stretch so far
-    const p = Math.min(1, Math.max(0, (t - 1) / (s1 - 1))), k = k0 + (k1 - k0) * p;
-    drawMorph(layer, pts.map(([x, y, dx, dy, n]) => [x + dx * p, y + dy * p, n * k]), layer._zoom + Math.log2(t > 0 ? t : 1));
+    const p = Math.min(1, Math.max(0, (t - 1) / (s1 - 1)));
+    drawMorph(layer, r0 * (sNow + (sEnd - sNow) * p), [[cells, 1, (cell, i) => {
+      const [x, y, dx, dy] = ends[i];
+      return [x + dx * p, y + dy * p];
+    }]]);
     layer._morphFrame = requestAnimationFrame(frame);
   };
   frame();
 }
-// A pinch on a touch screen moves the map itself, frame by frame, with no zoom animation: redraw as it goes
+// Part 1 for a pinch on a touch screen, which moves the map itself frame by frame with no zoom animation
 map.on("zoom", (e) => {
   if (!e.pinch || reduceMotion || !heatSpots.length) return;
   cancelAnimationFrame(heat._morphFrame);
+  heat._morphRun = (heat._morphRun || 0) + 1;
   heat._morphFrame = requestAnimationFrame(() => {
-    const z = map.getZoom(), k = heatScale(quarterZoom(z)), q = MORPH_Q;
-    drawMorph(heat, heatSpots.map(([lat, lng, n]) => { const c = map.latLngToContainerPoint([lat, lng]); return [c.x * q, c.y * q, n * k]; }), z);
+    const z0 = heat._morphFrom ?? heat._zoom;
+    heat._morphFrom = z0;
+    drawMorph(heat, heatRadius(z0) * map.getZoomScale(map.getZoom(), z0), [[cellsAt(z0), 1, onScreen]]);
   });
 });
-function endMorph(layer) {
-  if (!layer._morph?.parentNode) return;
+// Part 2, once the map has stopped at its new zoom (from _reset, just after the full redraw underneath)
+function settleMorph(layer) {
+  const z0 = layer._morphFrom, z1 = map.getZoom();
+  if (z0 === undefined || z0 === z1 || !layer._morph?.parentNode) return endMorph(layer);
   cancelAnimationFrame(layer._morphFrame);
-  layer._morph.remove();
+  const from = cellsAt(z0), to = cellsAt(z1), r0 = heatRadius(z0) * map.getZoomScale(z1, z0), r1 = heatRadius(z1);
+  const fromXY = from.map(onScreen), toXY = to.map(onScreen), start = performance.now(), run = ++layer._morphRun;
+  const frame = () => {
+    const u = Math.min(1, (performance.now() - start) / SETTLE_MS), k = 1 - (1 - u) ** 3;   // ease out
+    drawMorph(layer, r0 + (r1 - r0) * k, [[from, 1 - k, (c, i) => fromXY[i]], [to, k, (c, i) => toXY[i]]]);
+    layer._morphFrame = u < 1 ? requestAnimationFrame(frame) : (endMorph(layer), 0);
+  };
+  frame();
+  // Frames pause in a background tab, which would leave the half-way picture up: finish anyway
+  setTimeout(() => { if (layer._morphRun === run) endMorph(layer); }, SETTLE_MS + 300);
+}
+function endMorph(layer) {
+  layer._morphRun = (layer._morphRun || 0) + 1;
+  layer._morphFrom = undefined;
+  cancelAnimationFrame(layer._morphFrame);
+  if (layer._morph?.parentNode) {
+    layer._morph.remove();
+    if (layer._stale) { layer._stale = false; layer._redraw(); }   // in the same frame, so the swap doesn't show
+  }
   layer._canvas.style.visibility = "";
 }
 // The colours come from --ramp-1..5, so the map and its legend always match the theme. Below the first stop the
@@ -788,9 +845,6 @@ function bindTimeControls() {
 // scale, so a year with fewer incidents really does look fainter, and so does a rarer crime type: with its
 // own scale, an evenly spread type like home break-ins turned the whole city red. A part of the day is drawn
 // per hour on that same scale (see updateHeat), so it compares fairly with "Any time" too.
-let heatSpots = [], refSpots = [];
-let refHours = null;
-const refScales = new Map();   // the colour scale at each zoom, for refSpots (see heatScale)   // what refSpots and its colour scale were last worked out for
 
 // A part year (2026 so far) counts as a full year's rate, so it compares fairly with whole years
 function yearWeight(y) {
@@ -829,11 +883,13 @@ function updateHeat() {
   // exactly as busy per hour as the whole day looks like "Any time"; busier parts glow more, quieter ones less.
   const hrs = state.hours ? state.hours.size : 0;   // 0 for "Any time"
   heatSpots = n ? spotsPerYear(shown, n, hrs ? 24 / hrs : 1) : [];
+  heatCellCache.clear();
   // refSpots only changes when a time of day is turned on or off, so it isn't rebuilt on every filter change
   if (refHours !== !!hrs) {
     refHours = !!hrs;
     refSpots = spotsPerYear(hrs ? state.data.points.filter((p) => p[HOUR] >= 0) : state.data.points, state.data.years.length);
     refScales.clear();
+    heatCellCache.clear();   // its cells carry the old scale
   }
   fadeHeat();
   drawHeat();
@@ -853,14 +909,16 @@ function updateHeat() {
 }
 
 // Smaller blobs when zoomed out, so heat stays on land
-const heatRadius = (z) => Math.round(8 + (z - CONFIG.minZoom) * 3);
+// Not rounded, so blobs grow smoothly as the map zooms
+const heatRadius = (z) => 8 + (z - CONFIG.minZoom) * 3;
+const heatBlur = (radius) => radius * 1.25;
 // Scale the heat so only real hotspots of the average year reach the top colour and quiet areas fade out
 // (instead of the whole city turning orange). Add up the average year's incidents in screen cells the same way
 // leaflet.heat does, then find how busy a "hotspot" cell is. That only depends on the zoom and refSpots, so it's
 // worked out once for each zoom
 function heatScale(z) {
   if (refScales.has(z)) return refScales.get(z);
-  const radius = heatRadius(z), cellSize = (radius + Math.round(radius * 1.25)) / 2, sums = new Map();
+  const radius = heatRadius(z), cellSize = (radius + heatBlur(radius)) / 2, sums = new Map();
   for (const [lat, lng, n] of refSpots) {
     const p = map.project([lat, lng], z);
     const key = Math.floor(p.x / cellSize) * 1e7 + Math.floor(p.y / cellSize);
@@ -872,10 +930,10 @@ function heatScale(z) {
   refScales.set(z, scale);
   return scale;
 }
+// The heat layer draws cellsAt(zoom) itself (see _redraw); this sets the blob size and asks for a redraw
 function drawHeat() {
-  const z = map.getZoom(), radius = heatRadius(z), scale = heatScale(z);
-  heat.setOptions({ radius, blur: Math.round(radius * 1.25) });
-  heat.setLatLngs(heatSpots.map(([lat, lng, n]) => [lat, lng, n * scale]));
+  const radius = heatRadius(map.getZoom());
+  heat.setOptions({ radius, blur: heatBlur(radius) });
 }
 map.on("zoomend", () => { if (heatSpots.length) drawHeat(); });
 
