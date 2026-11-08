@@ -194,9 +194,10 @@ const glLabels = L.maplibreGL ? L.maplibreGL({ style: emptyStyle, pane: "labels"
 // Draws the basemap and its labels in the current theme; labelsOnly when only our names changed. Waits for the style
 function paintBasemap(labelsOnly = false) {
   if (!ofmStyle) return;
-  // diff: false replaces the style outright; patching it can't add the font (glyphs) setting the labels need
-  if (!labelsOnly) glBase.getMaplibreMap().setStyle(mapStyle(false), { diff: false });
-  glLabels.getMaplibreMap().setStyle(mapStyle(true), { diff: false });
+  // Patched in place (MapLibre's diff), not replaced: replacing a style whose icon sprite is still downloading cancels
+  // that download, which MapLibre reports as an uncaught AbortError. The starter style already names the fonts
+  if (!labelsOnly) glBase.getMaplibreMap().setStyle(mapStyle(false));
+  glLabels.getMaplibreMap().setStyle(mapStyle(true));
 }
 if (glBase) {
   fetch(OFM).then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))))
