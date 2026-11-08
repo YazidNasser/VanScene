@@ -16,6 +16,9 @@
   --on-sea: #ffffff;       /* text on the accent colour */
   --b: #2b7a4b;            /* area B in Compare: the map's park-name green */
   --bar-bg: #ebe8e0;
+  /* The frosted sidebar: its tint, its edge, and the see-through fills inside it */
+  --glass: rgba(255, 255, 255, 0.82); --glass-edge: rgba(28, 37, 45, 0.08);
+  --glass-fill: rgba(28, 37, 45, 0.05); --glass-fill-2: rgba(28, 37, 45, 0.09);
   /* Heat map colours, fewest to most: on a light map "more" gets darker, on a dark map it gets brighter.
      Pale amber to deep plum (the dark theme's magma ramp run the other way), so busy reads as dense, not as danger red */
   --ramp-1: #fde3a7; --ramp-2: #f7ad6a; --ramp-3: #d9607e; --ramp-4: #92307f; --ramp-5: #45125e;
@@ -25,9 +28,9 @@
   --status-bg: rgba(245, 243, 238, 0.92);
   --tile-filter: none;     /* only used by the fallback raster tiles */
   --control-shadow: 0 1px 3px rgba(28, 37, 45, 0.14), 0 4px 12px rgba(28, 37, 45, 0.08);
-  --font: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   /* Text on the map: Apple's own SF where the device has it, like Apple Maps, otherwise the page's face */
-  --map-font: -apple-system, BlinkMacSystemFont, "Public Sans", system-ui, sans-serif;
+  --map-font: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
   color-scheme: light;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
@@ -35,11 +38,14 @@
 }
 :root[data-theme="dark"] {
   /* Slate, like the night map and Apple's own dark panels: surfaces a step darker than the map's land, tiles in the
-     land colour itself, the map's label inks for text, its pale periwinkle water names for the accent, its park green for B */
+     land colour itself, the map's label inks for text, its park green for B. The accent is a clear aqua: across the
+     wheel from the heat's amber and well off its violet and the navy water, so area A's circle reads on any of them */
   --ink: #e6ebf1; --muted: #aab3bf; --faint: #939dab; --line: #3a424e;
   --page: #1c2129; --surface: #232a33; --surface-2: #2c333d;
-  --sea: #8fb2f2; --sea-soft: #2f3a4f; --on-sea: #1c2129; --b: #7fd39a;
+  --sea: #5cc8ee; --sea-soft: #22404f; --on-sea: #1c2129; --b: #7fd39a;
   --bar-bg: #363e4a; --map-bg: #2c333d;
+  --glass: rgba(35, 42, 51, 0.84); --glass-edge: rgba(230, 235, 241, 0.08);
+  --glass-fill: rgba(230, 235, 241, 0.06); --glass-fill-2: rgba(230, 235, 241, 0.11);
   --status-bg: rgba(28, 33, 41, 0.92);
   --tile-filter: invert(1) brightness(0.85) contrast(0.85);   /* only used by the fallback raster tiles */
   --control-shadow: 0 1px 3px rgba(10, 14, 20, 0.5), 0 4px 12px rgba(10, 14, 20, 0.3);
@@ -132,9 +138,10 @@ a { color: var(--sea); }
   .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 356px; }   /* the slimmer 340px panels */
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 316px; }   /* the slimmer 300px area card */
 }
-/* A thin white halo round the area circles on the light map, so A and B still read over the plum end of the heat
-   (the dark map's heat is bright where it's busy, so its circles don't need one) */
-:root:not([data-theme="dark"]) #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff); }
+/* A thin halo round the area circles, so A and B lift off the heat under them: white over the plum end of the light
+   map's heat, the night map's darkest slate over the bright amber end of its heat */
+#map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff); }
+:root[data-theme="dark"] #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1px #12161c) drop-shadow(0 0 1.5px #12161c); }
 /* Area A's and B's colour, for the map handles and the "Place A | B" toggle */
 .ab-a, .slot-pick .ab.a { --slot: var(--sea); }
 .ab-b, .slot-pick .ab.b { --slot: var(--b); }
@@ -146,6 +153,18 @@ a { color: var(--sea); }
 
 .panel { position: absolute; z-index: 10; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
 .filters { top: 16px; left: 16px; max-height: calc(100% - 32px); width: 312px; padding: 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
+/* Wider screens: the filters are a sidebar down the left edge, frosted like Apple Maps' own, so the map and its heat
+   glow softly through it. Our spin: tinted with the panels' slate or white rather than Apple's navy, and the
+   saturate lets the heat's colour, not just its light, come through. Fills inside are see-through tints of the ink,
+   and hints use the secondary grey, so text keeps 4.5:1 even over the brightest heat */
+@media (min-width: 761px) {
+  .filters { top: 0; left: 0; bottom: 0; max-height: none; padding: 20px 18px; border: 0; border-right: 1px solid var(--glass-edge); border-radius: 0;
+    background: var(--glass); -webkit-backdrop-filter: blur(28px) saturate(1.6); backdrop-filter: blur(28px) saturate(1.6);
+    --surface-2: var(--glass-fill); --bar-bg: var(--glass-fill-2); --faint: var(--muted); animation-name: fade; }
+  /* Solid where the browser can't blur, or the person has asked for less transparency */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .filters { background: var(--surface); } }
+  @media (prefers-reduced-transparency: reduce) { .filters { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+}
 .area { top: 16px; right: 16px; width: 344px; max-height: calc(100% - 80px); overflow-y: auto; padding: 18px; display: none; }   /* ends 64px up, like Compare and Trends, clear of a host badge */
 .compare { top: 16px; right: 16px; width: 420px; max-height: calc(100% - 80px); overflow-y: auto; padding: 16px 18px; display: none; }   /* a column on the right, like Trends, so the map stays open */
 .trends { top: 16px; right: 16px; bottom: 64px; width: 420px; overflow-y: auto; padding: 18px; display: none; }
@@ -231,7 +250,7 @@ details.about p { margin-top: 8px; }
 .pill { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-top: 10px; background: var(--surface-2); color: var(--muted); }
 /* Up and down keep their arrows but stay neutral: a change in reports is context, not an alarm */
 .sec { font-size: 0.82rem; font-weight: 700; margin: 14px 0 8px; }
-.bars { display: grid; grid-template-columns: minmax(0, 150px) 1fr 44px; gap: 7px 10px; align-items: center; font-size: 0.84rem; }
+.bars { display: grid; grid-template-columns: minmax(0, 150px) 1fr auto; gap: 7px 10px; align-items: center; font-size: 0.84rem; }
 .bars .n { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 .bar { height: 8px; border-radius: 4px; background: var(--bar-bg); overflow: hidden; }
 .bar span { display: block; height: 100%; border-radius: 4px; background: var(--muted); }   /* neutral: the heat colours mean the map */
@@ -326,9 +345,9 @@ button.cmp.empty:hover { border-color: var(--muted); }
   opacity: 0; visibility: hidden; transition: opacity 0.5s ease, visibility 0.5s; }
 .status.show { opacity: 1; visibility: visible; }
 .status:not(.show) { pointer-events: none; }   /* clicks reach the map as soon as it starts fading out */
-/* A note in the panels' own surface, at the top of the map, centred between the filter panel (344px with
-   gutters) and an area card on the right (376px), so it sits in the open map whether or not a card is there */
-.toast { position: absolute; z-index: 15; top: 16px; left: calc(50% - 16px); width: max-content; max-width: min(420px, calc(100% - 752px));
+/* A note in the panels' own surface, at the top of the map, centred between the filter sidebar (312px) and
+   an area card on the right (376px with its gutters), so it sits in the open map whether or not a card is there */
+.toast { position: absolute; z-index: 15; top: 16px; left: calc(50% - 32px); width: max-content; max-width: min(420px, calc(100% - 752px));
   display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line);
   background: var(--surface); color: var(--ink); font-size: 0.875rem; line-height: 1.4; pointer-events: none;
   opacity: 0; visibility: hidden; transform: translate(-50%, -6px); transition: opacity 0.25s, transform 0.25s var(--ease), visibility 0.25s; }
@@ -353,6 +372,7 @@ body, .site-head, .panel, select, .search { transition: background-color 0.3s, c
 .panel.enter .spark i:not(.gap), .panel.enter .ybars i:not(.gap) { transform-origin: bottom; animation: grow-y 0.5s var(--ease) both; animation-delay: calc(var(--i, 0) * 20ms); }
 .panel.enter .hbars i { transform-origin: bottom; animation: grow-y 0.5s var(--ease) both; animation-delay: calc(var(--i, 0) * 10ms); }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+@keyframes fade { from { opacity: 0; } }   /* the docked sidebar fades in rather than rising off its edges */
 @keyframes grow-x { from { transform: scaleX(0); } }
 @keyframes grow-y { from { transform: scaleY(0); } }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -364,7 +384,11 @@ body, .site-head, .panel, select, .search { transition: background-color 0.3s, c
 /* Medium screens: slimmer panels */
 @media (max-width: 1150px) {
   .filters { width: 288px; }
-  .toast { left: calc(50% - 18px); max-width: max(240px, calc(100% - 688px)); }   /* slimmer panels: 320px left, 356px right */
+  /* Inter sets a little wider than a narrow card's columns allow: "Overnight" and the tiles' figures */
+  .day-track > button:not(.all) { font-size: 0.78rem; }
+  .tiles p:nth-child(2) { font-size: 0.94rem; }
+  .tiles p:first-child { font-size: 0.7rem; }
+  .toast { left: calc(50% - 34px); max-width: max(240px, calc(100% - 688px)); }   /* slimmer panels: 288px left, 356px right */
   .views button { padding: 6px 9px; }   /* leaves the header search room for its placeholder */
   .area { width: 300px; }
   .compare, .trends { width: 340px; }
