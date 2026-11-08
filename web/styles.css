@@ -319,6 +319,7 @@ legend { padding: 0; }
 .legend .ends { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--faint); margin-top: 3px; }
 .legend-note { font-size: 0.78rem; color: var(--muted); margin-top: 6px; }
 .legend .lab { font-weight: 400; color: var(--muted); font-size: 0.8rem; }
+.updated { font-size: 0.78rem; color: var(--muted); margin: 0; }
 details.about { font-size: 0.8125rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
 details.about summary { cursor: pointer; font-weight: 700; color: var(--ink); font-size: 0.82rem; list-style: none; display: flex; align-items: center; gap: 8px; }
 details.about summary::-webkit-details-marker { display: none; }

@@ -1904,7 +1904,10 @@ function labelLegend() {
 }
 function renderAbout() {
   const d = state.data;
-  const through = new Date(d.latestDate + "T12:00:00").toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" });
+  const day = (iso) => new Date(iso.slice(0, 10) + "T12:00:00").toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" });
+  const through = day(d.latestDate);
+  // VPD asks sites using GeoDASH to show when their copy was last refreshed, in plain sight rather than inside About
+  $("updated").innerHTML = `Updated ${day(d.generated)} from <a href="https://geodash.vpd.ca/opendata/">VPD GeoDASH</a>. Data through ${through}.`;
   $("about-body").innerHTML = `
     <p>Source: Vancouver Police Department, <a href="https://geodash.vpd.ca/opendata/">GeoDASH open data</a>. Data through ${through}.</p>
     <p>Shows reported incidents that police confirmed occurred, not all crime. Busy areas show more because more people are there. This is for awareness, not a safety score for any address.</p>
@@ -1955,11 +1958,10 @@ function setSidebar(open) {
   const label = open ? "Hide filters" : "Show filters", brand = $("brand-btn"), live = !isPhone();
   $("side-toggle").setAttribute("aria-expanded", String(open));
   $("side-toggle").setAttribute("aria-label", label);
-  $("side-toggle").title = label;
   brand.tabIndex = live ? 0 : -1;   // phones have no sidebar, so there the name is just the name
   if (live) {
     brand.removeAttribute("aria-hidden");
-    Object.entries({ "aria-label": label, "aria-expanded": String(open), "aria-controls": "filters", title: label }).forEach(([a, v]) => brand.setAttribute(a, v));
+    Object.entries({ "aria-label": label, "aria-expanded": String(open), "aria-controls": "filters" }).forEach(([a, v]) => brand.setAttribute(a, v));
   } else {
     brand.setAttribute("aria-hidden", "true");
     ["aria-label", "aria-expanded", "aria-controls", "title"].forEach((a) => brand.removeAttribute(a));
