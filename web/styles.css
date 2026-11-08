@@ -175,8 +175,13 @@ a { color: var(--sea); }
   .site-head { position: absolute; top: 0; left: 0; right: 0; }
   .site-head .theme-toggle, .site-head .side-toggle { background: transparent; }
   /* The filters card can be tucked away to the left, giving the map the whole width (the header button brings it back) */
-  .filters { transition: transform 0.35s var(--ease), opacity 0.25s, visibility 0.35s; animation-fill-mode: backwards; }   /* the entrance lets go after, so hiding can animate */
-  .app.side-hidden .filters { transform: translateX(calc(-100% - 24px)); opacity: 0; visibility: hidden; }
+  /* Docked to the left edge, flush under the header, like a drawer: as tall as its content, rounded only at the free
+     corner, so it belongs to the edge of the screen rather than floating on the map */
+  .filters { top: var(--top); left: 0; max-height: calc(100% - var(--top)); border-width: 0 1px 1px 0; border-radius: 0 0 16px 0; }
+  /* It slides out past the left edge and back in. The entrance animation must let go once it has played, or its
+     held frame would override the slide and the drawer would just pop in and out */
+  .app .filters { transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1), visibility 0.45s; animation-fill-mode: backwards; }
+  .app.side-hidden .filters { transform: translateX(calc(-100% - 2px)); visibility: hidden; }
   /* Solid where the browser can't blur, or the person has asked for less transparency */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .site-head, .panel { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .site-head, .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
@@ -369,9 +374,9 @@ button.cmp.empty:hover { border-color: var(--muted); }
   opacity: 0; visibility: hidden; transition: opacity 0.5s ease, visibility 0.5s; }
 .status.show { opacity: 1; visibility: visible; }
 .status:not(.show) { pointer-events: none; }   /* clicks reach the map as soon as it starts fading out */
-/* A note in the panels' own surface, at the top of the map, centred between the filter panel (344px with
-   gutters) and an area card on the right (376px), so it sits in the open map whether or not a card is there */
-.toast { position: absolute; z-index: 15; top: calc(var(--top) + 16px); left: calc(50% - 16px); width: max-content; max-width: min(420px, calc(100% - 752px));
+/* A note in the panels' own surface, at the top of the map, centred between the filter drawer (312px, docked)
+   and an area card on the right (376px with its gutters), so it sits in the open map whether or not a card is there */
+.toast { position: absolute; z-index: 15; top: calc(var(--top) + 16px); left: calc(50% - 32px); width: max-content; max-width: min(420px, calc(100% - 752px));
   display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line);
   background: var(--surface); color: var(--ink); font-size: 0.875rem; line-height: 1.4; pointer-events: none;
   opacity: 0; visibility: hidden; transform: translate(-50%, -6px); transition: opacity 0.25s, transform 0.25s var(--ease), visibility 0.25s; }
@@ -412,7 +417,7 @@ body, .site-head, .panel, select, .search { transition: background-color 0.3s, c
   .day-track > button:not(.all) { font-size: 0.78rem; }
   .tiles p:nth-child(2) { font-size: 0.94rem; }
   .tiles p:first-child { font-size: 0.7rem; }
-  .toast { left: calc(50% - 18px); max-width: max(240px, calc(100% - 688px)); }   /* slimmer panels: 320px left, 356px right */
+  .toast { left: calc(50% - 34px); max-width: max(240px, calc(100% - 688px)); }   /* slimmer panels: 288px left, 356px right */
   .views button { padding: 6px 9px; }   /* leaves the header search room for its placeholder */
   .area { width: 300px; }
   .compare, .trends { width: 340px; }
