@@ -1031,11 +1031,15 @@ map.on("moveend", () => {
   if (!c.equals(map._limitCenter(c, map.getZoom(), map.options.maxBounds))) return;
   const o = panelPadding(L.latLngBounds(CITY_BOUNDS)), [[s, w], [n, e]] = CITY_BOUNDS;
   const tl = L.point(o.paddingTopLeft), br = map.getSize().subtract(o.paddingBottomRight), mid = tl.add(br).divideBy(2);
+  // Panels covering the whole map (a hidden or very narrow window) leave nowhere to centre the city in
+  if (br.x <= tl.x || br.y <= tl.y) return;
   const a = map.latLngToContainerPoint([n, w]), b = map.latLngToContainerPoint([s, e]);   // the city's box on screen
   const near = L.point(Math.min(b.x, Math.max(a.x, mid.x)), Math.min(b.y, Math.max(a.y, mid.y)));
   // Within a quarter of the uncovered map from its middle is close enough, so the city's edges can still be looked at
   if (Math.abs(near.x - mid.x) <= (br.x - tl.x) / 4 && Math.abs(near.y - mid.y) <= (br.y - tl.y) / 4) return;
-  map.panBy(a.add(b).divideBy(2).subtract(mid), { animate: !reduceMotion });
+  // A pan that rounds to nothing makes Leaflet fire moveend at once, which would run this again in a loop
+  const shift = a.add(b).divideBy(2).subtract(mid).round();
+  if (shift.x || shift.y) map.panBy(shift, { animate: !reduceMotion });
 });
 function fitForView() {
   if (state.view === "map" && state.selected) return fitTo(areaBounds(state.selected));
