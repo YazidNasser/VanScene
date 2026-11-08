@@ -103,9 +103,9 @@ map.getPane("labels").style.zIndex = 395;        // above the heat (390), below 
 map.getPane("labels").style.pointerEvents = "none";
 const MAP_COLOURS = {
   light: { land: "#f5f3ee", built: "#efece6", building: "#e5e1d8", park: "#cbe7bd", water: "#9ecff2", road: "#ffffff",
-    casing: "#e0dbcf", highway: "#f6d27c", rail: "#d6d1c7", text: "#4f5a64", halo: "#ffffff", waterText: "#3d6c9a" },
+    casing: "#e0dbcf", highway: "#f6d27c", rail: "#d6d1c7", text: "#4f5a64", halo: "#ffffff", waterText: "#3d6c9a", parkText: "#3c7f37" },
   dark: { land: "#2c333d", built: "#2f3640", building: "#363e49", park: "#1e5d55", water: "#1d2c76", road: "#4b5668",
-    casing: "#2c333d", highway: "#7c8aa3", rail: "#3a4351", text: "#cfd6df", halo: "#20262e", waterText: "#93a6e6" },
+    casing: "#2c333d", highway: "#7c8aa3", rail: "#3a4351", text: "#cfd6df", halo: "#20262e", waterText: "#93a6e6", parkText: "#74d38f" },
 };
 const OFM = "https://tiles.openfreemap.org/styles/positron";
 let ofmStyle = null;   // OpenFreeMap's Positron style, which mapStyle() recolours for the theme
@@ -139,6 +139,16 @@ function mapStyle(labels) {
         "text-size": ["interpolate", ["linear"], ["zoom"], 12, 9, 15, 11] };
     }
     layers.push(layer);
+  }
+  // Park names in green, like Apple Maps: the big parks from city zoom (named points in the tiles' park layer),
+  // then every park at street zoom (points of interest, only in the tiles from z14, which this layer reaches at
+  // Leaflet zoom 15 since the bridge runs MapLibre one level lower). Stanley Park is skipped: our neighbourhood label names it
+  if (labels) {
+    const parkName = (id, sourceLayer, filter, minzoom) => ({ id, type: "symbol", source: "openmaptiles", "source-layer": sourceLayer, minzoom, filter,
+      layout: { "text-field": ["coalesce", ["get", "name_en"], ["get", "name"]], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-max-width": 7 },
+      paint: { "text-color": c.parkText, "text-halo-color": c.halo, "text-halo-width": 1.4, "text-halo-blur": 0.5 } });
+    layers.push(parkName("park-name-big", "park", ["all", ["==", ["geometry-type"], "Point"], ["!=", ["get", "name"], "Stanley Park"]], 9));
+    layers.push(parkName("park-name", "poi", ["==", ["get", "class"], "park"], 13));
   }
   return { ...ofmStyle, layers };
 }
