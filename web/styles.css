@@ -1,17 +1,17 @@
 /* ---------------------------------------------------------------------
    Colours: change these to restyle the whole page. Dark mode reuses the names.
    Taken from the basemap (MAP_COLOURS in app.js), so panels and map read as one: the map's slate label ink,
-   its cream land for tiles and fills, a deeper shade of its water for the accent (the ink itself at night).
+   its cool grey land for tiles and fills (a slate-tinted grey to match the ink and water, not a warm cream), a deeper shade of its water for the accent (the ink itself at night).
    Areas A and B share one white ring colour and are told apart by their letters
    --------------------------------------------------------------------- */
 :root {
   --ink: #1c252d;          /* main text: the map's city-name ink */
   --muted: #56606b;        /* secondary text */
   --faint: #5f6974;        /* hints and captions: still 4.5:1 on white, on tiles and on bars */
-  --line: #e4e0d8;         /* borders: between the map's land and its road casings */
-  --page: #f5f3ee;         /* behind the panels: the map's land */
+  --line: #dce1e7;         /* borders: between the map's land and its road casings */
+  --page: #eef1f4;         /* behind the panels: the map's land */
   --surface: #ffffff;      /* panels and cards: white, like the map's roads */
-  --surface-2: #f5f3ee;    /* tiles inside cards: the map's land again */
+  --surface-2: #eef1f4;    /* tiles inside cards: the map's land again */
   --sea: #1a67ab;          /* accent: the map's water, deepened to 5.9:1 on white; selected hours and years, links */
   --sea-soft: #e4eef8;
   --on-sea: #ffffff;       /* text on the accent colour */
@@ -19,7 +19,7 @@
   --on-ring: #1c252d;      /* text on the ring colour */
   --pin: #007aff;          /* the picked spot: the familiar blue of a phone's own location dot */
   --circle: #3a434c;       /* the 500 m circles' edge: a dark grey, as white was lost on the light land */
-  --bar-bg: #ebe8e0;
+  --bar-bg: #e3e7ec;
   --hover: color-mix(in srgb, var(--ink) 14%, transparent);   /* a clear ink tint under the pointer, in either theme */
   /* The frosted header and panels: their tint, their edge, and the see-through fills inside them */
   --search-bg: #fff;
@@ -30,13 +30,14 @@
   --ramp-1: #3fd46a; --ramp-2: #a6e03a; --ramp-3: #ffd21f; --ramp-4: #ff8a1f; --ramp-5: #f0321e;
   --heat-opacity: 0.75;    /* laid over the map at three-quarters, so streets and parks show through */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --map-bg: #f5f3ee;       /* the basemap's land colour, so nothing flashes while it loads */
-  --status-bg: rgba(245, 243, 238, 0.92);
+  --map-bg: #eef1f4;       /* the basemap's land colour, so nothing flashes while it loads */
+  --status-bg: rgba(238, 241, 244, 0.92);
   --tile-filter: none;     /* only used by the fallback raster tiles */
   --control-shadow: 0 1px 3px rgba(28, 37, 45, 0.14), 0 4px 12px rgba(28, 37, 45, 0.08);
-  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Atkinson Hyperlegible Next: drawn by the Braille Institute so similar letters and figures (1 l I, 0 O) never blur, for people reading numbers at a glance */
+  --font: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   /* Text on the map: Apple's own SF where the device has it, like Apple Maps, otherwise the page's face */
-  --map-font: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+  --map-font: -apple-system, BlinkMacSystemFont, "Atkinson Hyperlegible Next", system-ui, sans-serif;
   color-scheme: light;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
