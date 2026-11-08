@@ -133,6 +133,11 @@ function mapStyle(labels) {
       layer.filter = ["all", l.filter, ["!=", ["get", "name"], "Vancouver"]];
       layer.layout = { ...l.layout, "text-size": 17, "text-font": ["Noto Sans Bold"] };
     }
+    // Main streets named from city zoom in small spaced capitals, as Apple Maps names its arterials
+    if (l.id === "highway-name-major") {
+      layer.layout = { ...l.layout, "text-transform": "uppercase", "text-letter-spacing": 0.08,
+        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 9, 15, 11] };
+    }
     layers.push(layer);
   }
   return { ...ofmStyle, layers };
@@ -1610,6 +1615,10 @@ async function start() {
   for (const p of state.data.points) {
     for (const h of busy.keys()) if (Math.abs(p[0] - h.lat) < 0.009 && Math.abs(p[1] - h.lng) < 0.014) busy.set(h, busy.get(h) + 1);
   }
+  // The city's own name, as Apple Maps sets it: large and bold at a fixed size, so it stays big while the map zooms in
+  // around it, until street zoom hides it. Placed first, so neighbourhood names give way to it rather than the reverse
+  const city = L.divIcon({ className: "hood-label city-label", html: "<span>Vancouver</span>", iconSize: [0, 0] });
+  hoodMarkers.push(L.marker([49.2555, -123.123], { icon: city, pane: "labels", interactive: false, keyboard: false }).addTo(map));
   for (const h of [...busy.keys()].sort((a, b) => busy.get(b) - busy.get(a))) {
     const icon = L.divIcon({ className: "hood-label", html: `<span>${h.name}</span>`, iconSize: [0, 0] });
     hoodMarkers.push(L.marker([h.lat, h.lng], { icon, pane: "labels", interactive: false, keyboard: false }).addTo(map));

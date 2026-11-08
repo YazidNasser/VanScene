@@ -114,6 +114,8 @@ a { color: var(--sea); }
 #map .hood-label span { position: absolute; transform: translate(-50%, -50%); width: max-content; max-width: 84px; text-align: center;
   font: 600 10px/1.25 var(--map-font); letter-spacing: 0.09em; text-transform: uppercase; color: color-mix(in srgb, var(--ink) 78%, var(--surface));
   text-shadow: 0 0 1px var(--surface), 0 0 1px var(--surface), 0 0 2px var(--surface), 0 0 3px var(--surface), 0 0 6px var(--surface); }
+#map .city-label span { max-width: none; font-size: 30px; font-weight: 700; letter-spacing: -0.01em; text-transform: none; color: var(--ink);
+  text-shadow: 0 0 2px var(--surface), 0 0 3px var(--surface), 0 0 6px var(--surface); }
 #map.street-zoom .hood-label { display: none; }   /* zoomed in to streets, the basemap's street names take over */
 /* The clicked spot: a pin in the accent, ringed in the surface colour so it reads over the heat */
 #map .area-pin { border-radius: 50%; background: var(--sea); border: 3px solid var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
