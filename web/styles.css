@@ -112,7 +112,7 @@ a { color: var(--sea); }
 .theme-toggle svg { width: 16px; height: 16px; }
 /* Beside the name, like Apple Maps' sidebar button: hides or shows the filters card (wider screens only) */
 .side-toggle { flex: none; display: grid; place-items: center; width: 34px; height: 34px; margin-left: -4px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; }
-.side-toggle:hover { color: var(--ink); background: var(--hover) !important; }
+.side-toggle:hover { color: var(--ink); background: var(--hover); }
 .side-toggle svg { width: 18px; height: 18px; }
 .theme-toggle .sun, :root[data-theme="dark"] .theme-toggle .moon { display: none; }
 :root[data-theme="dark"] .theme-toggle .sun { display: block; }
@@ -167,7 +167,7 @@ a { color: var(--sea); }
 .panel { position: absolute; z-index: 10; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
 /* --top is how far the header reaches over the map: nothing on phones, where the header sits above it */
 .app { --top: 0px; }
-.filters { top: calc(var(--top) + 16px); left: 16px; max-height: calc(100% - var(--top) - 32px); width: 312px; padding: 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
+.filters { top: 16px; left: 16px; max-height: calc(100% - 32px); width: 312px; padding: 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
 /* Wider screens: the map runs under the header, and the header and every panel are one frosted material, like
    Apple Maps', so they read as a single layer over the map, which shows faintly through. Tinted with the panels'
    own slate or white and kept neutral (no colour boost), so the heat under a panel doesn't stain it. Fills inside
@@ -175,13 +175,12 @@ a { color: var(--sea); }
 @media (min-width: 761px) {
   body { position: relative; }
   .app { --top: 58px; }
-  .site-head, .panel { background: var(--glass); border-color: var(--glass-edge); -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px);
+  .site-head, .panel { background: var(--glass); border-color: var(--glass-edge); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);   /* at 94% opaque a light blur already reads as frost, and costs less to redraw as the map pans */
     --surface-2: var(--glass-fill); --bar-bg: var(--glass-fill-2); --faint: var(--muted); }
   .site-head { position: absolute; top: 0; left: 0; right: 0; }
-  .site-head .theme-toggle, .site-head .side-toggle { background: transparent; }
-  /* The filters card can be tucked away to the left, giving the map the whole width (the header button brings it back) */
-  /* Docked to the left edge, flush under the header, like a drawer: as tall as its content, rounded only at the free
-     corner, so it belongs to the edge of the screen rather than floating on the map */
+  .site-head .theme-toggle { background: transparent; }
+  /* The filters are a drawer docked to the left edge, flush under the header: as tall as their content, rounded only
+     at the free corner. The header's sidebar button (or the name) slides it away to give the map the whole width */
   .filters { top: var(--top); left: 0; max-height: calc(100% - var(--top)); border-width: 0 1px 1px 0; border-radius: 0 0 16px 0; }
   /* It slides out past the left edge and back in. The entrance animation must let go once it has played, or its
      held frame would override the slide and the drawer would just pop in and out */
@@ -412,7 +411,6 @@ body, .site-head, .panel, select, .search { transition: background-color 0.3s, c
 .panel.enter .spark i:not(.gap), .panel.enter .ybars i:not(.gap) { transform-origin: bottom; animation: grow-y 0.5s var(--ease) both; animation-delay: calc(var(--i, 0) * 20ms); }
 .panel.enter .hbars i { transform-origin: bottom; animation: grow-y 0.5s var(--ease) both; animation-delay: calc(var(--i, 0) * 10ms); }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
-@keyframes fade { from { opacity: 0; } }   /* the docked sidebar fades in rather than rising off its edges */
 @keyframes grow-x { from { transform: scaleX(0); } }
 @keyframes grow-y { from { transform: scaleY(0); } }
 @keyframes spin { to { transform: rotate(360deg); } }

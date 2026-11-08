@@ -1128,7 +1128,7 @@ function compareCard(s, slot) {
   const colour = slot === "A" ? "var(--ring)" : "var(--b)", placing = state.nextSlot === slot.toLowerCase();
   // An empty card is a button: click it to pick that area, then click the map
   if (!s) return `<button type="button" class="cmp empty${placing ? " placing" : ""}" data-action="slot-${slot.toLowerCase()}">
-    <span><b style="color:${colour}">${slot}</b> · ${placing ? `Click the map to place area ${slot}, then drag its label to move it` : `Pick ${slot}, then click the map`}</span></button>`;
+    <span><b>${slot}</b> · ${placing ? `Click the map to place area ${slot}, then drag its label to move it` : `Pick ${slot}, then click the map`}</span></button>`;
   return `<div class="cmp${placing ? " placing" : ""}"><h3 class="who"><b style="background:${colour}">${slot}</b>Near ${s.name}</h3>
     <p class="big" data-count="${s.now}" data-key="${slot}">${fmt(s.now)}</p>${s.change ? `<span class="pill ${s.change.cls}" title="${s.change.text}">${s.change.text.replace("same dates ", "")}</span>` : ""}
     <p class="hint">Busiest per hour: ${busiestShort(s.buckets)}</p></div>`;
@@ -1583,8 +1583,8 @@ $("filters-btn").addEventListener("click", () => {
   $("filters-btn").setAttribute("aria-expanded", String(open));
   if (open) $("toast").classList.remove("show");   // on a phone the note would sit on top of the open panel
 });
-// Wider screens: the header's sidebar button tucks the filters card away to give the map the whole width; remembered
-// While hidden, the name folds down to the mark. The name (or mark) is a second toggle, as on Apple Maps
+// Wider screens: the header's sidebar button, or the name beside it, slides the filters drawer away to give the map the
+// whole width, and the name folds down to the mark, as on Apple Maps. The choice is remembered
 function setSidebar(open) {
   document.body.classList.toggle("side-hidden", !open);
   const label = open ? "Hide filters" : "Show filters", brand = $("brand-btn"), live = !isPhone();
@@ -1592,8 +1592,13 @@ function setSidebar(open) {
   $("side-toggle").setAttribute("aria-label", label);
   $("side-toggle").title = label;
   brand.tabIndex = live ? 0 : -1;   // phones have no sidebar, so there the name is just the name
-  if (live) { brand.removeAttribute("aria-hidden"); brand.setAttribute("aria-label", label); brand.setAttribute("aria-expanded", String(open)); brand.title = label; }
-  else { brand.setAttribute("aria-hidden", "true"); ["aria-label", "aria-expanded", "title"].forEach((a) => brand.removeAttribute(a)); }
+  if (live) {
+    brand.removeAttribute("aria-hidden");
+    Object.entries({ "aria-label": label, "aria-expanded": String(open), "aria-controls": "filters", title: label }).forEach(([a, v]) => brand.setAttribute(a, v));
+  } else {
+    brand.setAttribute("aria-hidden", "true");
+    ["aria-label", "aria-expanded", "aria-controls", "title"].forEach((a) => brand.removeAttribute(a));
+  }
 }
 function toggleSidebar(open) {
   setSidebar(open);
