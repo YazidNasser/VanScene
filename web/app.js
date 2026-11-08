@@ -1366,7 +1366,7 @@ function readUrl() {
     if (picked.length) state.years = new Set(picked);
   }
   const type = state.data.types.findIndex((t) => t.label === q.get("type"));
-  if (type >= 0) { state.type = type; $("type").value = String(type); }
+  if (type >= 0) { state.type = type; showType(); }
   if (q.get("hours")) setHours(new Set(q.get("hours").split(",").map(Number).filter((h) => Number.isInteger(h) && h >= 0 && h < 24)));
   const spot = (k) => {
     const [lat, lng] = (q.get(k) || "").split(",").map(Number), ll = Number.isFinite(lat) && Number.isFinite(lng) && L.latLng(lat, lng);
@@ -1461,14 +1461,59 @@ function buildTypePicker() {
   const totals = new Array(types.length).fill(0);
   for (const p of points) totals[p[TYPE]]++;
   const order = types.map((_, i) => i).sort((a, b) => totals[b] - totals[a]);
-  $("type").innerHTML = `<option value="all">All types</option>` +
-    order.map((i) => `<option value="${i}">${types[i].label}</option>`).join("");
+  const values = ["all", ...order], btn = $("type"), list = $("type-list");
+  list.replaceChildren(...values.map((v, i) => Object.assign(document.createElement("li"),
+    { id: `type-${i}`, role: "option", textContent: v === "all" ? "All types" : types[v].label })));
+  document.body.append(list);   // out of the panel, whose blur would clip it
   const preset = types.findIndex((t) => t.label === CONFIG.defaultType);
-  if (preset >= 0) { state.type = preset; $("type").value = String(preset); }
-  $("type").addEventListener("change", (e) => {
-    state.type = e.target.value === "all" ? "all" : Number(e.target.value);
-    refresh();
+  if (preset >= 0) state.type = preset;
+  showType();
+  // Arrows move, Enter or Space picks, Escape closes, like the neighbourhood search
+  let active = -1;
+  const setActive = (i) => {
+    list.children[active]?.classList.remove("active");
+    active = i;
+    const li = list.children[i];
+    if (li) { li.classList.add("active"); li.scrollIntoView({ block: "nearest" }); btn.setAttribute("aria-activedescendant", li.id); }
+    else btn.removeAttribute("aria-activedescendant");
+  };
+  const close = () => { if (list.hidden) return; list.hidden = true; btn.setAttribute("aria-expanded", "false"); setActive(-1); };
+  const open = () => {
+    const r = btn.getBoundingClientRect();
+    Object.assign(list.style, { top: `${r.bottom + 6}px`, left: `${r.left}px`, width: `${r.width}px`,
+      maxHeight: `${Math.max(160, Math.min(360, innerHeight - r.bottom - 16))}px` });
+    list.hidden = false;
+    btn.setAttribute("aria-expanded", "true");
+    setActive(values.indexOf(state.type));
+  };
+  const pick = (i) => { close(); if (values[i] === state.type) return; state.type = values[i]; showType(); refresh(); };
+  btn.addEventListener("click", () => (list.hidden ? open() : close()));
+  btn.addEventListener("blur", close);
+  // mousedown, not click, so the button's blur doesn't close the list before the pick lands
+  list.addEventListener("mousedown", (e) => { const li = e.target.closest("li"); if (li) { e.preventDefault(); pick([...list.children].indexOf(li)); } });
+  list.addEventListener("mousemove", (e) => { const li = e.target.closest("li"); if (li && li !== list.children[active]) setActive([...list.children].indexOf(li)); });
+  btn.addEventListener("keydown", (e) => {
+    const n = values.length, keys = { ArrowDown: active + 1, ArrowUp: active - 1, Home: 0, End: n - 1 };
+    if (e.key in keys) {
+      e.preventDefault();
+      if (list.hidden) open(); else setActive((keys[e.key] + n) % n);
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (list.hidden) open(); else pick(active);
+    } else if (e.key === "Escape" && !list.hidden) {
+      e.preventDefault();
+      close();
+    }
   });
+  // It's placed under the button when it opens, so anything that moves the button closes it
+  $("filters").addEventListener("scroll", close);
+  addEventListener("resize", close);
+}
+// The picker's label and tick follow state.type
+function showType() {
+  const i = state.type === "all" ? 0 : [...$("type-list").children].findIndex((li) => li.textContent === typeLabel());
+  [...$("type-list").children].forEach((li, j) => li.setAttribute("aria-selected", String(j === i)));
+  $("type-value").textContent = $("type-list").children[i]?.textContent ?? "All types";
 }
 
 // Neighbourhood search: pick from the list (or type part of a name and press Enter)
