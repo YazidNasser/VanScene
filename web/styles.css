@@ -144,14 +144,19 @@ a { color: var(--sea); }
 /* Compare's and Trends' panels run down the right, so the zoom buttons move beside them
    (wider screens only: on phones the zoom buttons are hidden and these panels are bottom sheets) */
 @media (min-width: 761px) {
-  .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 496px; }   /* the 420px panel + 16px gutter + the 60px rail */
+  #map .leaflet-bottom { transition: right 0.25s ease-in-out; }   /* glides aside with the panels and the rail */
+  .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 436px; }   /* the 420px panel + 16px gutter */
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 360px; }   /* an open area card: 344px + 16px */
-  body.rail-docked .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 420px; }   /* and the docked 60px rail */
+  /* With the right-edge rail in (see below), all of that steps a further 60px left */
+  body.rail-on .app[data-view="map"] #map .leaflet-bottom.leaflet-right { right: 60px; }
+  body.rail-on .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 496px; }
+  body.rail-on .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 420px; }
 }
 @media (min-width: 761px) and (max-width: 1150px) {
-  .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 416px; }   /* the slimmer 340px panels + the 60px rail */
+  .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 356px; }   /* the slimmer 340px panels */
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 316px; }   /* the slimmer 300px area card */
-  body.rail-docked .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 376px; }
+  body.rail-on .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 416px; }
+  body.rail-on .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 376px; }
 }
 /* A soft shadow under the area circles rather than an outline, just enough to lift a thin ring off the heat */
 #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.7)); }   /* a pale edge lifts the grey ring off the heat */
@@ -197,22 +202,20 @@ a { color: var(--sea); }
   /* The name folds away into the mark as the drawer goes, and unfolds as it comes back */
   .wm-text { transition: max-width 0.25s ease-in-out, margin-left 0.25s ease-in-out, opacity 0.2s ease-in-out; }
   body.side-hidden .wm-text { max-width: 0; margin-left: 0; opacity: 0; }
-  /* While Compare or Trends is open, or the header's rail button keeps it docked, the views show as a slim rail down the right edge, sliding in with the panel
-     and away again on the plain map; the panel, zoom buttons and credits step left to clear it */
+  /* The views' slim rail down the right edge, in every view while the header's rail button has it on (rail-on). While
+     it's in, the panels, zoom buttons and credits step left to clear it, and the header's views fade out so they're
+     never shown twice */
   body { --rail-w: 60px; }
   .rail { display: flex; flex-direction: column; align-items: center; gap: 8px; top: 58px; right: 0; bottom: 0; width: var(--rail-w); padding: 12px 0;
-    border-width: 0 0 0 1px; border-radius: 0; transition: transform 0.25s ease-in-out, visibility 0.25s; }
-  body:not(.rail-docked) .app[data-view="map"] ~ .rail { transform: translateX(calc(100% + 2px)); visibility: hidden; }
-  .app:not([data-view="map"]) :is(.compare, .trends) { right: calc(var(--rail-w) + 16px); }
-  body:is(.rail-docked, :has(.app:not([data-view="map"]))) #map .leaflet-bottom.leaflet-left { right: var(--rail-w); }
-  /* Docked on the plain map: the area card and zoom buttons step left of the rail too */
-  body.rail-docked .area { right: calc(var(--rail-w) + 16px); }
-  body.rail-docked #map .leaflet-bottom.leaflet-right { right: var(--rail-w); }
-  /* The rail takes over from the header's views rather than repeating them: those fade out while it's in, and back
-     when it leaves. They only fade, so the search beside them stays put */
-  .views { transition: opacity 0.25s ease-in-out, visibility 0.25s; }
-  body:is(.rail-docked, :has(.app:not([data-view="map"]))) .views { opacity: 0; visibility: hidden; }
-  body:is(.rail-docked, :has(.app:not([data-view="map"]))) .site-head::after { right: var(--rail-w); }   /* header and rail meet as one sheet of glass */
+    border-width: 0 0 0 1px; border-radius: 0; }
+  .panel.rail { transition: transform 0.25s ease-in-out, visibility 0.25s, background-color 0.3s, border-color 0.3s; }   /* beats .panel's own list */
+  body:not(.rail-on) .rail { transform: translateX(calc(100% + 2px)); visibility: hidden; }
+  .app :is(.area, .compare, .trends) { transition: right 0.25s ease-in-out, background-color 0.3s, color 0.3s, border-color 0.3s; }
+  body.rail-on :is(.area, .compare, .trends) { right: calc(var(--rail-w) + 16px); }
+  body.rail-on #map .leaflet-bottom.leaflet-left { right: var(--rail-w); }
+  .views { transition: opacity 0.25s ease-in-out, visibility 0.25s; }   /* only fades, so the search beside it stays put */
+  body.rail-on .views { opacity: 0; visibility: hidden; }
+  body.rail-on .site-head::after { right: var(--rail-w); }   /* header and rail meet as one sheet of glass */
   .rail button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--muted); cursor: pointer;
     transition: background-color 0.2s, color 0.2s, transform 0.12s; }
   .rail button svg { width: 18px; height: 18px; transition: transform 0.25s var(--ease); }

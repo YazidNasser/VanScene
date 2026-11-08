@@ -1974,17 +1974,17 @@ phoneQuery.addEventListener("change", () => setSidebar(!document.body.classList.
 let startOpen = true;
 try { startOpen = localStorage.getItem("sidebar") !== "hidden"; } catch (e) {}
 setSidebar(startOpen);
-// The rail button keeps the views in the right-edge rail even on the plain map, in place of the header's; remembered too
-function setRail(docked) {
-  document.body.classList.toggle("rail-docked", docked);
-  $("rail-toggle").setAttribute("aria-pressed", String(docked));
+// The rail button moves the views between the header and a slim rail down the right edge, in every view; remembered
+function setRail(on) {
+  document.body.classList.toggle("rail-on", on);
+  $("rail-toggle").setAttribute("aria-pressed", String(on));
 }
 $("rail-toggle").addEventListener("click", () => {
-  const docked = !document.body.classList.contains("rail-docked");
-  setRail(docked);
-  try { localStorage.setItem("rail", docked ? "docked" : "auto"); } catch (e) {}
+  const on = !document.body.classList.contains("rail-on");
+  setRail(on);
+  try { localStorage.setItem("rail", on ? "on" : "off"); } catch (e) {}
 });
-try { setRail(localStorage.getItem("rail") === "docked"); } catch (e) {}
+try { setRail(localStorage.getItem("rail") === "on"); } catch (e) {}
 
 function syncThemeButton() {
   const label = isDark() ? "Switch to light mode" : "Switch to dark mode";
