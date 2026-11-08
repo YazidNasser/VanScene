@@ -1,28 +1,30 @@
 /* ---------------------------------------------------------------------
    Colours: change these to restyle the whole page. Dark mode reuses the names.
+   Taken from the basemap (MAP_COLOURS in app.js), so panels and map read as one: the map's slate label ink,
+   its cream land for tiles and fills, a deeper shade of its water for the accent, its park green for area B
    --------------------------------------------------------------------- */
 :root {
-  --ink: #16242b;          /* main text */
-  --muted: #566a74;        /* secondary text */
-  --faint: #627379;        /* hints and captions: still 4.5:1 on white and on tiles */
-  --line: #dbe2e5;         /* borders */
-  --page: #eef2f3;         /* behind the panels */
-  --surface: #ffffff;      /* panels and cards */
-  --surface-2: #f3f6f7;    /* tiles inside cards */
-  --sea: #0d6c8a;          /* accent: selected buttons, area A */
-  --sea-soft: #e1f0f5;
+  --ink: #1c252d;          /* main text: the map's city-name ink */
+  --muted: #56606b;        /* secondary text */
+  --faint: #5f6974;        /* hints and captions: still 4.5:1 on white, on tiles and on bars */
+  --line: #e4e0d8;         /* borders: between the map's land and its road casings */
+  --page: #f5f3ee;         /* behind the panels: the map's land */
+  --surface: #ffffff;      /* panels and cards: white, like the map's roads */
+  --surface-2: #f5f3ee;    /* tiles inside cards: the map's land again */
+  --sea: #1a67ab;          /* accent: the map's water, deepened to 5.9:1 on white; selected hours, area A */
+  --sea-soft: #e4eef8;
   --on-sea: #ffffff;       /* text on the accent colour */
-  --b: #2f7d52;            /* area B in Compare */
-  --bar-bg: #e9eef0;
+  --b: #2b7a4b;            /* area B in Compare: the map's park-name green */
+  --bar-bg: #ebe8e0;
   /* Heat map colours, fewest to most: on a light map "more" gets darker, on a dark map it gets brighter.
      Pale amber to deep plum (the dark theme's magma ramp run the other way), so busy reads as dense, not as danger red */
   --ramp-1: #fde3a7; --ramp-2: #f7ad6a; --ramp-3: #d9607e; --ramp-4: #92307f; --ramp-5: #45125e;
   --heat-blend: multiply;  /* lets street names show through the heat */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --map-bg: #f5f3ee;       /* the basemap's land colour, so nothing flashes while it loads */
-  --status-bg: rgba(238, 242, 243, 0.92);
+  --status-bg: rgba(245, 243, 238, 0.92);
   --tile-filter: none;     /* only used by the fallback raster tiles */
-  --control-shadow: 0 1px 3px rgba(22, 36, 43, 0.14), 0 4px 12px rgba(22, 36, 43, 0.08);
+  --control-shadow: 0 1px 3px rgba(28, 37, 45, 0.14), 0 4px 12px rgba(28, 37, 45, 0.08);
   --font: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   /* Text on the map: Apple's own SF where the device has it, like Apple Maps, otherwise the page's face */
   --map-font: -apple-system, BlinkMacSystemFont, "Public Sans", system-ui, sans-serif;
@@ -32,14 +34,15 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 :root[data-theme="dark"] {
-  /* Neutral graphite so the heat is the only colour; the accent is the ink itself */
-  --ink: #ece9e4; --muted: #aaa6a1; --faint: #8f8b86; --line: #303033;
-  --page: #121212; --surface: #1b1b1c; --surface-2: #252527;
-  --sea: #ece9e4; --sea-soft: #2c2c2e; --on-sea: #121212; --b: #8fd0a6;
-  --bar-bg: #2a2a2c; --map-bg: #2c333d;
-  --status-bg: rgba(18, 18, 18, 0.92);
+  /* Slate, like the night map and Apple's own dark panels: surfaces a step darker than the map's land, tiles in the
+     land colour itself, the map's label inks for text, its pale periwinkle water names for the accent, its park green for B */
+  --ink: #e6ebf1; --muted: #aab3bf; --faint: #939dab; --line: #3a424e;
+  --page: #1c2129; --surface: #232a33; --surface-2: #2c333d;
+  --sea: #8fb2f2; --sea-soft: #2f3a4f; --on-sea: #1c2129; --b: #7fd39a;
+  --bar-bg: #363e4a; --map-bg: #2c333d;
+  --status-bg: rgba(28, 33, 41, 0.92);
   --tile-filter: invert(1) brightness(0.85) contrast(0.85);   /* only used by the fallback raster tiles */
-  --control-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
+  --control-shadow: 0 1px 3px rgba(10, 14, 20, 0.5), 0 4px 12px rgba(10, 14, 20, 0.3);
   /* Calm at night: violet to a soft amber, never white, laid over the map rather than added on as light */
   --ramp-1: #4a2f7a; --ramp-2: #8a3f8c; --ramp-3: #c9577a; --ramp-4: #e8835c; --ramp-5: #f2b35e;
   --heat-blend: normal;
@@ -56,6 +59,9 @@ p { text-wrap: pretty; }   /* no one-word last lines */
 .place:focus { outline: none; }   /* focused by script after a pick, to move screen readers there; not a control */
 a { color: var(--sea); }
 :focus-visible { outline: 3px solid var(--sea); outline-offset: 2px; }
+/* The browser's own bits (selection, caret, scrollbars) in the page's colours rather than its defaults */
+:root { accent-color: var(--sea); caret-color: var(--sea); scrollbar-color: var(--line) transparent; }
+::selection { background: var(--sea-soft); color: var(--ink); }
 
 /* ---------------- Site header ---------------- */
 .site-head { flex: none; height: 58px; display: flex; align-items: center; gap: 14px; padding: 0 18px; background: var(--surface); border-bottom: 1px solid var(--line); position: relative; z-index: 20; }
@@ -126,7 +132,7 @@ a { color: var(--sea); }
   .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 356px; }   /* the slimmer 340px panels */
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 316px; }   /* the slimmer 300px area card */
 }
-/* A thin white halo round the area circles on the light map, so B's purple still reads over the plum end of the heat
+/* A thin white halo round the area circles on the light map, so A and B still read over the plum end of the heat
    (the dark map's heat is bright where it's busy, so its circles don't need one) */
 :root:not([data-theme="dark"]) #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff); }
 /* Area A's and B's colour, for the map handles and the "Place A | B" toggle */
