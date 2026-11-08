@@ -90,6 +90,8 @@ const map = L.map("map", {
   // Leaflet's fling has no top speed, so a quick swipe kept gliding for ten seconds or more; this caps it near two
   inertiaMaxSpeed: 1500,
 }).setView(CONFIG.center, CONFIG.zoom);
+// Only the credits the map data and tiles require (see ofmCredit); Leaflet's own "Leaflet" link is optional
+map.attributionControl.setPrefix(false);
 // Keeps people near Vancouver, with room to slide any part of the city out from behind the side panels
 map.setMaxBounds([[49.10, -123.55], [49.40, -122.70]]);
 L.control.zoom({ position: "bottomright" }).addTo(map);
