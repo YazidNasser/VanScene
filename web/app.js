@@ -418,7 +418,7 @@ function fadeHeat() {
 }
 
 // Circles for the clicked area (Map view) and the two areas (Compare view)
-const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 2, fillOpacity: 0.06, interactive: false });
+const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 3, fillOpacity: 0.06, interactive: false });
 const areaCircle = L.circle(CONFIG.center, circleStyle(cssVar("--sea")));
 // A pin at the clicked spot, so the selection reads at a glance as well as by its outline
 const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin", iconSize: [14, 14] }), interactive: false, keyboard: false });

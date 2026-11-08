@@ -18,7 +18,7 @@
   --b: #1c252d;            /* area B in Compare: the same ink as A, told apart by its letter */
   --bar-bg: #ebe8e0;
   /* The frosted header and panels: their tint, their edge, and the see-through fills inside them */
-  --glass: rgba(255, 255, 255, 0.86); --glass-edge: rgba(28, 37, 45, 0.08);
+  --glass: rgba(255, 255, 255, 0.94); --glass-edge: rgba(28, 37, 45, 0.08);
   --glass-fill: rgba(28, 37, 45, 0.05); --glass-fill-2: rgba(28, 37, 45, 0.09);
   /* Heat map colours, fewest to most: on a light map "more" gets darker, on a dark map it gets brighter.
      Pale amber to deep plum (the dark theme's magma ramp run the other way), so busy reads as dense, not as danger red */
@@ -38,14 +38,14 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 :root[data-theme="dark"] {
-  /* Slate, like the night map and Apple's own dark panels: surfaces a step darker than the map's land, tiles in the
-     land colour itself, the map's label inks for text. The accent and both area rings are that white ink, thin and
+  /* Deep navy, like Apple's own dark panels and the night map's water: surfaces darker and bluer than the map's slate
+     land so they sit clearly above it, the map's label inks for text. The accent and both area rings are that white ink, thin and
      neutral like Apple Maps' own marks, so the heat keeps all the colour */
-  --ink: #e6ebf1; --muted: #aab3bf; --faint: #939dab; --line: #3a424e;
-  --page: #1c2129; --surface: #232a33; --surface-2: #2c333d;
-  --sea: #e6ebf1; --sea-soft: #333b46; --on-sea: #1c2129; --b: #e6ebf1;
-  --bar-bg: #363e4a; --map-bg: #2c333d;
-  --glass: rgba(35, 42, 51, 0.88); --glass-edge: rgba(230, 235, 241, 0.08);
+  --ink: #e6ebf1; --muted: #aab3bf; --faint: #959fae; --line: #2f3849;
+  --page: #141a26; --surface: #1a2130; --surface-2: #232b3b;
+  --sea: #e6ebf1; --sea-soft: #2c3546; --on-sea: #141a26; --b: #e6ebf1;
+  --bar-bg: #2c3546; --map-bg: #2c333d;
+  --glass: rgba(26, 33, 48, 0.94); --glass-edge: rgba(230, 235, 241, 0.08);
   --glass-fill: rgba(230, 235, 241, 0.06); --glass-fill-2: rgba(230, 235, 241, 0.11);
   --status-bg: rgba(28, 33, 41, 0.92);
   --tile-filter: invert(1) brightness(0.85) contrast(0.85);   /* only used by the fallback raster tiles */
