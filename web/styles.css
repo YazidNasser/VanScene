@@ -118,6 +118,9 @@ a { color: var(--sea); }
 /* The clicked spot: a pin in the accent, ringed in the surface colour so it reads over the heat */
 #map .area-pin { border-radius: 50%; background: var(--ring); border: 2px solid var(--on-ring); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
 #map .leaflet-control-attribution { background: var(--surface); color: var(--muted); border-radius: 6px 0 0 0; padding: 2px 16px 2px 8px; }
+/* The credit line has a corner to itself, pinned to the map's true bottom right: the zoom buttons' corner slides left
+   beside an open panel (below), which carried the credits into the middle of the screen. The panels end above it */
+#map .leaflet-bottom.leaflet-left { left: auto; right: 0; }
 #map .leaflet-control-attribution a { color: var(--sea); }
 /* Lift the zoom buttons off the bottom-right corner: the earlier host (Netlify) floated a badge there over the page,
    which covered them. The map's credit line stays at the very bottom. */
