@@ -352,6 +352,7 @@ Object.assign(L.HeatLayer.prototype, {
     if (this._heat._width !== w) this._canvas.width = this._heat._width = w;
     if (this._heat._height !== h) this._canvas.height = this._heat._height = h;
     this._redraw();
+    endMorph(this);   // in the same frame as the redraw, so the hand-over from the zoom's last frame doesn't show
   },
   _redraw() {
     this._frame = null;
@@ -359,26 +360,87 @@ Object.assign(L.HeatLayer.prototype, {
     const map = this._map, r = this._heat._r, pad = this._pad, size = map.getSize();
     const max = this.options.max ?? 1, maxZoom = this.options.maxZoom ?? map.getMaxZoom();
     const fade = 1 / Math.pow(2, Math.max(0, Math.min(maxZoom - map.getZoom(), 12)));
-    // Points are merged into cells of half the radius, as leaflet.heat does, in canvas pixels
-    const cell = r / 2, pane = map._getMapPanePos(), ox = pane.x % cell, oy = pane.y % cell, cells = new Map();
-    for (const ll of this._latlngs) {
-      const c = map.latLngToContainerPoint(ll), x = c.x + pad.x, y = c.y + pad.y;
-      if (x < -r || y < -r || x > size.x + 2 * pad.x + r || y > size.y + 2 * pad.y + r) continue;
-      const key = Math.floor((x - ox) / cell) * 1e5 + Math.floor((y - oy) / cell), k = (ll[2] ?? 1) * fade, s = cells.get(key);
-      if (s) { s[0] = (s[0] * s[2] + x * k) / (s[2] + k); s[1] = (s[1] * s[2] + y * k) / (s[2] + k); s[2] += k; }
-      else cells.set(key, [x, y, k]);
-    }
-    // Square root: the busiest cells are many times the rest, so on a straight scale downtown saturated into one blob
-    const data = [...cells.values()].map(([x, y, k]) => [Math.round(x), Math.round(y), Math.min(Math.sqrt(k), max)]);
-    this._heat.data(data).draw(this.options.minOpacity);
+    const pts = this._latlngs.map((ll) => { const c = map.latLngToContainerPoint(ll); return [c.x + pad.x, c.y + pad.y, (ll[2] ?? 1) * fade]; });
+    this._heat.data(heatCells(pts, r, map._getMapPanePos(), size.add(pad.multiplyBy(2)), max)).draw(this.options.minOpacity);
   },
   _animateZoom(e) {   // the same arithmetic as Leaflet's padded renderers, with a top-left transform origin
     const map = this._map, scale = map.getZoomScale(e.zoom, this._zoom);
     const topLeft = map.getSize().multiplyBy(0.5 + HEAT_PAD).multiplyBy(-scale)
       .add(map.project(this._center, e.zoom)).subtract(map._getNewPixelOrigin(e.center, e.zoom));
     L.DomUtil.setTransform(this._canvas, topLeft, scale);
+    startMorph(this, e);
   },
 });
+// Points [x, y, weight] in canvas pixels are merged into cells of half the radius, as leaflet.heat does
+function heatCells(pts, r, pane, size, max) {
+  const cell = r / 2, ox = pane.x % cell, oy = pane.y % cell, cells = new Map();
+  for (const [x, y, k] of pts) {
+    if (x < -r || y < -r || x > size.x + r || y > size.y + r) continue;
+    const key = Math.floor((x - ox) / cell) * 1e5 + Math.floor((y - oy) / cell), s = cells.get(key);
+    if (s) { s[0] = (s[0] * s[2] + x * k) / (s[2] + k); s[1] = (s[1] * s[2] + y * k) / (s[2] + k); s[2] += k; }
+    else cells.set(key, [x, y, k]);
+  }
+  // Square root: the busiest cells are many times the rest, so on a straight scale downtown saturated into one blob
+  return [...cells.values()].map(([x, y, k]) => [Math.round(x), Math.round(y), Math.min(Math.sqrt(k), max)]);
+}
+
+// While the map zooms, Leaflet only stretches the last picture. Instead, the heat is redrawn every frame at the
+// in-between zoom, so blobs split into smaller hotspots as you zoom in, and merge as you zoom out, in real time.
+// Frames go to a second canvas covering only the visible map, at half resolution and stretched back up: a full
+// redraw takes ~70 ms, too slow for every frame, and the blur hides the softer pixels
+const MORPH_Q = 0.5;
+const quarterZoom = (z) => Math.round(z * 4) / 4;   // heatScale is worked out per quarter step, like the zoom snaps
+function drawMorph(layer, pts, z) {
+  const view = map.getSize(), cv = layer._morph ??= Object.assign(document.createElement("canvas"), { className: "leaflet-layer heat-morph" });
+  const w = Math.ceil(view.x * MORPH_Q), h = Math.ceil(view.y * MORPH_Q);
+  if (cv.width !== w || cv.height !== h || !layer._morphHeat) {
+    cv.width = w; cv.height = h; cv.style.width = `${view.x}px`; cv.style.height = `${view.y}px`;
+    layer._morphHeat = simpleheat(cv);   // leaflet.heat's drawing engine, a global from its script
+  }
+  layer._morphHeat._grad = layer._heat._grad;
+  L.DomUtil.setPosition(cv, map.containerPointToLayerPoint([0, 0]));
+  if (!cv.parentNode) layer._canvas.parentNode.appendChild(cv);
+  const r = heatRadius(z) * MORPH_Q;
+  layer._morphHeat.radius(r, r * 1.25);
+  layer._morphHeat.data(heatCells(pts, r, map._getMapPanePos().multiplyBy(MORPH_Q), L.point(w, h), 1)).draw(layer.options.minOpacity);
+  layer._canvas.style.visibility = "hidden";
+}
+// An animated zoom (buttons, wheel, trackpad, the end of a pinch). The stretching canvas stays, hidden, because its
+// transition tells us how far along the zoom is, so the heat moves in step with the streets
+function startMorph(layer, e) {
+  cancelAnimationFrame(layer._morphFrame);
+  const s1 = map.getZoomScale(e.zoom, layer._zoom), z0 = map.getZoom(), q = MORPH_Q;
+  if (reduceMotion || !heatSpots.length || !layer._pad || Math.abs(s1 - 1) < 1e-3) return endMorph(layer);
+  const mid = map.getSize().divideBy(2), c0 = map.project(map.getCenter(), z0), c1 = map.project(e.center, e.zoom);
+  const k0 = heatScale(quarterZoom(z0)), k1 = heatScale(e.zoom);
+  // Where each spot sits on screen before and after the zoom; in between it moves in a straight line
+  const pts = heatSpots.map(([lat, lng, n]) => {
+    const a = map.project([lat, lng], z0).subtract(c0).add(mid), b = map.project([lat, lng], e.zoom).subtract(c1).add(mid);
+    return [a.x * q, a.y * q, (b.x - a.x) * q, (b.y - a.y) * q, n];
+  });
+  const frame = () => {
+    const t = new DOMMatrixReadOnly(getComputedStyle(layer._canvas).transform).a;   // the stretch so far
+    const p = Math.min(1, Math.max(0, (t - 1) / (s1 - 1))), k = k0 + (k1 - k0) * p;
+    drawMorph(layer, pts.map(([x, y, dx, dy, n]) => [x + dx * p, y + dy * p, n * k]), layer._zoom + Math.log2(t > 0 ? t : 1));
+    layer._morphFrame = requestAnimationFrame(frame);
+  };
+  frame();
+}
+// A pinch on a touch screen moves the map itself, frame by frame, with no zoom animation: redraw as it goes
+map.on("zoom", (e) => {
+  if (!e.pinch || reduceMotion || !heatSpots.length) return;
+  cancelAnimationFrame(heat._morphFrame);
+  heat._morphFrame = requestAnimationFrame(() => {
+    const z = map.getZoom(), k = heatScale(quarterZoom(z)), q = MORPH_Q;
+    drawMorph(heat, heatSpots.map(([lat, lng, n]) => { const c = map.latLngToContainerPoint([lat, lng]); return [c.x * q, c.y * q, n * k]; }), z);
+  });
+});
+function endMorph(layer) {
+  if (!layer._morph?.parentNode) return;
+  cancelAnimationFrame(layer._morphFrame);
+  layer._morph.remove();
+  layer._canvas.style.visibility = "";
+}
 // The colours come from --ramp-1..5, so the map and its legend always match the theme. Below the first stop the
 // ramp fades to nothing, so streets with only the odd report stay clear instead of a haze over the whole city
 const heatGradient = () => ({ 0.4: `${cssVar("--ramp-1")}00`, 0.6: cssVar("--ramp-1"), 0.74: cssVar("--ramp-2"), 0.84: cssVar("--ramp-3"), 0.92: cssVar("--ramp-4"), 1: cssVar("--ramp-5") });
@@ -428,11 +490,11 @@ function fadeHeat() {
 // Circles for the clicked area (Map view) and the two areas (Compare view): the true 500 m edge, drawn faint so the
 // handle at the centre is what reads first
 const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 1.5, opacity: 0.6, fillOpacity: 0.04, interactive: false });
-const areaCircle = L.circle(CONFIG.center, circleStyle(cssVar("--ring")));
+const areaCircle = L.circle(CONFIG.center, circleStyle(cssVar("--circle")));
 // A pin at the clicked spot, so the selection reads at a glance as well as by its outline
 const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin", iconSize: [14, 14] }), interactive: false, keyboard: false });
-const circleA = L.circle(CONFIG.center, circleStyle(cssVar("--ring")));
-const circleB = L.circle(CONFIG.center, circleStyle(cssVar("--b")));
+const circleA = L.circle(CONFIG.center, circleStyle(cssVar("--circle")));
+const circleB = L.circle(CONFIG.center, circleStyle(cssVar("--circle")));
 // The A and B labels in the middle of each circle are handles: drag one to move that area
 const handleIcon = (slot) => L.divIcon({ className: `ab-handle ab-${slot}`, html: slot.toUpperCase(), iconSize: [34, 34] });
 const handleA = L.marker(CONFIG.center, { icon: handleIcon("a"), draggable: true, title: "Drag to move area A" });
@@ -440,12 +502,8 @@ const handleB = L.marker(CONFIG.center, { icon: handleIcon("b"), draggable: true
 const OUTSIDE_NOTE = "That's outside the City of Vancouver, so there's no VPD data for it. Pick a spot in the lit area.";
 // A dashed preview of the area under the cursor, so you can see what a click will summarize
 const ghost = L.circle(CONFIG.center, { radius: CONFIG.radiusMeters, weight: 1.5, dashArray: "4 6", fill: false, interactive: false });
-const ghostColour = () => cssVar(state.view === "compare" && state.nextSlot === "b" ? "--b" : "--ring");
 function paintCircles() {
-  areaCircle.setStyle({ color: cssVar("--ring") });
-  circleA.setStyle({ color: cssVar("--ring") });
-  circleB.setStyle({ color: cssVar("--b") });
-  ghost.setStyle({ color: ghostColour() });
+  for (const c of [areaCircle, circleA, circleB, ghost]) c.setStyle({ color: cssVar("--circle") });
 }
 // A clicked area grows out from the click instead of appearing at full size
 function growCircle(c) {
@@ -731,7 +789,8 @@ function bindTimeControls() {
 // own scale, an evenly spread type like home break-ins turned the whole city red. A part of the day is drawn
 // per hour on that same scale (see updateHeat), so it compares fairly with "Any time" too.
 let heatSpots = [], refSpots = [];
-let refHours = null, refScale = null;   // what refSpots and its colour scale were last worked out for
+let refHours = null;
+const refScales = new Map();   // the colour scale at each zoom, for refSpots (see heatScale)   // what refSpots and its colour scale were last worked out for
 
 // A part year (2026 so far) counts as a full year's rate, so it compares fairly with whole years
 function yearWeight(y) {
@@ -774,7 +833,7 @@ function updateHeat() {
   if (refHours !== !!hrs) {
     refHours = !!hrs;
     refSpots = spotsPerYear(hrs ? state.data.points.filter((p) => p[HOUR] >= 0) : state.data.points, state.data.years.length);
-    refScale = null;
+    refScales.clear();
   }
   fadeHeat();
   drawHeat();
@@ -793,36 +852,32 @@ function updateHeat() {
   countUp($("citywide"));
 }
 
+// Smaller blobs when zoomed out, so heat stays on land
+const heatRadius = (z) => Math.round(8 + (z - CONFIG.minZoom) * 3);
 // Scale the heat so only real hotspots of the average year reach the top colour and quiet areas fade out
-// (instead of the whole city turning orange). Runs again on every zoom.
-function drawHeat() {
-  const z = map.getZoom();
-  const radius = Math.round(8 + (z - CONFIG.minZoom) * 3);   // smaller blobs when zoomed out, so heat stays on land
-  const blur = Math.round(radius * 1.25);
-  // Add up the average year's incidents in screen cells the same way leaflet.heat does, then find how busy a "hotspot" cell is.
-  // That only depends on the zoom and refSpots, so it's worked out once for each.
-  if (refScale?.z !== z) {
-    const cellSize = (radius + blur) / 2;
-    const sums = new Map();
-    for (const [lat, lng, n] of refSpots) {
-      const p = map.project([lat, lng], z);
-      const key = Math.floor(p.x / cellSize) * 1e7 + Math.floor(p.y / cellSize);
-      sums.set(key, (sums.get(key) || 0) + n);
-    }
-    const counts = [...sums.values()].sort((a, b) => a - b);
-    const busy = counts.length ? counts[Math.min(counts.length - 1, Math.floor(counts.length * CONFIG.hotspotLevel))] : 1;
-    refScale = { z, scale: CONFIG.heatStrength / Math.max(busy, 1) };   // a cell as busy as `busy` shows at full strength
+// (instead of the whole city turning orange). Add up the average year's incidents in screen cells the same way
+// leaflet.heat does, then find how busy a "hotspot" cell is. That only depends on the zoom and refSpots, so it's
+// worked out once for each zoom
+function heatScale(z) {
+  if (refScales.has(z)) return refScales.get(z);
+  const radius = heatRadius(z), cellSize = (radius + Math.round(radius * 1.25)) / 2, sums = new Map();
+  for (const [lat, lng, n] of refSpots) {
+    const p = map.project([lat, lng], z);
+    const key = Math.floor(p.x / cellSize) * 1e7 + Math.floor(p.y / cellSize);
+    sums.set(key, (sums.get(key) || 0) + n);
   }
-  heat.setOptions({ radius, blur });
-  heat.setLatLngs(heatSpots.map(([lat, lng, n]) => [lat, lng, n * refScale.scale]));
+  const counts = [...sums.values()].sort((a, b) => a - b);
+  const busy = counts.length ? counts[Math.min(counts.length - 1, Math.floor(counts.length * CONFIG.hotspotLevel))] : 1;
+  const scale = CONFIG.heatStrength / Math.max(busy, 1);   // a cell as busy as `busy` shows at full strength
+  refScales.set(z, scale);
+  return scale;
 }
-// While the map zooms, leaflet.heat only stretches its last picture, then redraws it at the new size,
-// which read as a pop. Dim the heat as the zoom starts and bring it back once it's redrawn.
-map.on("zoomstart", () => { heat._canvas.style.opacity = 0.35; });
-map.on("zoomend", () => {
-  if (heatSpots.length) drawHeat();
-  setTimeout(() => { heat._canvas.style.opacity = ""; }, 40);   // after the redraw, so it fades in sharp
-});
+function drawHeat() {
+  const z = map.getZoom(), radius = heatRadius(z), scale = heatScale(z);
+  heat.setOptions({ radius, blur: Math.round(radius * 1.25) });
+  heat.setLatLngs(heatSpots.map(([lat, lng, n]) => [lat, lng, n * scale]));
+}
+map.on("zoomend", () => { if (heatSpots.length) drawHeat(); });
 
 // ---------------------------------------------------------------------
 // Keeping the city in view around the floating panels
@@ -1311,7 +1366,7 @@ function readUrl() {
     if (picked.length) state.years = new Set(picked);
   }
   const type = state.data.types.findIndex((t) => t.label === q.get("type"));
-  if (type >= 0) { state.type = type; $("type").value = String(type); }
+  if (type >= 0) { state.type = type; showType(); }
   if (q.get("hours")) setHours(new Set(q.get("hours").split(",").map(Number).filter((h) => Number.isInteger(h) && h >= 0 && h < 24)));
   const spot = (k) => {
     const [lat, lng] = (q.get(k) || "").split(",").map(Number), ll = Number.isFinite(lat) && Number.isFinite(lng) && L.latLng(lat, lng);
@@ -1336,7 +1391,6 @@ function syncCircles() {
   show(handleB, state.view === "compare" && !!state.b);
   // Ring the handle of the area a click will move
   for (const [slot, handle] of [["a", handleA], ["b", handleB]]) handle.getElement()?.classList.toggle("placing", state.nextSlot === slot);
-  ghost.setStyle({ color: ghostColour() });
 }
 // Each view's panel, and how far it was scrolled, so switching views puts you back where you were
 const PANEL_FOR = { map: "area", compare: "compare", trends: "trends" };
@@ -1407,14 +1461,59 @@ function buildTypePicker() {
   const totals = new Array(types.length).fill(0);
   for (const p of points) totals[p[TYPE]]++;
   const order = types.map((_, i) => i).sort((a, b) => totals[b] - totals[a]);
-  $("type").innerHTML = `<option value="all">All types</option>` +
-    order.map((i) => `<option value="${i}">${types[i].label}</option>`).join("");
+  const values = ["all", ...order], btn = $("type"), list = $("type-list");
+  list.replaceChildren(...values.map((v, i) => Object.assign(document.createElement("li"),
+    { id: `type-${i}`, role: "option", textContent: v === "all" ? "All types" : types[v].label })));
+  document.body.append(list);   // out of the panel, whose blur would clip it
   const preset = types.findIndex((t) => t.label === CONFIG.defaultType);
-  if (preset >= 0) { state.type = preset; $("type").value = String(preset); }
-  $("type").addEventListener("change", (e) => {
-    state.type = e.target.value === "all" ? "all" : Number(e.target.value);
-    refresh();
+  if (preset >= 0) state.type = preset;
+  showType();
+  // Arrows move, Enter or Space picks, Escape closes, like the neighbourhood search
+  let active = -1;
+  const setActive = (i) => {
+    list.children[active]?.classList.remove("active");
+    active = i;
+    const li = list.children[i];
+    if (li) { li.classList.add("active"); li.scrollIntoView({ block: "nearest" }); btn.setAttribute("aria-activedescendant", li.id); }
+    else btn.removeAttribute("aria-activedescendant");
+  };
+  const close = () => { if (list.hidden) return; list.hidden = true; btn.setAttribute("aria-expanded", "false"); setActive(-1); };
+  const open = () => {
+    const r = btn.getBoundingClientRect();
+    Object.assign(list.style, { top: `${r.bottom + 6}px`, left: `${r.left}px`, width: `${r.width}px`,
+      maxHeight: `${Math.max(160, Math.min(360, innerHeight - r.bottom - 16))}px` });
+    list.hidden = false;
+    btn.setAttribute("aria-expanded", "true");
+    setActive(values.indexOf(state.type));
+  };
+  const pick = (i) => { close(); if (values[i] === state.type) return; state.type = values[i]; showType(); refresh(); };
+  btn.addEventListener("click", () => (list.hidden ? open() : close()));
+  btn.addEventListener("blur", close);
+  // mousedown, not click, so the button's blur doesn't close the list before the pick lands
+  list.addEventListener("mousedown", (e) => { const li = e.target.closest("li"); if (li) { e.preventDefault(); pick([...list.children].indexOf(li)); } });
+  list.addEventListener("mousemove", (e) => { const li = e.target.closest("li"); if (li && li !== list.children[active]) setActive([...list.children].indexOf(li)); });
+  btn.addEventListener("keydown", (e) => {
+    const n = values.length, keys = { ArrowDown: active + 1, ArrowUp: active - 1, Home: 0, End: n - 1 };
+    if (e.key in keys) {
+      e.preventDefault();
+      if (list.hidden) open(); else setActive((keys[e.key] + n) % n);
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (list.hidden) open(); else pick(active);
+    } else if (e.key === "Escape" && !list.hidden) {
+      e.preventDefault();
+      close();
+    }
   });
+  // It's placed under the button when it opens, so anything that moves the button closes it
+  $("filters").addEventListener("scroll", close);
+  addEventListener("resize", close);
+}
+// The picker's label and tick follow state.type
+function showType() {
+  const i = state.type === "all" ? 0 : [...$("type-list").children].findIndex((li) => li.textContent === typeLabel());
+  [...$("type-list").children].forEach((li, j) => li.setAttribute("aria-selected", String(j === i)));
+  $("type-value").textContent = $("type-list").children[i]?.textContent ?? "All types";
 }
 
 // Neighbourhood search: pick from the list (or type part of a name and press Enter)

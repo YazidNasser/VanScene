@@ -70,8 +70,12 @@
           <p class="hint" id="year-hint"></p>
         </fieldset>
         <div>
-          <label class="lab" for="type">Type of crime</label>
-          <select id="type"></select>
+          <span class="lab" id="type-lab">Type of crime</span>
+          <!-- Our own list, like the neighbourhood search, rather than the browser's menu -->
+          <button type="button" class="picker" id="type" role="combobox" aria-haspopup="listbox" aria-expanded="false"
+            aria-controls="type-list" aria-labelledby="type-lab type-value"><span id="type-value">All types</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+          <ul class="suggest type-list" id="type-list" role="listbox" aria-labelledby="type-lab" hidden></ul>
         </div>
         <fieldset>
           <legend class="lab">Time of day</legend>
