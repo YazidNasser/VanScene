@@ -418,14 +418,14 @@ function fadeHeat() {
 }
 
 // Circles for the clicked area (Map view) and the two areas (Compare view)
-const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 3, fillOpacity: 0.1, interactive: false });
+const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 2, fillOpacity: 0.06, interactive: false });
 const areaCircle = L.circle(CONFIG.center, circleStyle(cssVar("--sea")));
 // A pin at the clicked spot, so the selection reads at a glance as well as by its outline
-const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin", iconSize: [16, 16] }), interactive: false, keyboard: false });
+const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin", iconSize: [14, 14] }), interactive: false, keyboard: false });
 const circleA = L.circle(CONFIG.center, circleStyle(cssVar("--sea")));
 const circleB = L.circle(CONFIG.center, circleStyle(cssVar("--b")));
 // The A and B labels in the middle of each circle are handles: drag one to move that area
-const handleIcon = (slot) => L.divIcon({ className: `ab-handle ab-${slot}`, html: slot.toUpperCase(), iconSize: [28, 28] });
+const handleIcon = (slot) => L.divIcon({ className: `ab-handle ab-${slot}`, html: slot.toUpperCase(), iconSize: [24, 24] });
 const handleA = L.marker(CONFIG.center, { icon: handleIcon("a"), draggable: true, title: "Drag to move area A" });
 const handleB = L.marker(CONFIG.center, { icon: handleIcon("b"), draggable: true, title: "Drag to move area B" });
 const OUTSIDE_NOTE = "That's outside the City of Vancouver, so there's no VPD data for it. Pick a spot in the lit area.";
@@ -822,7 +822,7 @@ map.on("zoomend", () => {
 function panelPadding(bounds) {
   const mr = $("map").getBoundingClientRect(), W = mr.width, H = mr.height;
   const pad = { l: 0, r: 0, t: 0, b: 0 }, corners = [];
-  for (const el of document.querySelectorAll(".panel")) {
+  for (const el of document.querySelectorAll(".panel, .site-head")) {   // on wider screens the header floats over the map too
     const rr = el.getBoundingClientRect();
     if (!rr.width || !rr.height || getComputedStyle(el).display === "none") continue;
     if (rr.width < W * 0.6) {
@@ -1582,6 +1582,20 @@ $("filters-btn").addEventListener("click", () => {
   $("filters-btn").setAttribute("aria-expanded", String(open));
   if (open) $("toast").classList.remove("show");   // on a phone the note would sit on top of the open panel
 });
+// Wider screens: the header's sidebar button tucks the filters card away to give the map the whole width; remembered
+function setSidebar(open) {
+  $("app").classList.toggle("side-hidden", !open);
+  const label = open ? "Hide filters" : "Show filters";
+  $("side-toggle").setAttribute("aria-expanded", String(open));
+  $("side-toggle").setAttribute("aria-label", label);
+  $("side-toggle").title = label;
+}
+$("side-toggle").addEventListener("click", () => {
+  const open = $("app").classList.contains("side-hidden");
+  setSidebar(open);
+  try { localStorage.setItem("sidebar", open ? "open" : "hidden"); } catch (e) {}
+});
+try { if (localStorage.getItem("sidebar") === "hidden") setSidebar(false); } catch (e) {}
 
 function syncThemeButton() {
   const label = isDark() ? "Switch to light mode" : "Switch to dark mode";
