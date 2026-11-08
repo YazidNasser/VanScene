@@ -90,7 +90,7 @@ const map = L.map("map", {
   // Leaflet's fling has no top speed, so a quick swipe kept gliding for ten seconds or more; this caps it near two
   inertiaMaxSpeed: 1500,
 }).setView(CONFIG.center, CONFIG.zoom);
-// Only the credits the map data and tiles require (see ofmCredit); Leaflet's own "Leaflet" link is optional
+// Only the credits the licences require (see ofmCredit); Leaflet's own "Leaflet" link is optional
 map.attributionControl.setPrefix(false);
 // Keeps people near Vancouver, with room to slide any part of the city out from behind the side panels
 map.setMaxBounds([[49.10, -123.55], [49.40, -122.70]]);
@@ -183,7 +183,9 @@ function mapStyle(labels) {
 let hoodNames = null;   // GeoJSON of the neighbourhood names, made once the data has loaded
 // What MapLibre starts with until the style arrives; it names the fonts too, or MapLibre logs "glyphsUrl is not set"
 const emptyStyle = { version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", sources: {}, layers: [] };
-const ofmCredit = '&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+// Only the credits the licences require: OpenMapTiles (CC-BY, for the tile schema) and OpenStreetMap (ODbL, linked to
+// its copyright page; "© OpenStreetMap" is one of its accepted forms). OpenFreeMap says crediting it is optional
+const ofmCredit = '&copy; <a href="https://www.openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 // If MapLibre or the style can't be fetched, fall back to plain OpenStreetMap tiles, greyed out, so there's always a map
 const osmFallback = () => L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { className: "osm-fallback", maxZoom: 19,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
