@@ -1,7 +1,8 @@
 /* ---------------------------------------------------------------------
    Colours: change these to restyle the whole page. Dark mode reuses the names.
    Taken from the basemap (MAP_COLOURS in app.js), so panels and map read as one: the map's slate label ink,
-   its cream land for tiles and fills, a deeper shade of its water for the accent, its park green for area B
+   its cream land for tiles and fills. The accent is the ink itself, as the map's labels are, so the heat is the
+   only colour on the page; areas A and B are both drawn in it and told apart by their letters
    --------------------------------------------------------------------- */
 :root {
   --ink: #1c252d;          /* main text: the map's city-name ink */
@@ -11,13 +12,13 @@
   --page: #f5f3ee;         /* behind the panels: the map's land */
   --surface: #ffffff;      /* panels and cards: white, like the map's roads */
   --surface-2: #f5f3ee;    /* tiles inside cards: the map's land again */
-  --sea: #1a67ab;          /* accent: the map's water, deepened to 5.9:1 on white; selected hours, area A */
-  --sea-soft: #e4eef8;
+  --sea: #1c252d;          /* accent: the ink; selected hours and years, links, the area rings and A */
+  --sea-soft: #ebe9e3;
   --on-sea: #ffffff;       /* text on the accent colour */
-  --b: #3d7357;            /* area B in Compare: a quiet sage from the map's parks */
+  --b: #1c252d;            /* area B in Compare: the same ink as A, told apart by its letter */
   --bar-bg: #ebe8e0;
-  /* The frosted sidebar: its tint, its edge, and the see-through fills inside it */
-  --glass: rgba(255, 255, 255, 0.82); --glass-edge: rgba(28, 37, 45, 0.08);
+  /* The frosted header and panels: their tint, their edge, and the see-through fills inside them */
+  --glass: rgba(255, 255, 255, 0.86); --glass-edge: rgba(28, 37, 45, 0.08);
   --glass-fill: rgba(28, 37, 45, 0.05); --glass-fill-2: rgba(28, 37, 45, 0.09);
   /* Heat map colours, fewest to most: on a light map "more" gets darker, on a dark map it gets brighter.
      Pale amber to deep plum (the dark theme's magma ramp run the other way), so busy reads as dense, not as danger red */
@@ -38,13 +39,13 @@
 }
 :root[data-theme="dark"] {
   /* Slate, like the night map and Apple's own dark panels: surfaces a step darker than the map's land, tiles in the
-     land colour itself, the map's label inks for text, a pale sage from its parks for B. The accent is a soft sky
-     blue, quiet beside the heat's violet and amber, so area A's ring and the charts stay calm */
+     land colour itself, the map's label inks for text. The accent and both area rings are that white ink, thin and
+     neutral like Apple Maps' own marks, so the heat keeps all the colour */
   --ink: #e6ebf1; --muted: #aab3bf; --faint: #939dab; --line: #3a424e;
   --page: #1c2129; --surface: #232a33; --surface-2: #2c333d;
-  --sea: #a9cbeb; --sea-soft: #2f3a4f; --on-sea: #1c2129; --b: #a6d3b3;
+  --sea: #e6ebf1; --sea-soft: #333b46; --on-sea: #1c2129; --b: #e6ebf1;
   --bar-bg: #363e4a; --map-bg: #2c333d;
-  --glass: rgba(35, 42, 51, 0.84); --glass-edge: rgba(230, 235, 241, 0.08);
+  --glass: rgba(35, 42, 51, 0.88); --glass-edge: rgba(230, 235, 241, 0.08);
   --glass-fill: rgba(230, 235, 241, 0.06); --glass-fill-2: rgba(230, 235, 241, 0.11);
   --status-bg: rgba(28, 33, 41, 0.92);
   --tile-filter: invert(1) brightness(0.85) contrast(0.85);   /* only used by the fallback raster tiles */
@@ -160,14 +161,13 @@ a { color: var(--sea); }
 .app { --top: 0px; }
 .filters { top: calc(var(--top) + 16px); left: 16px; max-height: calc(100% - var(--top) - 32px); width: 312px; padding: 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
 /* Wider screens: the map runs under the header, and the header and every panel are one frosted material, like
-   Apple Maps', so they read as a single layer over the map with its heat glowing softly through. Our spin: tinted
-   with the panels' slate or white rather than Apple's navy, and the saturate lets the heat's colour come through,
-   not just its light. Fills inside are see-through tints of the ink, and hints use the secondary grey, so text
-   keeps 4.5:1 even over the brightest heat */
+   Apple Maps', so they read as a single layer over the map, which shows faintly through. Tinted with the panels'
+   own slate or white and kept neutral (no colour boost), so the heat under a panel doesn't stain it. Fills inside
+   are see-through tints of the ink, and hints use the secondary grey, so text keeps 4.5:1 even over the brightest heat */
 @media (min-width: 761px) {
   body { position: relative; }
   .app { --top: 58px; }
-  .site-head, .panel { background: var(--glass); border-color: var(--glass-edge); -webkit-backdrop-filter: blur(28px) saturate(1.6); backdrop-filter: blur(28px) saturate(1.6);
+  .site-head, .panel { background: var(--glass); border-color: var(--glass-edge); -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px);
     --surface-2: var(--glass-fill); --bar-bg: var(--glass-fill-2); --faint: var(--muted); }
   .site-head { position: absolute; top: 0; left: 0; right: 0; }
   .site-head .theme-toggle, .site-head .side-toggle { background: transparent; }
