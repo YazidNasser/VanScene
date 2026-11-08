@@ -168,8 +168,8 @@ map.getPane("labels").style.pointerEvents = "none";
 // Roads in three steps, as Apple Maps draws them: quiet side streets (road), stand-out main roads (major) and the
 // brightest highways, so the city's structure reads at a glance
 const MAP_COLOURS = {
-  light: { land: "#f5f3ee", built: "#efece6", building: "#e5e1d8", park: "#cbe7bd", water: "#9ecff2", road: "#ffffff", major: "#ffffff", secondary: "#ffffff",
-    casing: "#e0dbcf", highway: "#f6d27c", rail: "#d6d1c7", text: "#323b44", halo: "rgba(245, 243, 238, 0.8)", waterText: "#3d6c9a", parkText: "#3c7f37",
+  light: { land: "#eef1f4", built: "#e7ebef", building: "#dbe0e6", park: "#cbe7bd", water: "#9ecff2", road: "#ffffff", major: "#ffffff", secondary: "#ffffff",
+    casing: "#d3d9e0", highway: "#f6d27c", rail: "#c9d0d8", text: "#323b44", halo: "rgba(238, 241, 244, 0.8)", waterText: "#3d6c9a", parkText: "#3c7f37",
     district: "#5d6670", city: "#1c252d" },
   dark: { land: "#2c333d", built: "#2f3640", building: "#363e49", park: "#1e5d55", water: "#1d2c76", road: "#3e4757", major: "#8a99b8", secondary: "#56627a",
     casing: "#2c333d", highway: "#b3c0db", rail: "#3a4351", text: "#e6ebf1", halo: "rgba(36, 42, 51, 0.8)", waterText: "#93a6e6", parkText: "#74d38f",
@@ -1909,8 +1909,9 @@ function renderAbout() {
   // VPD asks sites using GeoDASH to show when their copy was last refreshed, in plain sight rather than inside About
   $("updated").innerHTML = `Updated ${day(d.generated)} from <a href="https://geodash.vpd.ca/opendata/">VPD GeoDASH</a>. Data through ${through}.`;
   $("about-body").innerHTML = `
-    <p>Source: Vancouver Police Department, <a href="https://geodash.vpd.ca/opendata/">GeoDASH open data</a>. Data through ${through}.</p>
+    <p>Source: Vancouver Police Department, <a href="https://geodash.vpd.ca/opendata/">GeoDASH open data</a>, for free, non-commercial use only. Data through ${through}. To look up single incidents, use VPD's <a href="https://geodash.vpd.ca/">GeoDASH crime map</a>.</p>
     <p>Shows reported incidents that police confirmed occurred, not all crime. Busy areas show more because more people are there. This is for awareness, not a safety score for any address.</p>
+    <p>VPD counts every offence in an incident, while Statistics Canada counts only the most serious one, so these totals can't be compared with Statistics Canada crime figures or rates.</p>
     <p>VPD offsets locations for privacy: property crimes to the hundred block, offences against a person across several blocks. ${fmt(noLocationCount())} incidents ${periodLabel()} have no location and aren't shown.</p>
     <p>Far more reports are timed at midnight than at 1 am, which usually means some incidents with no exact time are recorded as 12 am. Overnight counts may run a little high.</p>`;
   const p = d.partialYear;
@@ -1991,7 +1992,6 @@ try { setRail(localStorage.getItem("rail") === "on"); } catch (e) {}
 
 function syncThemeButton() {
   const label = isDark() ? "Switch to light mode" : "Switch to dark mode";
-  $("theme-toggle").title = label;
   $("theme-toggle").setAttribute("aria-label", label);
 }
 $("theme-toggle").addEventListener("click", () => {

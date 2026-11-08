@@ -57,13 +57,20 @@ Instead of reading Reddit threads or asking about one area at a time, you see bo
 
 ## About the data
 
-- **Source:** Vancouver Police Department, [GeoDASH Open Data](https://geodash.vpd.ca/opendata/).
+- **Source:** Vancouver Police Department, [GeoDASH Open Data](https://geodash.vpd.ca/opendata/). To look up single incidents, use VPD's own [GeoDASH crime map](https://geodash.vpd.ca/).
 - **What's in it:** about 375,000 mapped incidents from January 2016 to the latest weekly update. These are incidents police confirmed happened ("founded"), dated by when they occurred.
-- **Kept up to date:** a GitHub Action refreshes it every Sunday after VPD republishes.
+- **How it's counted:** VPD counts every offence in an incident ("All Offence" counting), while Statistics Canada counts only the most serious one. So VanScene's totals can't be compared with Statistics Canada crime figures or rates.
+- **Kept up to date:** a GitHub Action refreshes it every Sunday after VPD republishes, with a backup run on Tuesdays. The app shows the date of the last update under the map key.
 - **Where it's approximate:** VPD offsets every location for privacy. Property crime is moved to the hundred block, and offences against a person are spread across several blocks. That's why the map stops at street level and summaries use a 500 m circle.
 - **What isn't on the map:** violent crime ("offence against a person" and homicide) has no location in VPD's data, so it can't be mapped. The app counts what's missing in **About this data**.
 
 The full limitations are under [Responsible use](#responsible-use-and-disclaimer) and in the Datathon evidence at the bottom of this page.
+
+### Data licence
+
+The VPD confirmed by email in November 2026 that GeoDASH data is for **free, non-commercial public use only**. The data, in whole or in part, may not be sold, licensed, repackaged or otherwise commercialized, or offered through any paid or subscription product. The full conditions and disclaimers are on [the portal](https://geodash.vpd.ca/opendata/); a copy of the disclaimer is in [`data/vpd/`](data/vpd/legal_disclaimer.txt).
+
+This covers `web/data.json`, which is built from that data. VanScene is free, has no ads and no paid features, and must stay that way while it uses VPD data. If you reuse this project, the same terms apply to the data.
 
 ## Run it locally
 
@@ -161,7 +168,7 @@ Open an issue or a pull request against `main`. Keep changes small and focused, 
 
 VanScene is an informational and educational project built for the Build Trilemma Datathon. It is not affiliated with, endorsed by, or operated by the Vancouver Police Department or the City of Vancouver. It is provided "as is," without warranties of any kind.
 
-**Data source:** Vancouver Police Department, [GeoDASH Open Data](https://geodash.vpd.ca/opendata/).
+**Data source:** Vancouver Police Department, [GeoDASH Open Data](https://geodash.vpd.ca/opendata/), for free, non-commercial use only. VPD's own map of incidents: [GeoDASH crime map](https://geodash.vpd.ca/).
 
 **In an emergency, call 911.** VanScene is not an emergency or crime reporting service.
 
@@ -279,6 +286,8 @@ Fields: crime type, year/month/day/hour/minute, hundred block, neighbourhood, X/
 - [x] I have enough data to begin testing the idea
 
 ### Permission
+
+> **Update, November 2026:** the VPD has since confirmed the terms: free, non-commercial use only. See [Data licence](#data-licence).
 
 No open data licence is published. Access requires accepting the GeoDASH disclaimer, and the site is marked "© City of Vancouver, all rights reserved." The disclaimer cautions users not to rely on the data to judge the safety of a specific location or area, and states that all locations are offset. VPD's disclaimer and data description are saved in `data/vpd/`.
 
