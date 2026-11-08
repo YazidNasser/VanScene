@@ -111,6 +111,12 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <p class="sr-only" id="announce" aria-live="polite"></p>
   </div>
+  <!-- Colours the heat on the graphics card: each pixel's strength (its opacity) picks the ramp's colour and opacity
+       from the tables, which app.js fills from the ramp (see heatProto.gradient) -->
+  <svg width="0" height="0" style="position: absolute" aria-hidden="true"><filter id="heat-ramp" color-interpolation-filters="sRGB">
+    <feColorMatrix values="0 0 0 1 0  0 0 0 1 0  0 0 0 1 0  0 0 0 1 0"/>
+    <feComponentTransfer><feFuncR type="table"/><feFuncG type="table"/><feFuncB type="table"/><feFuncA type="table"/></feComponentTransfer>
+  </filter></svg>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js" integrity="sha384-mFKkGiGvT5vo1fEyGCD3hshDdKmW3wzXW/x+fWriYJArD0R3gawT6lMvLboM22c0" crossorigin="anonymous"></script>
