@@ -452,8 +452,8 @@ function placeHeat(layer, zoom, center) {
   L.DomUtil.setTransform(layer._canvas, topLeft, scale);
 }
 // Spots are merged into cells of half the radius + blur, as leaflet.heat does, but on a grid fixed to the map at each
-// zoom rather than to the screen, so the same spots stay together while the map moves. Cells are [lat, lng, strength]
-// at their spots' weighted centre. Kept per zoom until the heat's data changes (see updateHeat)
+// zoom rather than to the screen, so the same spots stay together while the map moves. Cells are [lat, lng, strength,
+// x, y] at their spots' weighted centre (x, y in map pixels at that zoom). Kept per zoom until the heat's data changes (see updateHeat)
 const heatCellCache = new Map();
 // Spots summed into zoom z's cells as [x * n, y * n, n] (map pixels weighted by count), for cellsAt and heatScale
 function binSpots(spots, z) {
@@ -471,7 +471,7 @@ function cellsAt(z) {
   // Square root: the busiest cells are many times the rest, so on a straight scale downtown saturated into one blob
   const out = binSpots(heatSpots, z).map(([x, y, n]) => {
     const ll = map.unproject([x / n, y / n], z);
-    return [ll.lat, ll.lng, Math.min(Math.sqrt(n * scale), 1)];
+    return [ll.lat, ll.lng, Math.min(Math.sqrt(n * scale), 1), x / n, y / n];   // and its map pixel, for liveSpots
   });
   heatCellCache.set(z, out);
   return out;
@@ -497,11 +497,13 @@ function drawMorph(layer, radius, sets, place) {
     cv.width = w; cv.height = h; cv.style.width = `${view.x}px`; cv.style.height = `${view.y}px`;
     layer._morphHeat = simpleheat(cv);   // leaflet.heat's drawing engine, a global from its script
   }
-  const sh = layer._morphHeat;
-  sh.radius(radius * MORPH_Q, heatBlur(radius) * MORPH_Q);
+  const sh = layer._morphHeat, reach = (radius + heatBlur(radius)) * MORPH_Q;
+  // A blob keeps its shape at any size (the blur is a fixed share of the radius), so WebGL stretches one blob picture
+  // instead of making a new one every frame: a new canvas and upload 60 times a second piled up and heated laptops
+  if (!layer._morphGL || !(Math.abs(Math.log(reach / sh._r)) < 0.2)) sh.radius(radius * MORPH_Q, heatBlur(radius) * MORPH_Q);
   L.DomUtil.setPosition(cv, map.containerPointToLayerPoint([0, 0]));
   if (!cv.parentNode) layer._canvas.parentNode.appendChild(cv);
-  const r = sh._r, data = [];
+  const r = layer._morphGL ? reach : sh._r, data = [];
   for (const [z, weight] of sets) {
     if (weight < 0.002) continue;
     cellsAt(z).forEach((cell, i) => {
@@ -509,7 +511,7 @@ function drawMorph(layer, radius, sets, place) {
       if (x > -r && y > -r && x < w + r && y < h + r) data.push([x, y, cell[2] * weight]);
     });
   }
-  if (layer._morphGL) drawGL(layer._morphGL, sh, data, layer.options.minOpacity);
+  if (layer._morphGL) drawGL(layer._morphGL, sh._circle, r, data, layer.options.minOpacity);
   else sh.data(data).draw(layer.options.minOpacity);
   layer._morphR = radius;
   layer._canvas.style.visibility = "hidden";
@@ -543,10 +545,12 @@ function glHeat(cv) {
   return { gl, view: gl.getUniformLocation(prog, "view"), blob: null };
 }
 const QUAD = [[0, 0], [1, 0], [0, 1], [0, 1], [1, 0], [1, 1]];
-// simpleheat's draw, on WebGL: `data` is [x, y, strength] per blob, `sh` holds the blob picture and its reach
-function drawGL(g, sh, data, minOpacity) {
-  const gl = g.gl, r = sh._r, w = gl.canvas.width, h = gl.canvas.height, f = new Float32Array(data.length * 30);
-  if (g.blob !== sh._circle) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sh._circle); g.blob = sh._circle; }
+// simpleheat's draw, on WebGL: `data` is [x, y, strength] per blob, drawn as the `blob` picture reaching `r` each way
+function drawGL(g, blob, r, data, minOpacity) {
+  const gl = g.gl, w = gl.canvas.width, h = gl.canvas.height, n = data.length * 30;
+  if (g.blob !== blob) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, blob); g.blob = blob; }
+  if (!(g.buf?.length >= n)) g.buf = new Float32Array(n * 1.5);   // kept between frames, so there's nothing to clear up
+  const f = g.buf;
   let i = 0;
   for (const [x, y, v] of data) {
     const a = Math.max(v, minOpacity);
@@ -554,7 +558,7 @@ function drawGL(g, sh, data, minOpacity) {
   }
   gl.viewport(0, 0, w, h); gl.uniform2f(g.view, w, h);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-  gl.bufferData(gl.ARRAY_BUFFER, f, gl.STREAM_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, f.subarray(0, i), gl.STREAM_DRAW);
   gl.drawArrays(gl.TRIANGLES, 0, data.length * 6);
 }
 // A new zoom step towards zoom `target`, starting at visual zoom `zNow`. What's on screen is kept as the blend to
@@ -579,12 +583,14 @@ function drawStep(layer, s, place) {
   drawMorph(layer, radius, [...m.sets.map(([z, w]) => [z, w * (1 - k)]), [m.target, k]], place);
   return k;
 }
-// Cell i of zoom z on screen as the map is now
-function liveSpots(layer) {
-  const cache = new Map();
+// Cell i of zoom z on screen as the map is now: its map pixel at zoom z (see cellsAt), scaled to the map's zoom. Asking
+// Leaflet for each cell's place took thousands of projections and objects every frame of a glide, most of its work
+function liveSpots() {
+  const zoom = map.getZoom(), o = map.getPixelOrigin().subtract(map._getMapPanePos());   // the map's top-left, in map pixels
+  let zl, cells, k;
   return (z, i) => {
-    if (!cache.has(z)) cache.set(z, cellsAt(z).map(([lat, lng]) => { const c = map.latLngToContainerPoint([lat, lng]); return [c.x * MORPH_Q, c.y * MORPH_Q]; }));
-    return cache.get(z)[i];
+    if (z !== zl) { zl = z; cells = cellsAt(z); k = map.getZoomScale(zoom, z); }
+    return [(cells[i][3] * k - o.x) * MORPH_Q, (cells[i][4] * k - o.y) * MORPH_Q];
   };
 }
 // An animated zoom (buttons, wheel, trackpad, the end of a pinch). The stretching canvas stays, hidden, because its
@@ -623,7 +629,7 @@ map.on("zoom", (e) => {
   const draw = () => {
     const z = map.getZoom(), target = e.glide ? glide.target : quarterZoom(z);
     if (!heat._step || !heat._morph?.parentNode || heat._step.target !== target) beginStep(heat, target, z);
-    drawStep(heat, map.getZoomScale(z, heat._step.zNow), liveSpots(heat));
+    drawStep(heat, map.getZoomScale(z, heat._step.zNow), liveSpots());
   };
   // A glide moves once a frame, from its own animation frame: draw straight away, so the heat moves with the streets
   if (e.glide) draw(); else heat._morphFrame = requestAnimationFrame(draw);
@@ -636,7 +642,7 @@ function zoomStopped(layer) {
   if (!m || !layer._morph?.parentNode) return endMorph(layer);
   cancelAnimationFrame(layer._morphFrame);
   m.target = layer._zoom;   // the same, unless a pinch let go between quarter steps
-  const run = layer._morphRun, live = liveSpots(layer), sEnd = map.getZoomScale(layer._zoom, m.zNow);
+  const run = layer._morphRun, live = liveSpots(), sEnd = map.getZoomScale(layer._zoom, m.zNow);
   const frame = () => {
     if (drawStep(layer, sEnd, live) >= 1) return endMorph(layer);
     layer._morphFrame = requestAnimationFrame(frame);
