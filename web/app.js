@@ -1097,6 +1097,7 @@ function typeBars(top, count = 4) {
 // One year's bar. The year in progress is drawn as a dashed outline at its full-year pace (the rate so far, over
 // 365 days) with the count so far filled in at the bottom, so it doesn't read as a drop against whole years.
 const fullYearPace = (y, n) => (isPartial(y) ? n * yearWeight(y) : n);
+const paceMax = (span, perYear) => Math.max(1, ...span.map((y) => fullYearPace(y, perYear.get(y) || 0)));   // a year chart's top
 function yearBar(y, n, max, i) {
   const on = state.years.has(y) ? "on" : "";
   if (!isPartial(y)) return `<i class="${on}" style="height:${(n / max) * 100}%;--i:${i}" title="${y}: ${fmt(n)}"></i>`;
@@ -1115,7 +1116,7 @@ function yearSummary(span, perYear, what) {
 const paceNote = () => `${state.data.partialYear} is Jan 1 to ${throughLabel()}; the dashed outline is its pace for a full year.`;
 function yearSpark(perYear) {
   const span = yearSpan(), first = span[0], last = span[span.length - 1], missing = missingYears();
-  const max = Math.max(1, ...span.map((y) => fullYearPace(y, perYear.get(y) || 0)));
+  const max = paceMax(span, perYear);
   return `<div class="spark" role="img" aria-label="${attr(yearSummary(span, perYear, "Reports near here"))}">${span.map((y, i) => missing.includes(y)
     ? `<i class="gap" title="No ${y} data"></i>`
     : yearBar(y, perYear.get(y) || 0, max, i)).join("")}</div>
@@ -1201,19 +1202,14 @@ function showToast(message, ms = 4000) {
 function renderArea() {
   // No card until a spot is picked, so it doesn't sit over the map; the hint shows once as a note on open
   if (!state.selected) { $("area").innerHTML = ""; return; }
-  if (noYears()) {
-    $("area").innerHTML = `${sheetHandle}
-      <div class="card-head"><div><h2 class="place" tabindex="-1">Near ${nearestHood(state.selected)}</h2>
-        <p class="when">Within ${CONFIG.radiusMeters} m</p></div>
-        <button type="button" class="x" data-action="clear" aria-label="Close area summary">${ICON_X}</button></div>${pickYear}`;
-    return;
-  }
+  const head = (name, when) => `${sheetHandle}
+    <div class="card-head"><div><h2 class="place" tabindex="-1">Near ${name}</h2>
+      <p class="when">Within ${CONFIG.radiusMeters} m${when}</p></div>
+      <button type="button" class="x" data-action="clear" aria-label="Close area summary">${ICON_X}</button></div>`;
+  if (noYears()) { $("area").innerHTML = head(nearestHood(state.selected), "") + pickYear; return; }
   const s = areaStats(state.selected);
   const tip = s.now ? tipFor(s) : "";
-  $("area").innerHTML = `${sheetHandle}
-    <div class="card-head"><div><h2 class="place" tabindex="-1">Near ${s.name}</h2>
-      <p class="when">Within ${CONFIG.radiusMeters} m · ${periodLabel()}</p></div>
-      <button type="button" class="x" data-action="clear" aria-label="Close area summary">${ICON_X}</button></div>
+  $("area").innerHTML = `${head(s.name, ` · ${periodLabel()}`)}
     <p class="big" data-count="${s.now}" data-key="area">${fmt(s.now)}</p>
     <p class="big-label">reported incidents · ${filterLine()}</p>
     ${s.now ? cityLine(s.vsCity) : ""}
@@ -1303,7 +1299,7 @@ function compareTable(A, B, rows) {
   if (!A && !B) return "";
   // Each share is out of what its rows add up to: the area's count for crime types, but for parts of the day every
   // hour (the rows ignore the picked hours), or a picked evening would make morning's share over 100% or 0%
-  const total = (s) => (state.type === "all" ? s.now : sum(Object.values(s.buckets)));
+  const total = (s) => (state.type === "all" ? s.now : periodTotal(s.buckets));
   const cell = (s, n) => (s ? `<span class="n">${fmt(n)} <small>${total(s) ? Math.round((n / total(s)) * 100) : 0}%</small></span>` : `<span class="n">–</span>`);
   return `<div class="h2h"><h3 class="sec">${state.type === "all" ? "Most common" : "By time of day"}</h3><b>A</b><b>B</b>
     ${rows.map(([t, a, b]) => `<span>${t}</span>${cell(A, a)}${cell(B, b)}`).join("")}</div>`;
@@ -1374,7 +1370,7 @@ function renderTrends() {
   }
   const top = ranked(types).map(([t, n]) => [state.data.types[t].label, n]);
   const span = yearSpan(), missing = missingYears();
-  const maxY = Math.max(1, ...span.map((y) => fullYearPace(y, perYear.get(y) || 0)));
+  const maxY = paceMax(span, perYear);
   const maxH = Math.max(1, ...hours);
 
   let areaHtml = "";
@@ -1737,7 +1733,7 @@ function noLocationCount() {
 // The legend is a picture of the heat colours, so it gets one sentence (redone when the theme or filters change)
 function labelLegend() {
   $("legend").setAttribute("aria-label", `Map key, ${$("legend-title").textContent.toLowerCase()}: ` +
-    (isDark() ? "dark purple where fewer are reported, through orange, to pale yellow where most are." : "pale amber where fewer are reported, through rose, to deep plum where most are.") +
+    "green where fewer are reported, through yellow and orange, to red where most are." +
     ($("legend-note").hidden ? "" : ` ${$("legend-note").textContent}`));
 }
 function renderAbout() {
