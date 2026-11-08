@@ -42,7 +42,7 @@ const TIPS = {
 };
 
 // Point layout the app works with: [lat, lng, typeIndex, hour (-1 = unknown), year, month*100 + day].
-// data.json version 2 stores points like this; version 3 stores one list per field, see pointRows() below.
+// data.json stores one list per field instead, see pointRows() below.
 const LAT = 0, LNG = 1, TYPE = 2, HOUR = 3, YEAR = 4, MD = 5;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -386,16 +386,21 @@ Object.assign(L.HeatLayer.prototype, {
 // zoom rather than to the screen, so the same spots stay together while the map moves. Cells are [lat, lng, strength]
 // at their spots' weighted centre. Kept per zoom until the heat's data changes (see updateHeat)
 const heatCellCache = new Map();
-function cellsAt(z) {
-  if (!heatSpots.length) return [];   // also the layer's first draw, before the helpers below exist
-  if (heatCellCache.has(z)) return heatCellCache.get(z);
-  const radius = heatRadius(z), size = (radius + heatBlur(radius)) / 2, scale = heatScale(z), cells = new Map();
-  for (const [lat, lng, n] of heatSpots) {
+// Spots summed into zoom z's cells as [x * n, y * n, n] (map pixels weighted by count), for cellsAt and heatScale
+function binSpots(spots, z) {
+  const radius = heatRadius(z), size = (radius + heatBlur(radius)) / 2, cells = new Map();
+  for (const [lat, lng, n] of spots) {
     const p = map.project([lat, lng], z), key = Math.floor(p.x / size) * 1e8 + Math.floor(p.y / size), s = cells.get(key);
     if (s) { s[0] += p.x * n; s[1] += p.y * n; s[2] += n; } else cells.set(key, [p.x * n, p.y * n, n]);
   }
+  return [...cells.values()];
+}
+function cellsAt(z) {
+  if (!heatSpots.length) return [];   // also the layer's first draw, before the helpers below exist
+  if (heatCellCache.has(z)) return heatCellCache.get(z);
+  const scale = heatScale(z);
   // Square root: the busiest cells are many times the rest, so on a straight scale downtown saturated into one blob
-  const out = [...cells.values()].map(([x, y, n]) => {
+  const out = binSpots(heatSpots, z).map(([x, y, n]) => {
     const ll = map.unproject([x / n, y / n], z);
     return [ll.lat, ll.lng, Math.min(Math.sqrt(n * scale), 1)];
   });
@@ -598,7 +603,7 @@ const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin
 const circleA = L.circle(CONFIG.center, circleStyle(cssVar("--circle")));
 const circleB = L.circle(CONFIG.center, circleStyle(cssVar("--circle")));
 // The A and B labels in the middle of each circle are handles: drag one to move that area
-const handleIcon = (slot) => L.divIcon({ className: `ab-handle ab-${slot}`, html: slot.toUpperCase(), iconSize: [34, 34] });
+const handleIcon = (slot) => L.divIcon({ className: "ab-handle", html: slot.toUpperCase(), iconSize: [34, 34] });
 const handleA = L.marker(CONFIG.center, { icon: handleIcon("a"), draggable: true, title: "Drag to move area A" });
 const handleB = L.marker(CONFIG.center, { icon: handleIcon("b"), draggable: true, title: "Drag to move area B" });
 const OUTSIDE_NOTE = "That's outside the City of Vancouver, so there's no VPD data for it. Pick a spot in the lit area.";
@@ -629,18 +634,14 @@ const isPartial = (y) => y === state.data.partialYear;
 const daysIn = (years) => Math.max(1, years.reduce((sum, y) => sum + (isPartial(y)
   ? Math.round((new Date(state.data.latestDate + "T12:00:00") - new Date(y, 0, 1, 12)) / 864e5) + 1
   : new Date(y, 1, 29).getMonth() === 1 ? 366 : 365), 0));
-// Years inside the data's range that have no incidents at all (e.g. a year missing from the CSV)
-function missingYears() {
-  const ys = state.data.years, out = [];
-  for (let y = ys[0]; y <= ys[ys.length - 1]; y++) if (!ys.includes(y)) out.push(y);
-  return out;
-}
 // Every year from the first to the last in the data, oldest first, missing years included
 function yearSpan() {
   const ys = state.data.years, span = [];
   for (let y = ys[0]; y <= ys[ys.length - 1]; y++) span.push(y);
   return span;
 }
+// Years inside the data's range that have no incidents at all (e.g. a year missing from the CSV)
+const missingYears = () => yearSpan().filter((y) => !state.data.years.includes(y));
 const selectedYears = () => state.data.years.filter((y) => state.years.has(y));   // oldest first
 const allSelected = () => state.years.size === state.data.years.length;
 
@@ -655,18 +656,14 @@ function buildPeriods() {
   }
 }
 
-// Does an incident pass the type and time-of-day filters? (years not checked)
-// Runs for every incident on each filter change, so the options are read directly rather than through a default object
-function passesFilters(p, opts) {
-  if (!opts?.ignoreType && state.type !== "all" && p[TYPE] !== state.type) return false;
-  if (!opts?.ignoreTime && state.hours) {
-    if (p[HOUR] < 0 || !state.hours.has(p[HOUR])) return false;
-  }
-  return true;
+// Does an incident pass the type and (unless ignoreTime) time-of-day filters? Years are not checked
+function passesFilters(p, ignoreTime = false) {
+  if (state.type !== "all" && p[TYPE] !== state.type) return false;
+  return ignoreTime || !state.hours || (p[HOUR] >= 0 && state.hours.has(p[HOUR]));
 }
-function matches(p, period, opts) {
+function matches(p, period, ignoreTime = false) {
   if (!period || !period.years.has(p[YEAR]) || p[MD] > period.maxMd) return false;
-  return passesFilters(p, opts);
+  return passesFilters(p, ignoreTime);
 }
 
 // "in 2026 (Jan 1 to Oct 2)", "from 2016 to 2026", or "in 2016–2018 and 2024"
@@ -917,7 +914,7 @@ function updateHeat() {
   // the filters show, used for both the city-wide totals and the heat
   const shown = [], byHour = new Array(24).fill(0);
   if (n) for (const p of state.data.points) {
-    if (!matches(p, state.shown, { ignoreTime: true })) continue;
+    if (!matches(p, state.shown, true)) continue;
     if (p[HOUR] >= 0) byHour[p[HOUR]]++;
     if (passesFilters(p)) shown.push(p);
   }
@@ -958,18 +955,12 @@ function updateHeat() {
 const heatRadius = (z) => 8 + (z - CONFIG.minZoom) * 3;
 const heatBlur = (radius) => radius * 1.25;
 // Scale the heat so only real hotspots of the average year reach the top colour and quiet areas fade out
-// (instead of the whole city turning orange). Add up the average year's incidents in screen cells the same way
-// leaflet.heat does, then find how busy a "hotspot" cell is. That only depends on the zoom and refSpots, so it's
+// (instead of the whole city turning orange). Add up the average year's incidents in the same cells the heat
+// is drawn in, then find how busy a "hotspot" cell is. That only depends on the zoom and refSpots, so it's
 // worked out once for each zoom
 function heatScale(z) {
   if (refScales.has(z)) return refScales.get(z);
-  const radius = heatRadius(z), cellSize = (radius + heatBlur(radius)) / 2, sums = new Map();
-  for (const [lat, lng, n] of refSpots) {
-    const p = map.project([lat, lng], z);
-    const key = Math.floor(p.x / cellSize) * 1e7 + Math.floor(p.y / cellSize);
-    sums.set(key, (sums.get(key) || 0) + n);
-  }
-  const counts = [...sums.values()].sort((a, b) => a - b);
+  const counts = binSpots(refSpots, z).map((c) => c[2]).sort((a, b) => a - b);
   const busy = counts.length ? counts[Math.min(counts.length - 1, Math.floor(counts.length * CONFIG.hotspotLevel))] : 1;
   const scale = CONFIG.heatStrength / Math.max(busy, 1);   // a cell as busy as `busy` shows at full strength
   refScales.set(z, scale);
@@ -1083,7 +1074,7 @@ function areaStats(ll) {
   for (const p of local) {
     if (matches(p, state.compare)) before++;
     if (passesFilters(p)) bump(perYear, p[YEAR]);   // every year, for the trend
-    if (matches(p, state.shown, { ignoreTime: true })) {                            // time of day uses all times
+    if (matches(p, state.shown, true)) {                            // time of day uses all times
       if (p[HOUR] < 0) unknownHour++; else hours[p[HOUR]]++;
     }
     if (!matches(p, state.shown)) continue;
@@ -1106,6 +1097,7 @@ function typeBars(top, count = 4) {
 // One year's bar. The year in progress is drawn as a dashed outline at its full-year pace (the rate so far, over
 // 365 days) with the count so far filled in at the bottom, so it doesn't read as a drop against whole years.
 const fullYearPace = (y, n) => (isPartial(y) ? n * yearWeight(y) : n);
+const paceMax = (span, perYear) => Math.max(1, ...span.map((y) => fullYearPace(y, perYear.get(y) || 0)));   // a year chart's top
 function yearBar(y, n, max, i) {
   const on = state.years.has(y) ? "on" : "";
   if (!isPartial(y)) return `<i class="${on}" style="height:${(n / max) * 100}%;--i:${i}" title="${y}: ${fmt(n)}"></i>`;
@@ -1124,7 +1116,7 @@ function yearSummary(span, perYear, what) {
 const paceNote = () => `${state.data.partialYear} is Jan 1 to ${throughLabel()}; the dashed outline is its pace for a full year.`;
 function yearSpark(perYear) {
   const span = yearSpan(), first = span[0], last = span[span.length - 1], missing = missingYears();
-  const max = Math.max(1, ...span.map((y) => fullYearPace(y, perYear.get(y) || 0)));
+  const max = paceMax(span, perYear);
   return `<div class="spark" role="img" aria-label="${attr(yearSummary(span, perYear, "Reports near here"))}">${span.map((y, i) => missing.includes(y)
     ? `<i class="gap" title="No ${y} data"></i>`
     : yearBar(y, perYear.get(y) || 0, max, i)).join("")}</div>
@@ -1210,19 +1202,14 @@ function showToast(message, ms = 4000) {
 function renderArea() {
   // No card until a spot is picked, so it doesn't sit over the map; the hint shows once as a note on open
   if (!state.selected) { $("area").innerHTML = ""; return; }
-  if (noYears()) {
-    $("area").innerHTML = `${sheetHandle}
-      <div class="card-head"><div><h2 class="place" tabindex="-1">Near ${nearestHood(state.selected)}</h2>
-        <p class="when">Within ${CONFIG.radiusMeters} m</p></div>
-        <button type="button" class="x" data-action="clear" aria-label="Close area summary">${ICON_X}</button></div>${pickYear}`;
-    return;
-  }
+  const head = (name, when) => `${sheetHandle}
+    <div class="card-head"><div><h2 class="place" tabindex="-1">Near ${name}</h2>
+      <p class="when">Within ${CONFIG.radiusMeters} m${when}</p></div>
+      <button type="button" class="x" data-action="clear" aria-label="Close area summary">${ICON_X}</button></div>`;
+  if (noYears()) { $("area").innerHTML = head(nearestHood(state.selected), "") + pickYear; return; }
   const s = areaStats(state.selected);
   const tip = s.now ? tipFor(s) : "";
-  $("area").innerHTML = `${sheetHandle}
-    <div class="card-head"><div><h2 class="place" tabindex="-1">Near ${s.name}</h2>
-      <p class="when">Within ${CONFIG.radiusMeters} m · ${periodLabel()}</p></div>
-      <button type="button" class="x" data-action="clear" aria-label="Close area summary">${ICON_X}</button></div>
+  $("area").innerHTML = `${head(s.name, ` · ${periodLabel()}`)}
     <p class="big" data-count="${s.now}" data-key="area">${fmt(s.now)}</p>
     <p class="big-label">reported incidents · ${filterLine()}</p>
     ${s.now ? cityLine(s.vsCity) : ""}
@@ -1292,11 +1279,11 @@ for (const [slot, handle, circle] of [["a", handleA, circleA], ["b", handleB, ci
 
 // One area's card, or an empty card for an area not placed yet (slot is "A" or "B")
 function compareCard(s, slot) {
-  const colour = slot === "A" ? "var(--ring)" : "var(--b)", placing = state.nextSlot === slot.toLowerCase();
+  const placing = state.nextSlot === slot.toLowerCase();
   // An empty card is a button: click it to pick that area, then click the map
   if (!s) return `<button type="button" class="cmp empty${placing ? " placing" : ""}" data-action="slot-${slot.toLowerCase()}">
     <span><b>${slot}</b> · ${placing ? `Click the map to place area ${slot}, then drag its label to move it` : `Pick ${slot}, then click the map`}</span></button>`;
-  return `<div class="cmp${placing ? " placing" : ""}"><h3 class="who"><b style="background:${colour}">${slot}</b>Near ${s.name}</h3>
+  return `<div class="cmp${placing ? " placing" : ""}"><h3 class="who"><b>${slot}</b>Near ${s.name}</h3>
     <p class="big" data-count="${s.now}" data-key="${slot}">${fmt(s.now)}</p>${s.change ? `<span class="pill ${s.change.cls}" title="${s.change.text}">${s.change.text.replace("same dates ", "")}</span>` : ""}
     <p class="hint">Busiest per hour: ${busiestShort(s.buckets)}</p></div>`;
 }
@@ -1312,7 +1299,7 @@ function compareTable(A, B, rows) {
   if (!A && !B) return "";
   // Each share is out of what its rows add up to: the area's count for crime types, but for parts of the day every
   // hour (the rows ignore the picked hours), or a picked evening would make morning's share over 100% or 0%
-  const total = (s) => (state.type === "all" ? s.now : sum(Object.values(s.buckets)));
+  const total = (s) => (state.type === "all" ? s.now : periodTotal(s.buckets));
   const cell = (s, n) => (s ? `<span class="n">${fmt(n)} <small>${total(s) ? Math.round((n / total(s)) * 100) : 0}%</small></span>` : `<span class="n">–</span>`);
   return `<div class="h2h"><h3 class="sec">${state.type === "all" ? "Most common" : "By time of day"}</h3><b>A</b><b>B</b>
     ${rows.map(([t, a, b]) => `<span>${t}</span>${cell(A, a)}${cell(B, b)}`).join("")}</div>`;
@@ -1383,7 +1370,7 @@ function renderTrends() {
   }
   const top = ranked(types).map(([t, n]) => [state.data.types[t].label, n]);
   const span = yearSpan(), missing = missingYears();
-  const maxY = Math.max(1, ...span.map((y) => fullYearPace(y, perYear.get(y) || 0)));
+  const maxY = paceMax(span, perYear);
   const maxH = Math.max(1, ...hours);
 
   let areaHtml = "";
@@ -1746,7 +1733,7 @@ function noLocationCount() {
 // The legend is a picture of the heat colours, so it gets one sentence (redone when the theme or filters change)
 function labelLegend() {
   $("legend").setAttribute("aria-label", `Map key, ${$("legend-title").textContent.toLowerCase()}: ` +
-    (isDark() ? "dark purple where fewer are reported, through orange, to pale yellow where most are." : "pale amber where fewer are reported, through rose, to deep plum where most are.") +
+    "green where fewer are reported, through yellow and orange, to red where most are." +
     ($("legend-note").hidden ? "" : ` ${$("legend-note").textContent}`));
 }
 function renderAbout() {
@@ -1864,15 +1851,15 @@ async function start() {
     const res = await fetch(CONFIG.dataUrl);
     if (!res.ok) throw new Error(res.status);
     state.data = await res.json();
-    if (state.data.version >= 3) state.data.points = pointRows(state.data.points);
   } catch (err) {
     showError(`couldn't load ${CONFIG.dataUrl} (${err.message}). Run python scripts/prepare_data.py from the project folder to create it, then reload this page.`);
     return;
   }
-  if (!Array.isArray(state.data.years)) {
-    showError("this data.json was made by the old script. Run python scripts/prepare_data.py from version 2, then reload this page.");
+  if (state.data.version !== 3) {
+    showError("this data.json was made by an older script. Run python scripts/prepare_data.py from the project folder, then reload this page.");
     return;
   }
+  state.data.points = pointRows(state.data.points);
   $("status").classList.remove("show");
   addCoverageMask(state.data.points);
   // Neighbourhood names for the map's label layer (see mapStyle), ranked busiest first by reports within about 1 km of

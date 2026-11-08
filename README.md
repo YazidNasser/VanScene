@@ -174,11 +174,18 @@ Built by **Crimes Against Humanity** for the Build Trilemma Datathon 2026. The [
 
 <br>
 
-- **The map:** clearer colours and labels, a green-to-red heat map that stays smooth while you zoom, and a calm dark mode.
-- **The look:** a frosted sidebar that slides away, the Fold logo, raised search and filter fields, and a layout built for phones.
-- **Fairer comparisons:** four equal six-hour parts of the day, single hours you can pick, and two areas side by side in Compare.
-- **Fresh data:** the police data refreshes every Sunday, and is checked and tested before it goes live.
-- **Accessibility:** a one-line summary of every chart for screen readers, full keyboard use, and AA contrast throughout.
+- **The map:** clearer colours and labels, a green-to-red heat map redrawn live as you zoom so hotspots split and merge, and a calm dark mode.
+- **The look:** a frosted sidebar that slides away, the Fold logo, and raised search and filter fields.
+- **Phones:** views in a bottom bar, 44 px touch targets, and both Compare areas kept clear of the panels.
+- **Clearer charts:** 2026 drawn at its full-year pace, time-of-day shares that add up to 100%, and the busiest day and hour in words.
+- **Fairer comparisons:** one fixed heat scale so years and crime types compare honestly, four equal six-hour parts of the day, single hours you can pick, and two areas side by side in Compare.
+- **Shareable links:** the view and filters are saved in the address, so a link opens the same map.
+- **Accessibility:** a one-line summary of every chart for screen readers, full keyboard use (arrow keys on the hour bars too), and AA contrast throughout.
+- **Fresh data:** the police data refreshes itself every Sunday with GitHub Actions, and a failed run opens an issue the whole team can see.
+- **Safe updates:** new data goes live only if the app can read it and it has no more than 5% fewer incidents than before, since a big drop usually means a broken download.
+- **Speed:** `data.json` is stored column by column, so it downloads about 45% smaller and starts before the scripts load, and a filter change redraws the heat in about 40 ms instead of 72.
+- **Tests and CI:** tests for the data pipeline and a syntax check of the app run on every pull request and push to `main`.
+- **Security:** crime-type and neighbourhood names that could become HTML are refused before publishing, and the CDN map libraries are pinned with SRI hashes, so a changed file is refused instead of run.
 
 </details>
 
