@@ -95,18 +95,66 @@ map.setMaxBounds([[49.10, -123.55], [49.40, -122.70]]);
 L.control.zoom({ position: "bottomright" }).addTo(map);
 L.control.scale({ position: "bottomright", imperial: false, maxWidth: 110 }).addTo(map);   // sits above the zoom buttons
 
-// A muted basemap (Esri's grey canvas, no key needed) so the heat is the only strong colour. Its street names are a
-// separate layer in their own pane above the heat, so they stay readable where reports are densest
+// The basemap: OpenFreeMap's vector tiles (free, no key) drawn by MapLibre in our own colours, after Apple Maps:
+// blue water, green parks, white roads and warm highways by day; slate land, deep blue water and teal parks at night.
+// Its names are drawn by a second layer in their own pane above the heat, so they stay readable where reports are densest
 map.createPane("labels");
 map.getPane("labels").style.zIndex = 395;        // above the heat (390), below the circles (400) and the outside shade (450)
 map.getPane("labels").style.pointerEvents = "none";
-const canvasUrl = (part) => `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_${isDark() ? "Dark" : "Light"}_Gray_${part}/MapServer/tile/{z}/{y}/{x}`;
-const baseTiles = L.tileLayer(canvasUrl("Base"), {
-  attribution: 'Tiles &copy; <a href="https://www.esri.com">Esri</a>, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  maxZoom: 16,
-}).addTo(map);
-// Only from street zoom: further out its city names are in another typeface and would sit on top of ours
-const labelTiles = L.tileLayer(canvasUrl("Reference"), { minZoom: 14, maxZoom: 16, pane: "labels" }).addTo(map);
+const MAP_COLOURS = {
+  light: { land: "#f5f3ee", built: "#efece6", building: "#e5e1d8", park: "#cbe7bd", water: "#9ecff2", road: "#ffffff",
+    casing: "#e0dbcf", highway: "#f6d27c", rail: "#d6d1c7", text: "#4f5a64", halo: "#ffffff", waterText: "#3d6c9a" },
+  dark: { land: "#2c333d", built: "#2f3640", building: "#363e49", park: "#1e5d55", water: "#1d2c76", road: "#4b5668",
+    casing: "#2c333d", highway: "#7c8aa3", rail: "#3a4351", text: "#cfd6df", halo: "#20262e", waterText: "#93a6e6" },
+};
+const OFM = "https://tiles.openfreemap.org/styles/positron";
+let ofmStyle = null;   // OpenFreeMap's Positron style, which mapStyle() recolours for the theme
+// Each of the style's layers gets a colour from MAP_COLOURS by what it draws; layers not listed are left out
+const PAINT = [
+  [/^background$/, "background-color", "land"], [/^park$|landcover_wood/, "fill-color", "park"], [/^water$/, "fill-color", "water"],
+  [/^waterway$/, "line-color", "water"], [/landuse_residential|aeroway-area/, "fill-color", "built"], [/^building$/, "fill-color", "building"],
+  [/casing/, "line-color", "casing"], [/motorway_(inner|subtle)|motorway_bridge_inner/, "line-color", "highway"],
+  [/highway_(minor|path|major_inner|major_subtle)|tunnel_motorway_inner|road_pier|aeroway-(runway|taxiway)$/, "line-color", "road"],
+  [/^railway/, "line-color", "rail"],
+  [/water_name/, "text-color", "waterText"], [/highway-name-(minor|major)|label_(city|town)$/, "text-color", "text"],
+];
+function mapStyle(labels) {
+  const c = MAP_COLOURS[isDark() ? "dark" : "light"];
+  const layers = [];
+  for (const l of ofmStyle.layers) {
+    const rule = PAINT.find(([re]) => re.test(l.id));
+    if (!rule || (l.type === "symbol") !== labels) continue;
+    const paint = { ...l.paint, [rule[1]]: c[rule[2]] };
+    if (l.type === "symbol") Object.assign(paint, { "text-halo-color": c.halo, "text-halo-width": 1.4, "text-halo-blur": 0.5 });
+    if (l.id === "building") paint["fill-outline-color"] = c.building;
+    const layer = { ...l, paint };
+    // Neighbouring cities named large, as Apple Maps does; Vancouver itself is left out, since our neighbourhood names fill it
+    if (/label_(city|town)$/.test(l.id)) {
+      layer.filter = ["all", l.filter, ["!=", ["get", "name"], "Vancouver"]];
+      layer.layout = { ...l.layout, "text-size": 17, "text-font": ["Noto Sans Bold"] };
+    }
+    layers.push(layer);
+  }
+  return { ...ofmStyle, layers };
+}
+const emptyStyle = { version: 8, sources: {}, layers: [] };
+const ofmCredit = '&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+// If MapLibre or the style can't be fetched, fall back to plain OpenStreetMap tiles, greyed out, so there's always a map
+const osmFallback = () => L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { className: "osm-fallback", maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+const glBase = L.maplibreGL ? L.maplibreGL({ style: emptyStyle, attribution: ofmCredit }).addTo(map) : null;
+const glLabels = L.maplibreGL ? L.maplibreGL({ style: emptyStyle, pane: "labels" }).addTo(map) : null;
+function paintBasemap() {
+  if (!ofmStyle) return;
+  // diff: false replaces the style outright; patching it can't add the font (glyphs) setting the labels need
+  glBase.getMaplibreMap().setStyle(mapStyle(false), { diff: false });
+  glLabels.getMaplibreMap().setStyle(mapStyle(true), { diff: false });
+}
+if (glBase) {
+  fetch(OFM).then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))))
+    .then((s) => { ofmStyle = s; paintBasemap(); })
+    .catch(() => { map.removeLayer(glBase); map.removeLayer(glLabels); osmFallback(); });
+} else osmFallback();
 // Less detail far out, more close in: neighbourhood names give way to street names at street zoom
 const hoodMarkers = [];
 function syncLabelDetail() {
@@ -130,8 +178,9 @@ map.on("zoomend", syncLabelDetail);
 // The covered area is worked out from the incidents in data.json, so no extra file is needed.
 const SHADE = {
   // [red, green, blue, strength 0-1] for the area our data covers (inside) and everywhere else (outside)
-  light: { inside: [255, 255, 255, 0.25], outside: [30, 40, 48, 0.6] },
-  dark: { inside: [255, 255, 255, 0.05], outside: [0, 0, 0, 0.6] },
+  // Lighter than before so the basemap's water and parks keep their colour; outside stays dimmed but readable, as Apple advises
+  light: { inside: [255, 255, 255, 0], outside: [30, 40, 48, 0.45] },
+  dark: { inside: [255, 255, 255, 0.03], outside: [8, 12, 24, 0.5] },
   cellMeters: 250,                 // grid size used to find the covered area
   smoothness: 2,                   // how rounded the border is: 0 = blocky, 1 = slight, 2 = smooth, 3 = very smooth
   edgeSoftness: 0.15,              // 0.05 = crisp edge, 0.5 = soft faded edge
@@ -1515,8 +1564,7 @@ $("theme-toggle").addEventListener("click", () => {
   syncThemeButton();
   paintCoverage();                                            // re-colour the inside/outside shading
   paintCircles();
-  baseTiles.setUrl(canvasUrl("Base"));
-  labelTiles.setUrl(canvasUrl("Reference"));
+  paintBasemap();
   heat.setOptions({ gradient: heatGradient() });
   if (state.data) labelLegend();
 });
@@ -1577,7 +1625,13 @@ async function start() {
   requestAnimationFrame(() => {
     map.invalidateSize();
     if (spotted) fitForView();   // a link with a spot opens on it
-    else map.fitBounds(CITY_BOUNDS, { ...panelPadding(L.latLngBounds(CITY_BOUNDS)), maxZoom: 13, animate: false });
+    else {
+      const o = panelPadding(L.latLngBounds(CITY_BOUNDS));
+      map.fitBounds(CITY_BOUNDS, { ...o, maxZoom: 13, animate: false });
+      // Fill rather than fit: a step closer so the city fills the open map (its very top and bottom may sit just off screen)
+      const mid = L.point(o.paddingTopLeft).add(map.getSize().subtract(o.paddingBottomRight)).divideBy(2);
+      map.setZoomAround(mid, Math.min(13, map.getZoom() + 0.25), { animate: false });
+    }
   });
 }
 
