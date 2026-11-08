@@ -107,8 +107,10 @@ a { color: var(--sea); }
 .theme-toggle:hover { border-color: var(--sea); }
 .theme-toggle svg { width: 16px; height: 16px; }
 /* Beside the name, like Apple Maps' sidebar button: hides or shows the filters card (wider screens only) */
-.side-toggle { flex: none; display: grid; place-items: center; width: 34px; height: 34px; margin-left: -4px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; }
+.side-toggle { flex: none; display: grid; place-items: center; width: 34px; height: 34px; margin-left: -4px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, transform 0.12s; }   /* fades in and out like the other header buttons */
 .side-toggle:hover { color: var(--ink); background: var(--hover); }
+.side-toggle:active { transform: scale(0.94); }
 .side-toggle svg { width: 18px; height: 18px; }
 .theme-toggle .sun, :root[data-theme="dark"] .theme-toggle .moon { display: none; }
 :root[data-theme="dark"] .theme-toggle .sun { display: block; }
