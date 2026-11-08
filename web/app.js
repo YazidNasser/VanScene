@@ -93,12 +93,112 @@ const map = L.map("map", {
 // Keeps people near Vancouver, with room to slide any part of the city out from behind the side panels
 map.setMaxBounds([[49.10, -123.55], [49.40, -122.70]]);
 L.control.zoom({ position: "bottomright" }).addTo(map);
+L.control.scale({ position: "bottomright", imperial: false, maxWidth: 110 }).addTo(map);   // sits above the zoom buttons
 
-// OpenStreetMap tiles, greyed out with CSS (see --tile-filter) so the heat colours stand out
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  maxZoom: 19,
-}).addTo(map);
+// The basemap: OpenFreeMap's vector tiles (free, no key) drawn by MapLibre in our own colours, after Apple Maps:
+// blue water, green parks, white roads and warm highways by day; slate land, deep blue water and teal parks at night.
+// Its names are drawn by a second layer in their own pane above the heat, so they stay readable where reports are densest
+map.createPane("labels");
+map.getPane("labels").style.zIndex = 395;        // above the heat (390), below the circles (400) and the outside shade (450)
+map.getPane("labels").style.pointerEvents = "none";
+// Roads in three steps, as Apple Maps draws them: quiet side streets (road), stand-out main roads (major) and the
+// brightest highways, so the city's structure reads at a glance
+const MAP_COLOURS = {
+  light: { land: "#f5f3ee", built: "#efece6", building: "#e5e1d8", park: "#cbe7bd", water: "#9ecff2", road: "#ffffff", major: "#ffffff", secondary: "#ffffff",
+    casing: "#e0dbcf", highway: "#f6d27c", rail: "#d6d1c7", text: "#323b44", halo: "rgba(245, 243, 238, 0.8)", waterText: "#3d6c9a", parkText: "#3c7f37",
+    district: "#5d6670", city: "#1c252d" },
+  dark: { land: "#2c333d", built: "#2f3640", building: "#363e49", park: "#1e5d55", water: "#1d2c76", road: "#3e4757", major: "#8a99b8", secondary: "#56627a",
+    casing: "#2c333d", highway: "#b3c0db", rail: "#3a4351", text: "#e6ebf1", halo: "rgba(36, 42, 51, 0.8)", waterText: "#93a6e6", parkText: "#74d38f",
+    district: "#aab3bf", city: "#f3f5f8" },
+};
+const OFM = "https://tiles.openfreemap.org/styles/positron";
+let ofmStyle = null;   // OpenFreeMap's Positron style, which mapStyle() recolours for the theme
+// Each of the style's layers gets a colour from MAP_COLOURS by what it draws; layers not listed are left out
+const PAINT = [
+  [/^background$/, "background-color", "land"], [/^park$|landcover_wood/, "fill-color", "park"], [/^water$/, "fill-color", "water"],
+  [/^waterway$/, "line-color", "water"], [/landuse_residential|aeroway-area/, "fill-color", "built"], [/^building$/, "fill-color", "building"],
+  [/casing/, "line-color", "casing"], [/motorway_(inner|subtle)|motorway_bridge_inner/, "line-color", "highway"],
+  [/highway_(minor|path)|tunnel_motorway_inner|road_pier|aeroway-(runway|taxiway)$/, "line-color", "road"],
+  [/highway_major_(inner|subtle)/, "line-color", "major"],
+  [/^railway/, "line-color", "rail"],
+  [/water_name/, "text-color", "waterText"], [/highway-name-(minor|major)|label_(city|town)$/, "text-color", "text"],
+];
+// Every label's outline, as Apple Maps draws it: thin, soft and close to the land colour, so letters lift off busy
+// ground without looking stickered on
+const halo = (c) => ({ "text-halo-color": c.halo, "text-halo-width": 1, "text-halo-blur": 0.6 });
+function mapStyle(labels) {
+  const c = MAP_COLOURS[isDark() ? "dark" : "light"];
+  const layers = [];
+  for (const l of ofmStyle.layers) {
+    const rule = PAINT.find(([re]) => re.test(l.id));
+    if (!rule || (l.type === "symbol") !== labels) continue;
+    const paint = { ...l.paint, [rule[1]]: c[rule[2]] };
+    // Full-strength text (the style fades some names), so street names stay readable over the heat
+    if (l.type === "symbol") Object.assign(paint, { "text-opacity": 1, ...halo(c) });
+    if (l.id === "building") paint["fill-outline-color"] = c.building;
+    // Only the arterials stand out, as in Apple Maps: primary roads in full, secondary ones softer, and the many
+    // tertiary roads drawn like side streets
+    if (rule[2] === "major") paint["line-color"] = ["match", ["get", "class"], ["primary", "trunk"], c.major, "secondary", c.secondary, c.road];
+    const layer = { ...l, paint };
+    // Neighbouring cities named large, as Apple Maps does; Vancouver itself is left out, since our neighbourhood names fill it
+    if (/label_(city|town)$/.test(l.id)) {
+      layer.filter = ["all", l.filter, ["!=", ["get", "name"], "Vancouver"]];
+      layer.layout = { ...l.layout, "text-size": 17, "text-font": ["Noto Sans Bold"] };
+    }
+    // Main streets named from city zoom in small capitals, as Apple Maps names its arterials: a regular weight and
+    // smaller than the bold, wider-spaced district names, so the two never read as the same kind of label
+    if (l.id === "highway-name-major") {
+      layer.layout = { ...l.layout, "text-transform": "uppercase", "text-letter-spacing": 0.04,
+        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 9, 15, 10.5] };
+    }
+    layers.push(layer);
+  }
+  // Park names in green, like Apple Maps: the big parks from city zoom (named points in the tiles' park layer),
+  // then every park at street zoom (points of interest, only in the tiles from z14, which this layer reaches at
+  // Leaflet zoom 15 since the bridge runs MapLibre one level lower). Stanley Park is skipped: our neighbourhood label names it
+  if (labels) {
+    const parkName = (id, sourceLayer, filter, minzoom) => ({ id, type: "symbol", source: "openmaptiles", "source-layer": sourceLayer, minzoom, filter,
+      layout: { "text-field": ["coalesce", ["get", "name_en"], ["get", "name"]], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-max-width": 7 },
+      paint: { "text-color": c.parkText, ...halo(c) } });
+    layers.push(parkName("park-name-big", "park", ["all", ["==", ["geometry-type"], "Point"], ["!=", ["get", "name"], "Stanley Park"]], 9));
+    layers.push(parkName("park-name", "poi", ["==", ["get", "class"], "park"], 13));
+  }
+  // Our neighbourhood names and the city's name, last so MapLibre places them first: every label on the map is then
+  // placed by one system, and a street or park name that would collide with one of them is the one left out.
+  // Both go at street zoom (MapLibre zoom 14 = Leaflet zoom 15), where street and park names take over
+  if (labels && hoodNames) {
+    const named = (id, filter, layout, color) => ({ id, type: "symbol", source: "hoods", maxzoom: 14, filter,
+      layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Bold"], ...layout },
+      paint: { "text-color": color, ...halo(c) } });
+    layers.push(named("hood-names", ["!", ["has", "city"]], { "text-size": 11, "text-transform": "uppercase", "text-letter-spacing": 0.12,
+      "text-max-width": 7, "text-padding": 4, "symbol-sort-key": ["get", "rank"] }, c.district));
+    // As Apple Maps sets it: large and bold at a fixed size, so it stays big while the map zooms in around it
+    layers.push(named("city-name", ["has", "city"], { "text-size": 28, "text-letter-spacing": -0.01 }, c.city));
+    return { ...ofmStyle, sources: { ...ofmStyle.sources, hoods: { type: "geojson", data: hoodNames } }, layers };
+  }
+  return { ...ofmStyle, layers };
+}
+let hoodNames = null;   // GeoJSON of the neighbourhood names, made once the data has loaded
+// What MapLibre starts with until the style arrives; it names the fonts too, or MapLibre logs "glyphsUrl is not set"
+const emptyStyle = { version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", sources: {}, layers: [] };
+const ofmCredit = '&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+// If MapLibre or the style can't be fetched, fall back to plain OpenStreetMap tiles, greyed out, so there's always a map
+const osmFallback = () => L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { className: "osm-fallback", maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+const glBase = L.maplibreGL ? L.maplibreGL({ style: emptyStyle, attribution: ofmCredit }).addTo(map) : null;
+const glLabels = L.maplibreGL ? L.maplibreGL({ style: emptyStyle, pane: "labels" }).addTo(map) : null;
+// Draws the basemap and its labels in the current theme; labelsOnly when only our names changed. Waits for the style
+function paintBasemap(labelsOnly = false) {
+  if (!ofmStyle) return;
+  // diff: false replaces the style outright; patching it can't add the font (glyphs) setting the labels need
+  if (!labelsOnly) glBase.getMaplibreMap().setStyle(mapStyle(false), { diff: false });
+  glLabels.getMaplibreMap().setStyle(mapStyle(true), { diff: false });
+}
+if (glBase) {
+  fetch(OFM).then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))))
+    .then((s) => { ofmStyle = s; paintBasemap(); })
+    .catch(() => { map.removeLayer(glBase); map.removeLayer(glLabels); osmFallback(); });
+} else osmFallback();
 
 // ---------------------------------------------------------------------
 // Step 1b: lighter colour where our data covers, darker everywhere else
@@ -106,8 +206,9 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 // The covered area is worked out from the incidents in data.json, so no extra file is needed.
 const SHADE = {
   // [red, green, blue, strength 0-1] for the area our data covers (inside) and everywhere else (outside)
-  light: { inside: [255, 255, 255, 0.25], outside: [30, 40, 48, 0.6] },
-  dark: { inside: [255, 255, 255, 0.05], outside: [0, 0, 0, 0.6] },
+  // Lighter than before so the basemap's water and parks keep their colour; outside stays dimmed but readable, as Apple advises
+  light: { inside: [255, 255, 255, 0], outside: [30, 40, 48, 0.45] },
+  dark: { inside: [255, 255, 255, 0.03], outside: [8, 12, 24, 0.5] },
   cellMeters: 250,                 // grid size used to find the covered area
   smoothness: 2,                   // how rounded the border is: 0 = blocky, 1 = slight, 2 = smooth, 3 = very smooth
   edgeSoftness: 0.15,              // 0.05 = crisp edge, 0.5 = soft faded edge
@@ -317,8 +418,10 @@ function fadeHeat() {
 }
 
 // Circles for the clicked area (Map view) and the two areas (Compare view)
-const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 2, fillOpacity: 0.06, interactive: false });
+const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 3, fillOpacity: 0.1, interactive: false });
 const areaCircle = L.circle(CONFIG.center, circleStyle(cssVar("--sea")));
+// A pin at the clicked spot, so the selection reads at a glance as well as by its outline
+const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin", iconSize: [16, 16] }), interactive: false, keyboard: false });
 const circleA = L.circle(CONFIG.center, circleStyle(cssVar("--sea")));
 const circleB = L.circle(CONFIG.center, circleStyle(cssVar("--b")));
 // The A and B labels in the middle of each circle are handles: drag one to move that area
@@ -384,9 +487,10 @@ function buildPeriods() {
 }
 
 // Does an incident pass the type and time-of-day filters? (years not checked)
-function passesFilters(p, { ignoreType = false, ignoreTime = false } = {}) {
-  if (!ignoreType && state.type !== "all" && p[TYPE] !== state.type) return false;
-  if (!ignoreTime && state.hours) {
+// Runs for every incident on each filter change, so the options are read directly rather than through a default object
+function passesFilters(p, opts) {
+  if (!opts?.ignoreType && state.type !== "all" && p[TYPE] !== state.type) return false;
+  if (!opts?.ignoreTime && state.hours) {
     if (p[HOUR] < 0 || !state.hours.has(p[HOUR])) return false;
   }
   return true;
@@ -511,11 +615,9 @@ function hourStrip(hours) {
     ${HOUR_AXIS}`;
 }
 
-// The chart inside the time-of-day track: reports per hour for the chosen years and crime type. Each bar is
-// a button for its hour; the picked hours are in the accent. Returns the counts per clock hour.
-function drawTrackBars() {
-  const hours = new Array(24).fill(0);
-  for (const p of state.data.points) if (p[HOUR] >= 0 && matches(p, state.shown, { ignoreTime: true })) hours[p[HOUR]]++;
+// The chart inside the time-of-day track: `hours` is reports per clock hour for the chosen years and crime type
+// (counted by updateHeat). Each bar is a button for its hour; the picked hours are in the accent.
+function drawTrackBars(hours) {
   const max = Math.max(1, ...hours), strip = $("track-bars");
   if (strip.children.length !== 24)   // made once, so later changes animate
     strip.innerHTML = TRACK_ORDER.map((h) => `<button type="button" class="hr" data-hour="${h}"><i></i></button>`).join("");
@@ -531,7 +633,6 @@ function drawTrackBars() {
   // One Tab stop for the 24 hours (the focused one, else the first picked, else 6 am); arrows move between them
   const stop = strip.contains(document.activeElement) ? document.activeElement : strip.querySelector('[aria-pressed="true"]') || strip.firstChild;
   for (const bar of strip.children) bar.tabIndex = bar === stop ? 0 : -1;
-  return hours;
 }
 function syncTimeButtons() {
   $("time").classList.toggle("any", !state.hours);
@@ -632,10 +733,9 @@ function yearWeight(y) {
 
 // Many incidents share the same hundred-block location, so count repeats as one spot.
 // This looks the same and keeps the map fast with ten years of data.
-function spotsPerYear(test, years, scale = 1) {
+function spotsPerYear(points, years, scale = 1) {
   const spots = new Map(), weight = {};
-  for (const p of state.data.points) {
-    if (!test(p)) continue;
+  for (const p of points) {
     const key = Math.round(p[LAT] * 1e4) * 1e7 + Math.round((p[LNG] + 180) * 1e4);
     const w = (weight[p[YEAR]] ??= (yearWeight(p[YEAR]) / years) * scale);
     const spot = spots.get(key);
@@ -646,26 +746,32 @@ function spotsPerYear(test, years, scale = 1) {
 
 function updateHeat() {
   const n = state.shown.years.size;
-  // City-wide totals for the current filters, overall and per crime type, for the area card's comparisons
-  let count = 0;
-  const cityTypes = new Map();
-  if (n) for (const p of state.data.points) if (matches(p, state.shown)) { count++; bump(cityTypes, p[TYPE]); }
-  state.city = { count, types: cityTypes };
+  // One pass over every incident: per clock hour ignoring the time of day (for the track's chart), and the ones
+  // the filters show, used for both the city-wide totals and the heat
+  const shown = [], byHour = new Array(24).fill(0);
+  if (n) for (const p of state.data.points) {
+    if (!matches(p, state.shown, { ignoreTime: true })) continue;
+    if (p[HOUR] >= 0) byHour[p[HOUR]]++;
+    if (passesFilters(p)) shown.push(p);
+  }
+  const count = shown.length, cityTypes = new Map();
+  for (const p of shown) bump(cityTypes, p[TYPE]);
+  state.city = { count, types: cityTypes };   // overall and per crime type, for the area card's comparisons
   // A part of the day is drawn per hour (scaled up by 24 / its hours) against the all-day reference, so a part
   // exactly as busy per hour as the whole day looks like "Any time"; busier parts glow more, quieter ones less.
   const hrs = state.hours ? state.hours.size : 0;   // 0 for "Any time"
-  heatSpots = n ? spotsPerYear((p) => matches(p, state.shown), n, hrs ? 24 / hrs : 1) : [];
+  heatSpots = n ? spotsPerYear(shown, n, hrs ? 24 / hrs : 1) : [];
   // refSpots only changes when a time of day is turned on or off, so it isn't rebuilt on every filter change
   if (refHours !== !!hrs) {
     refHours = !!hrs;
-    refSpots = spotsPerYear((p) => !hrs || p[HOUR] >= 0, state.data.years.length);
+    refSpots = spotsPerYear(hrs ? state.data.points.filter((p) => p[HOUR] >= 0) : state.data.points, state.data.years.length);
     refScale = null;
   }
   fadeHeat();
   drawHeat();
   // With a time of day picked, say how its share of reports compares with its share of the clock
   let share = "";
-  const byHour = drawTrackBars();
+  drawTrackBars(byHour);
   if (n && hrs && count) {
     const known = sum(byHour);   // reports with a known time, at any hour
     const rate = count / known / (hrs / 24);
@@ -1211,6 +1317,8 @@ function readUrl() {
 function syncCircles() {
   const show = (layer, on) => { if (on && !map.hasLayer(layer)) layer.addTo(map); if (!on && map.hasLayer(layer)) map.removeLayer(layer); };
   show(areaCircle, state.view !== "compare" && !!state.selected);
+  if (state.selected) areaPin.setLatLng(state.selected);
+  show(areaPin, state.view !== "compare" && !!state.selected);
   if (state.a) { circleA.setLatLng(state.a); handleA.setLatLng(state.a); }
   if (state.b) { circleB.setLatLng(state.b); handleB.setLatLng(state.b); }
   show(circleA, state.view === "compare" && !!state.a);
@@ -1487,6 +1595,7 @@ $("theme-toggle").addEventListener("click", () => {
   syncThemeButton();
   paintCoverage();                                            // re-colour the inside/outside shading
   paintCircles();
+  paintBasemap();
   heat.setOptions({ gradient: heatGradient() });
   if (state.data) labelLegend();
 });
@@ -1526,6 +1635,20 @@ async function start() {
   }
   $("status").classList.remove("show");
   addCoverageMask(state.data.points);
+  // Neighbourhood names for the map's label layer (see mapStyle), ranked busiest first by reports within about 1 km of
+  // each centre, so where names would collide the busier area keeps its name. The city's own name sits in the open
+  // space between Fairview, Mount Pleasant and Shaughnessy, roughly where Apple Maps puts it
+  const hoods = state.data.neighbourhoods, busy = new Array(hoods.length).fill(0);
+  for (const p of state.data.points) {   // plain index loops: this runs hoods × incidents times at startup
+    for (let i = 0; i < hoods.length; i++) if (Math.abs(p[LAT] - hoods[i].lat) < 0.009 && Math.abs(p[LNG] - hoods[i].lng) < 0.014) busy[i]++;
+  }
+  const point = (lat, lng, properties) => ({ type: "Feature", geometry: { type: "Point", coordinates: [lng, lat] }, properties });
+  const byBusy = hoods.map((h, i) => [h, busy[i]]).sort((a, b) => b[1] - a[1]);
+  hoodNames = { type: "FeatureCollection", features: [
+    point(49.2555, -123.123, { name: "Vancouver", city: true }),
+    ...byBusy.map(([h], rank) => point(h.lat, h.lng, { name: h.name, rank })),
+  ] };
+  paintBasemap(true);
   buildControls();
   const linked = readUrl();
   buildPeriods();
@@ -1536,7 +1659,13 @@ async function start() {
   requestAnimationFrame(() => {
     map.invalidateSize();
     if (spotted) fitForView();   // a link with a spot opens on it
-    else map.fitBounds(CITY_BOUNDS, { ...panelPadding(L.latLngBounds(CITY_BOUNDS)), maxZoom: 13, animate: false });
+    else {
+      const o = panelPadding(L.latLngBounds(CITY_BOUNDS));
+      map.fitBounds(CITY_BOUNDS, { ...o, maxZoom: 13, animate: false });
+      // Fill rather than fit: a step closer so the city fills the open map (its very top and bottom may sit just off screen)
+      const mid = L.point(o.paddingTopLeft).add(map.getSize().subtract(o.paddingBottomRight)).divideBy(2);
+      map.setZoomAround(mid, Math.min(13, map.getZoom() + 0.25), { animate: false });
+    }
   });
 }
 

@@ -115,7 +115,7 @@ A static site with no framework and no build step. It's deployed on Vercel from 
 |---|---|
 | Plain HTML, CSS and JavaScript, no framework or build step | Easy to run, review and host, and anyone on the team can change it |
 | Python standard library only for the data scripts | Teammates and mentors can run them without installing anything |
-| Leaflet and Leaflet.heat on OpenStreetMap tiles | Free and open source, with no API keys or accounts |
+| Leaflet and Leaflet.heat, over OpenFreeMap vector tiles drawn by MapLibre | Free and open source, with no API keys or accounts; vector tiles let the map take our own colours and labels, in the style of Apple Maps |
 | One fixed colour scale for every year and crime type | The same colour means the same amount everywhere, so years and types can be compared |
 | Four equal six-hour parts of the day, compared per hour | Unequal periods made the longest one look busiest just because it was longer |
 | Comparing an area with the city average for the same size of circle | A raw count alone says little; busy places will always show more |

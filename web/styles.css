@@ -19,10 +19,13 @@
   --ramp-1: #fde3a7; --ramp-2: #f7ad6a; --ramp-3: #d9607e; --ramp-4: #92307f; --ramp-5: #45125e;
   --heat-blend: multiply;  /* lets street names show through the heat */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --map-bg: #e8ecee;
+  --map-bg: #f5f3ee;       /* the basemap's land colour, so nothing flashes while it loads */
   --status-bg: rgba(238, 242, 243, 0.92);
-  --tile-filter: grayscale(1) brightness(1.04) contrast(0.92);
+  --tile-filter: none;     /* only used by the fallback raster tiles */
+  --control-shadow: 0 1px 3px rgba(22, 36, 43, 0.14), 0 4px 12px rgba(22, 36, 43, 0.08);
   --font: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Text on the map: Apple's own SF where the device has it, like Apple Maps, otherwise the page's face */
+  --map-font: -apple-system, BlinkMacSystemFont, "Public Sans", system-ui, sans-serif;
   color-scheme: light;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
@@ -33,11 +36,13 @@
   --ink: #ece9e4; --muted: #aaa6a1; --faint: #8f8b86; --line: #303033;
   --page: #121212; --surface: #1b1b1c; --surface-2: #252527;
   --sea: #ece9e4; --sea-soft: #2c2c2e; --on-sea: #121212; --b: #8fd0a6;
-  --bar-bg: #2a2a2c; --map-bg: #161616;
+  --bar-bg: #2a2a2c; --map-bg: #2c333d;
   --status-bg: rgba(18, 18, 18, 0.92);
-  --tile-filter: grayscale(1) invert(1) brightness(0.9) contrast(0.85);
-  --ramp-1: #51127c; --ramp-2: #b73779; --ramp-3: #fc8961; --ramp-4: #fecf8f; --ramp-5: #fcfdbf;
-  --heat-blend: screen;
+  --tile-filter: invert(1) brightness(0.85) contrast(0.85);   /* only used by the fallback raster tiles */
+  --control-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
+  /* Calm at night: violet to a soft amber, never white, laid over the map rather than added on as light */
+  --ramp-1: #4a2f7a; --ramp-2: #8a3f8c; --ramp-3: #c9577a; --ramp-4: #e8835c; --ramp-5: #f2b35e;
+  --heat-blend: normal;
   color-scheme: dark;
 }
 
@@ -91,10 +96,21 @@ a { color: var(--sea); }
 /* ---------------- Map and floating panels ---------------- */
 .app { position: relative; flex: 1; min-height: 0; }
 #map { position: absolute; inset: 0; z-index: 0; background: var(--map-bg); cursor: crosshair; }
-#map .leaflet-tile-pane { filter: var(--tile-filter); }
-#map .leaflet-bar a { background: var(--surface); color: var(--ink); border-bottom-color: var(--line); }
+#map .osm-fallback { filter: grayscale(1) var(--tile-filter); }
+/* Map controls float over busy colour, so they get a thin stroke and a light shadow to stand off it (Apple's map guidance) */
+#map .leaflet-bar { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: var(--control-shadow); }
+#map.leaflet-container { font-family: var(--map-font); }
+/* Leaflet sets the + and − in a monospace face; a light weight of the map face, like Apple's zoom stepper */
+#map .leaflet-bar a { width: 40px; height: 40px; line-height: 38px; font: 300 24px/38px var(--map-font); text-indent: 0; background: var(--surface); color: var(--ink); border-bottom-color: var(--line); }
+#map .leaflet-bar a:first-child, #map .leaflet-bar a:last-child { border-radius: 0; }
 #map .leaflet-bar a:hover { background: var(--surface-2); }
-#map .leaflet-bar { border: 1px solid var(--line); }
+#map .leaflet-bar a.leaflet-disabled { color: var(--faint); background: var(--surface); }
+/* The scale: no box, just the measure in the panels' ink, haloed so it reads on any part of the map */
+#map .leaflet-control-scale { margin-bottom: 8px; }
+#map .leaflet-control-scale-line { background: transparent; border: 2px solid var(--ink); border-top: 0; color: var(--ink); font-size: 0.72rem; font-weight: 600;
+  line-height: 1.3; padding: 0 6px; text-shadow: 0 0 2px var(--surface), 0 0 2px var(--surface), 0 0 4px var(--surface); }
+/* The clicked spot: a pin in the accent, ringed in the surface colour so it reads over the heat */
+#map .area-pin { border-radius: 50%; background: var(--sea); border: 3px solid var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
 #map .leaflet-control-attribution { background: var(--surface); color: var(--muted); border-radius: 6px 0 0 0; padding: 2px 16px 2px 8px; }
 #map .leaflet-control-attribution a { color: var(--sea); }
 /* Lift the zoom buttons off the bottom-right corner: the earlier host (Netlify) floated a badge there over the page,
