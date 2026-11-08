@@ -1,8 +1,8 @@
 /* ---------------------------------------------------------------------
    Colours: change these to restyle the whole page. Dark mode reuses the names.
    Taken from the basemap (MAP_COLOURS in app.js), so panels and map read as one: the map's slate label ink,
-   its cream land for tiles and fills. The accent is the ink itself, as the map's labels are, so the heat is the
-   only colour on the page; areas A and B are both drawn in it and told apart by their letters
+   its cream land for tiles and fills, a deeper shade of its water for the accent (the ink itself at night).
+   Areas A and B share one ring colour, gold by day and white at night, and are told apart by their letters
    --------------------------------------------------------------------- */
 :root {
   --ink: #1c252d;          /* main text: the map's city-name ink */
@@ -12,10 +12,12 @@
   --page: #f5f3ee;         /* behind the panels: the map's land */
   --surface: #ffffff;      /* panels and cards: white, like the map's roads */
   --surface-2: #f5f3ee;    /* tiles inside cards: the map's land again */
-  --sea: #1c252d;          /* accent: the ink; selected hours and years, links, the area rings and A */
-  --sea-soft: #ebe9e3;
+  --sea: #1a67ab;          /* accent: the map's water, deepened to 5.9:1 on white; selected hours and years, links */
+  --sea-soft: #e4eef8;
   --on-sea: #ffffff;       /* text on the accent colour */
-  --b: #1c252d;            /* area B in Compare: the same ink as A, told apart by its letter */
+  --ring: #b7800c;         /* areas A and B on the map: a warm gold, like the map's highways deepened to read on its land */
+  --on-ring: #1c252d;      /* text on the ring colour */
+  --b: var(--ring);        /* area B: the same colour as A, told apart by its letter */
   --bar-bg: #ebe8e0;
   /* The frosted header and panels: their tint, their edge, and the see-through fills inside them */
   --glass: rgba(255, 255, 255, 0.94); --glass-edge: rgba(28, 37, 45, 0.08);
@@ -43,7 +45,7 @@
      neutral like Apple Maps' own marks, so the heat keeps all the colour */
   --ink: #e6ebf1; --muted: #aab3bf; --faint: #959fae; --line: #2f3849;
   --page: #141a26; --surface: #1a2130; --surface-2: #232b3b;
-  --sea: #e6ebf1; --sea-soft: #2c3546; --on-sea: #141a26; --b: #e6ebf1;
+  --sea: #e6ebf1; --sea-soft: #2c3546; --on-sea: #141a26; --ring: #e6ebf1; --on-ring: #141a26;
   --bar-bg: #2c3546; --map-bg: #2c333d;
   --glass: rgba(26, 33, 48, 0.94); --glass-edge: rgba(230, 235, 241, 0.08);
   --glass-fill: rgba(230, 235, 241, 0.06); --glass-fill-2: rgba(230, 235, 241, 0.11);
@@ -127,7 +129,7 @@ a { color: var(--sea); }
 #map .leaflet-control-scale-line { background: transparent; border: 2px solid var(--ink); border-top: 0; color: var(--ink); font-size: 0.72rem; font-weight: 600;
   line-height: 1.3; padding: 0 6px; text-shadow: 0 0 2px var(--surface), 0 0 2px var(--surface), 0 0 4px var(--surface); }
 /* The clicked spot: a pin in the accent, ringed in the surface colour so it reads over the heat */
-#map .area-pin { border-radius: 50%; background: var(--sea); border: 2px solid var(--surface); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
+#map .area-pin { border-radius: 50%; background: var(--ring); border: 2px solid var(--surface); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
 #map .leaflet-control-attribution { background: var(--surface); color: var(--muted); border-radius: 6px 0 0 0; padding: 2px 16px 2px 8px; }
 #map .leaflet-control-attribution a { color: var(--sea); }
 /* Lift the zoom buttons off the bottom-right corner: the earlier host (Netlify) floated a badge there over the page,
@@ -147,12 +149,13 @@ a { color: var(--sea); }
 #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.7)); }
 :root[data-theme="dark"] #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 3px rgba(10, 14, 20, 0.45)); }
 /* Area A's and B's colour, for the map handles and the "Place A | B" toggle */
-.ab-a, .slot-pick .ab.a { --slot: var(--sea); }
+.ab-a, .slot-pick .ab.a { --slot: var(--ring); }
 .ab-b, .slot-pick .ab.b { --slot: var(--b); }
-/* The A and B handles at the centre of each Compare circle: a small disc in the panels' surface, its letter and a fine
-   ring in the area's colour. Drag one to move that area */
-#map .ab-handle { display: grid; place-items: center; border-radius: 50%; font-weight: 600; font-size: 0.75rem; cursor: grab;
-  color: var(--slot); background: var(--surface); border: 1.5px solid var(--slot); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); transition: box-shadow 0.2s, transform 0.12s; }
+/* The A and B handles at the centre of each Compare circle: a disc of the header's frosted glass, the letter in the
+   ink and a ring in the area's colour. Drag one to move that area */
+#map .ab-handle { display: grid; place-items: center; border-radius: 50%; font-weight: 700; font-size: 1rem; cursor: grab;
+  color: var(--ink); background: var(--glass); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border: 2px solid var(--slot); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); transition: box-shadow 0.2s, transform 0.12s; }
 #map .ab-handle.placing { box-shadow: 0 0 0 4px color-mix(in srgb, var(--slot) 30%, transparent); }   /* a soft ring on the handle a click will move */
 #map .ab-handle.leaflet-drag-target, #map .ab-handle:active { cursor: grabbing; transform: scale(1.1); }
 
@@ -311,7 +314,7 @@ details.about p { margin-top: 8px; }
 .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .cmp { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; justify-items: start; }
 .cmp .who { display: flex; align-items: flex-start; gap: 8px; font-weight: 700; font-size: 0.9rem; line-height: 1.3; }
-.cmp .who b { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: var(--on-sea); font-size: 0.75rem; }
+.cmp .who b { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: var(--on-ring); font-size: 0.75rem; }
 .cmp .big { font-size: 1.6rem; }
 .cmp .pill { margin-top: 0; font-size: 0.75rem; padding: 2px 8px; }
 /* A and B side by side, one row per crime type or part of the day */
@@ -332,7 +335,7 @@ button.cmp.empty:hover { border-color: var(--muted); }
 .slot-pick .ab { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; background: var(--surface-2); color: var(--muted);
   font-weight: 700; cursor: pointer; transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.12s; }
 .slot-pick .ab:active { transform: scale(0.94); }
-.slot-pick .ab[aria-pressed="true"] { background: var(--slot); color: var(--on-sea); }
+.slot-pick .ab[aria-pressed="true"] { background: var(--slot); color: var(--on-ring); }
 .slot-pick .ab:not([aria-pressed="true"]):hover { border-color: var(--line); color: var(--ink); }
 
 /* ---------------- Trends ---------------- */

@@ -419,22 +419,22 @@ function fadeHeat() {
 
 // Circles for the clicked area (Map view) and the two areas (Compare view)
 const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 3, fillOpacity: 0.06, interactive: false });
-const areaCircle = L.circle(CONFIG.center, circleStyle(cssVar("--sea")));
+const areaCircle = L.circle(CONFIG.center, circleStyle(cssVar("--ring")));
 // A pin at the clicked spot, so the selection reads at a glance as well as by its outline
 const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin", iconSize: [14, 14] }), interactive: false, keyboard: false });
-const circleA = L.circle(CONFIG.center, circleStyle(cssVar("--sea")));
+const circleA = L.circle(CONFIG.center, circleStyle(cssVar("--ring")));
 const circleB = L.circle(CONFIG.center, circleStyle(cssVar("--b")));
 // The A and B labels in the middle of each circle are handles: drag one to move that area
-const handleIcon = (slot) => L.divIcon({ className: `ab-handle ab-${slot}`, html: slot.toUpperCase(), iconSize: [24, 24] });
+const handleIcon = (slot) => L.divIcon({ className: `ab-handle ab-${slot}`, html: slot.toUpperCase(), iconSize: [34, 34] });
 const handleA = L.marker(CONFIG.center, { icon: handleIcon("a"), draggable: true, title: "Drag to move area A" });
 const handleB = L.marker(CONFIG.center, { icon: handleIcon("b"), draggable: true, title: "Drag to move area B" });
 const OUTSIDE_NOTE = "That's outside the City of Vancouver, so there's no VPD data for it. Pick a spot in the lit area.";
 // A dashed preview of the area under the cursor, so you can see what a click will summarize
 const ghost = L.circle(CONFIG.center, { radius: CONFIG.radiusMeters, weight: 1.5, dashArray: "4 6", fill: false, interactive: false });
-const ghostColour = () => cssVar(state.view === "compare" && state.nextSlot === "b" ? "--b" : "--sea");
+const ghostColour = () => cssVar(state.view === "compare" && state.nextSlot === "b" ? "--b" : "--ring");
 function paintCircles() {
-  areaCircle.setStyle({ color: cssVar("--sea") });
-  circleA.setStyle({ color: cssVar("--sea") });
+  areaCircle.setStyle({ color: cssVar("--ring") });
+  circleA.setStyle({ color: cssVar("--ring") });
   circleB.setStyle({ color: cssVar("--b") });
   ghost.setStyle({ color: ghostColour() });
 }
@@ -1124,7 +1124,7 @@ for (const [slot, handle, circle] of [["a", handleA, circleA], ["b", handleB, ci
 
 // One area's card, or an empty card for an area not placed yet (slot is "A" or "B")
 function compareCard(s, slot) {
-  const colour = slot === "A" ? "var(--sea)" : "var(--b)", placing = state.nextSlot === slot.toLowerCase();
+  const colour = slot === "A" ? "var(--ring)" : "var(--b)", placing = state.nextSlot === slot.toLowerCase();
   // An empty card is a button: click it to pick that area, then click the map
   if (!s) return `<button type="button" class="cmp empty${placing ? " placing" : ""}" data-action="slot-${slot.toLowerCase()}">
     <span><b style="color:${colour}">${slot}</b> · ${placing ? `Click the map to place area ${slot}, then drag its label to move it` : `Pick ${slot}, then click the map`}</span></button>`;
