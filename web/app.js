@@ -1654,7 +1654,7 @@ function setView(view) {
   panelScroll[state.view] = $(PANEL_FOR[state.view]).scrollTop;   // remember the panel you're leaving
   state.view = view;
   $("app").dataset.view = view;
-  for (const b of document.querySelectorAll(".views button")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
+  for (const b of document.querySelectorAll(".views button, .rail button")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
   if (view === "compare" && !state.a && state.selected) { state.a = state.selected; state.nextSlot = "b"; }
   syncCircles();
   enter($(PANEL_FOR[view]));
@@ -1925,7 +1925,7 @@ function showError(devHint) {
 }
 
 // Header buttons: views and theme
-for (const b of document.querySelectorAll(".views button")) {
+for (const b of document.querySelectorAll(".views button, .rail button")) {
   b.addEventListener("click", () => {
     if (!state.data) return;
     if (isPhone()) closeFilters();   // the open filters hide every view panel, so the tap would look like it did nothing
