@@ -14,7 +14,8 @@ What it does:
   1. Reads the VPD CSV (columns: TYPE, YEAR, MONTH, DAY, HOUR, MINUTE,
      HUNDRED_BLOCK, NEIGHBOURHOOD, X, Y)
   2. Skips blank rows, drops rows with no location (VPD sets X and Y to 0 or
-     leaves them empty for privacy) and rows that fall outside Vancouver
+     leaves them empty for privacy) and rows that fall outside Vancouver; offences
+     against a person among those are still counted by neighbourhood and year
   3. Converts X/Y from UTM zone 10N metres to latitude/longitude
   4. Keeps the year and date of every incident, so the website can filter by year
      and compare a part-year (like 2026 so far) with the same months of the year before
@@ -206,6 +207,7 @@ def main():
     by_year = Counter()
     by_type = Counter()
     no_location_by_year = Counter()
+    violent_by_hood = defaultdict(Counter)   # neighbourhood -> year -> offences against a person (no map location)
     years_in_file = defaultdict(set)
     latest = None
 
@@ -230,6 +232,9 @@ def main():
         if not x or not y:
             stats["skipped: no location (privacy)"] += 1
             no_location_by_year[d.year] += 1
+            hood = plain((row.get("NEIGHBOURHOOD") or "").strip())
+            if vpd_type in BLURRED_TYPES and hood:
+                violent_by_hood[hood][d.year] += 1
             continue
 
         lat, lng = utm10n_to_latlng(x, y)
@@ -286,6 +291,9 @@ def main():
         # The latest year is only partly covered unless the data runs to December 31
         "partialYear": latest.year if (latest.month, latest.day) != (12, 31) else None,
         "noLocationByYear": {str(yr): no_location_by_year[yr] for yr in years},
+        # Offences against a person (and homicides) have no map location, but VPD still names their neighbourhood,
+        # so the app can count them for the neighbourhood a clicked spot is in
+        "violentByHood": {h: {str(yr): n for yr, n in sorted(c.items())} for h, c in sorted(violent_by_hood.items())},
         "types": [
             {"label": TYPE_LABELS.get(t, t), "vpd": t, "blurred": t in BLURRED_TYPES} for t in types
         ],

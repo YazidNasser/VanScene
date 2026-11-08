@@ -18,6 +18,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
+import boundaries  # noqa: E402
 import prepare_data  # noqa: E402
 import update_data  # noqa: E402
 
@@ -27,6 +28,7 @@ SAMPLE_CSV = """TYPE,YEAR,MONTH,DAY,HOUR,MINUTE,HUNDRED_BLOCK,NEIGHBOURHOOD,X,Y
 Theft of Bicycle,2025,3,14,18,0,12XX W 12TH AVE,Fairview,491712.7,5456487.93
 Homicide,2026,6,2,,0,OFFSET TO PROTECT PRIVACY,West End,489698.45,5461004.88
 Mischief,2026,6,1,25,0,OFFSET TO PROTECT PRIVACY,Fairview,0,0
+Offence Against a Person,2026,5,9,,,OFFSET TO PROTECT PRIVACY,Strathcona,0,0
 Mischief,2026,6,1,3,0,1XX MAIN ST,Somewhere,400000,5456487.93
 Mischief,2026,2,30,3,0,1XX MAIN ST,Fairview,491712.7,5456487.93
 ,,,,,,,,,
@@ -94,7 +96,11 @@ class TestPrepareData(unittest.TestCase):
     def test_keeps_only_valid_rows(self):
         p = self.data["points"]
         self.assertEqual(len(p["type"]), 2)   # no location, outside Vancouver, bad date and blank rows dropped
-        self.assertEqual(self.data["noLocationByYear"], {"2025": 0, "2026": 1})
+        self.assertEqual(self.data["noLocationByYear"], {"2025": 0, "2026": 2})
+
+    def test_counts_violent_crime_by_neighbourhood(self):
+        # Only offences against a person: the Mischief row with no location isn't one
+        self.assertEqual(self.data["violentByHood"], {"Strathcona": {"2026": 1}})
 
     def test_points_decode_back_to_place(self):
         p = self.data["points"]
@@ -112,6 +118,25 @@ class TestPrepareData(unittest.TestCase):
 
     def test_output_passes_the_shape_check(self):
         self.assertIsNone(update_data.shape_problem(self.data))
+
+
+class TestBoundaries(unittest.TestCase):
+    def test_city_names_become_vpd_names(self):
+        ring = [[-123.1, 49.28], [-123.11, 49.28], [-123.11, 49.29], [-123.1, 49.28]]
+        city = {"features": [
+            {"properties": {"name": "Downtown"}, "geometry": {"type": "Polygon", "coordinates": [ring]}},
+            {"properties": {"name": "Kitsilano"}, "geometry": {"type": "MultiPolygon", "coordinates": [[ring]]}},
+        ]}
+        out = boundaries.convert(city)
+        self.assertEqual([f["properties"]["name"] for f in out["features"]], ["Central Business District", "Kitsilano"])
+        self.assertEqual(out["features"][1]["geometry"]["coordinates"], [[ring]])
+
+    def test_published_boundaries_match_vpd_names(self):
+        names = {f["properties"]["name"] for f in json.loads(boundaries.OUT.read_text(encoding="utf-8"))["features"]}
+        vpd = {h["name"] for h in json.loads(update_data.OUT.read_text(encoding="utf-8"))["neighbourhoods"]}
+        # Every City area is a VPD neighbourhood; VPD's only extras are the two the app handles itself (see hoodAt)
+        self.assertEqual(vpd - names, {"Musqueam", "Stanley Park"})
+        self.assertLessEqual(names, vpd)
 
 
 class TestShapeCheck(unittest.TestCase):

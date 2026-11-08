@@ -36,7 +36,7 @@ VanScene turns the Vancouver Police Department's open crime data into a map you 
 
 - **Read the map.** A heat map of reported incidents across the City of Vancouver, from green where reports cluster, through yellow, to red where they are densest; streets with only the odd report stay clear. The colour scale stays the same across years, so 2019 and 2025 can be compared directly.
 - **Filter it.** Pick any years from 2016 on, a crime type (for example "Home break-ins" or "Bike theft"), and a time of day. The day is split into four equal six-hour parts, so they compare fairly. You can also click or drag across single hours on the chart under them.
-- **Look at one spot.** Click anywhere for a summary of what was reported within 500 metres: how it compares with the city average for a circle that size, the most common types, when they happen, and year by year.
+- **Look at one spot.** Click anywhere for a summary of what was reported within 500 metres: how it compares with the city average for a circle that size, the most common types, when they happen, and year by year. It also shows offences against a person for the whole neighbourhood the spot is in, since VPD gives those no map location.
 - **Search a neighbourhood** to jump straight to it.
 - **Compare two areas.** Place A and B, and both are listed side by side: counts, change from the year before, and each area's top crime types with their share of its reports.
 - **See the trend.** Trends shows the whole city year by year and hour by hour, with reports per day.
@@ -62,7 +62,7 @@ Instead of reading Reddit threads or asking about one area at a time, you see bo
 - **How it's counted:** VPD counts every offence in an incident ("All Offence" counting), while Statistics Canada counts only the most serious one. So VanScene's totals can't be compared with Statistics Canada crime figures or rates.
 - **Kept up to date:** a GitHub Action refreshes it every Sunday after VPD republishes, with a backup run on Tuesdays. The app shows the date of the last update under the map key.
 - **Where it's approximate:** VPD offsets every location for privacy. Property crime is moved to the hundred block, and offences against a person are spread across several blocks. That's why the map stops at street level and summaries use a 500 m circle.
-- **What isn't on the map:** violent crime ("offence against a person" and homicide) has no location in VPD's data, so it can't be mapped. The app counts what's missing in **About this data**.
+- **What isn't on the map:** violent crime ("offence against a person" and homicide) has no location in VPD's data, so it can't be mapped. VPD still names its neighbourhood, so clicking a spot shows that neighbourhood's count, using the City of Vancouver's [local-area boundaries](https://opendata.vancouver.ca/explore/dataset/local-area-boundary/) (Open Government Licence – Vancouver) to tell which neighbourhood the spot is in.
 
 The full limitations are under [Responsible use](#responsible-use-and-disclaimer) and in the Datathon evidence at the bottom of this page.
 
@@ -119,6 +119,7 @@ A static site with no framework and no build step. It's deployed on Vercel from 
 │   └── vanscene-demo-dark.gif  # the same in the dark theme, shown to readers using GitHub's dark mode
 ├── scripts/
 │   ├── update_data.py    # downloads the latest VPD data, then runs prepare_data.py
+│   ├── boundaries.py     # downloads the City's neighbourhood boundaries into web/boundaries.json (run by hand)
 │   └── prepare_data.py   # turns the raw CSVs into web/data.json
 ├── tests/
 │   └── test_data.py      # checks the data scripts and web/data.json
@@ -126,7 +127,8 @@ A static site with no framework and no build step. It's deployed on Vercel from 
     ├── index.html        # the page
     ├── styles.css        # the look, light and dark
     ├── app.js            # the map, filters and panels
-    └── data.json         # processed data the app loads
+    ├── data.json         # processed data the app loads
+    └── boundaries.json   # City of Vancouver local-area boundaries, to tell which neighbourhood a spot is in
 ```
 
 ### Choices we made, and why
@@ -152,7 +154,7 @@ Open an issue or a pull request against `main`. Keep changes small and focused, 
 
 - [ ] Add a feedback link and test with newcomers outside the team
 - [ ] Check that testers don't read the map as a safety rating
-- [ ] Add violent-crime counts to neighbourhood summaries (these rows have a neighbourhood but no map location)
+- [x] Add violent-crime counts to neighbourhood summaries (these rows have a neighbourhood but no map location)
 - [ ] Explore adjusting counts for population or foot traffic, so busy areas aren't unfairly highlighted
 - [ ] Note in the app that SkyTrain incidents are excluded (they're Transit Police jurisdiction)
 
@@ -161,7 +163,7 @@ Open an issue or a pull request against `main`. Keep changes small and focused, 
 - **Not a safety rating.** VanScene shows where incidents were reported. It does not measure how safe an area is or predict future incidents.
 - **Reported incidents only.** Many crimes go unreported, and reporting rates differ by crime type and community.
 - **Approximate locations.** VPD offsets incident locations for privacy, and exact addresses are never shown. The 500-metre area is an estimate, not a precise boundary.
-- **Violent crime isn't on the map.** VPD withholds locations for offences against a person, so the map shows property crime and traffic collisions only.
+- **Violent crime isn't on the map.** VPD withholds locations for offences against a person, so the map shows property crime and traffic collisions only. Their counts are shown per neighbourhood instead, which covers a much bigger area than the 500 m circle.
 - **Counts, not rates.** Busy areas with more residents, workers, and visitors naturally show more reports. Figures are not adjusted for population or foot traffic.
 - **Data limitations.** VPD open data can be delayed, revised, or reclassified. We can't guarantee figures are complete or current.
 - **Responsible use.** Don't use VanScene to discriminate against people or communities, or as the sole basis for housing, rental, insurance, or employment decisions.

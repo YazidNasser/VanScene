@@ -243,6 +243,7 @@ function mapStyle(labels) {
   return { ...ofmStyle, layers };
 }
 let hoodNames = null;   // GeoJSON of the neighbourhood names, made once the data has loaded
+let boundaries = null;  // the City's local areas (boundaries.json); without them the app names spots by nearest centre
 // What MapLibre starts with until the style arrives; it names the fonts too, or MapLibre logs "glyphsUrl is not set"
 const emptyStyle = { version: 8, glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", sources: {}, layers: [] };
 // Only the credits the licences require: OpenMapTiles (CC-BY, for the tile schema) and OpenStreetMap (ODbL, linked to
@@ -1221,14 +1222,43 @@ function nearFn(center) {
   };
 }
 
-// The neighbourhood whose centre is closest, used as a friendly name for a clicked spot
+// Distance in km from a spot to a neighbourhood's centre (flat-earth, fine across one city)
+const kmTo = (ll, h) => Math.hypot(h.lat - ll.lat, (h.lng - ll.lng) * Math.cos((ll.lat * Math.PI) / 180)) * 111.32;
+// The neighbourhood whose centre is closest: the fallback name for a clicked spot when the boundaries didn't load
 function nearestHood(ll) {
-  let best = null, bestD = Infinity;
-  for (const h of state.data.neighbourhoods) {
-    const d = (h.lat - ll.lat) ** 2 + ((h.lng - ll.lng) * Math.cos((ll.lat * Math.PI) / 180)) ** 2;
-    if (d < bestD) { bestD = d; best = h; }
+  let best = null;
+  for (const h of state.data.neighbourhoods) if (!best || kmTo(ll, h) < kmTo(ll, best)) best = h;
+  return best && kmTo(ll, best) < 2.5 ? best.name : "this spot";
+}
+// Ray casting: is the spot inside this ring of [lng, lat] corners?
+function inRing(ll, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [x1, y1] = ring[j], [x2, y2] = ring[i];
+    if ((y1 > ll.lat) !== (y2 > ll.lat) && ll.lng < x1 + ((ll.lat - y1) * (x2 - x1)) / (y2 - y1)) inside = !inside;
   }
-  return best && Math.sqrt(bestD) * 111.32 < 2.5 ? best.name : "this spot";
+  return inside;
+}
+// The VPD neighbourhood a spot is in, from the City's local-area boundaries (null outside the city or without them).
+// VPD has two neighbourhoods the City doesn't: Stanley Park lies outside every City area, and Musqueam sits inside
+// Dunbar-Southlands, so the spot goes to whichever of the two centres is nearer.
+// shortcut: Musqueam by nearest centre also takes in the rest of Southlands; use a reserve outline if that matters
+function hoodAt(ll) {
+  if (!boundaries) return null;
+  const area = boundaries.features.find((f) => f.geometry.coordinates.some(([outer, ...holes]) => inRing(ll, outer) && !holes.some((h) => inRing(ll, h))));
+  const centre = (name) => state.data.neighbourhoods.find((h) => h.name === name);
+  if (!area) return nearestHood(ll) === "Stanley Park" ? "Stanley Park" : null;
+  const name = area.properties.name, musqueam = centre("Musqueam"), own = centre(name);
+  return name === "Dunbar-Southlands" && musqueam && own && kmTo(ll, musqueam) < kmTo(ll, own) ? "Musqueam" : name;
+}
+// Offences against a person in a whole neighbourhood over the picked years: VPD gives them no map location, only a
+// neighbourhood, so they can't be counted in a 500 m circle (null when there's no neighbourhood or no counts)
+function violentIn(hood) {
+  const counts = hood && state.data.violentByHood?.[hood];
+  if (!counts) return null;
+  let n = 0;
+  for (const y of state.shown.years) n += counts[y] || 0;
+  return n;
 }
 
 function areaStats(ll) {
@@ -1247,7 +1277,8 @@ function areaStats(ll) {
   }
   const sorted = ranked(types);
   const top = sorted.map(([t, n]) => [state.data.types[t].label, n]);
-  return { name: nearestHood(ll), now, before, change: changeInfo(now, before), top, typeIds: sorted.map(([t]) => t),
+  const hood = hoodAt(ll);
+  return { name: hood || nearestHood(ll), hood, violent: violentIn(hood), now, before, change: changeInfo(now, before), top, typeIds: sorted.map(([t]) => t),
     buckets: partCounts(hours), hours, unknownHour, perYear, vsCity: vsCity(now) };
 }
 
@@ -1315,6 +1346,11 @@ const blurredNote = () => {
   const blurred = state.type === "all" ? state.data.types.some((t) => t.blurred) : state.data.types[state.type].blurred;
   return blurred ? `<p class="foot">VPD spreads the locations of offences against a person across several blocks, so read those as area-level only.</p>` : "";
 };
+// Offences against a person for the whole neighbourhood, kept apart from the circle's count since it covers a different
+// area and ignores the picked hours (VPD gives these no time). Only with all crime types: a picked type is a map type
+const violentSection = (s) => (state.type !== "all" || s.violent == null ? "" : `<h3 class="sec">Offences against a person</h3>
+  <p class="context"><b>${fmt(s.violent)}</b> in ${s.hood} as a whole ${periodLabel()}, at any time of day.</p>
+  <p class="hint">VPD gives these no map location, only a neighbourhood, so they aren't in the count above or on the map.</p>`);
 // The grip at the top of a bottom sheet on phones (hidden on wider screens)
 const sheetHandle = `<button type="button" class="sheet-handle" aria-label="Show or hide details" aria-expanded="true"></button>`;
 // With every year unticked there's nothing to count, so panels say so instead of showing zeros
@@ -1382,6 +1418,7 @@ function renderArea() {
     <h3 class="sec">When they happen</h3>${timeTiles(s.buckets)}${busiestLine(s.buckets)}${periodTotal(s.buckets) ? hourStrip(s.hours) : ""}
     ${s.unknownHour ? `<p class="hint">${fmt(s.unknownHour)} with no time recorded</p>` : ""}
     <h3 class="sec">Year by year</h3>${yearSpark(s.perYear)}
+    ${violentSection(s)}
     ${tip ? `<div class="tip">${ICON_BULB}<span>${tip}</span></div>` : ""}
     ${blurredNote()}
     <p class="foot">Awareness, not a safety score for any address.</p>`;
@@ -1449,7 +1486,8 @@ function compareCard(s, slot) {
     <span><b>${slot}</b> · ${placing ? `Click the map to place area ${slot}, then drag its label to move it` : `Pick ${slot}, then click the map`}</span></button>`;
   return `<div class="cmp${placing ? " placing" : ""}"><h3 class="who"><b>${slot}</b>Near ${s.name}</h3>
     <p class="big" data-count="${s.now}" data-key="${slot}">${fmt(s.now)}</p>${s.change ? `<span class="pill ${s.change.cls}" title="${s.change.text}">${s.change.text.replace("same dates ", "")}</span>` : ""}
-    <p class="hint">Busiest per hour: ${busiestShort(s.buckets)}</p></div>`;
+    <p class="hint">Busiest per hour: ${busiestShort(s.buckets)}</p>
+    ${state.type === "all" && s.violent != null ? `<p class="hint">Offences against a person in all of ${s.hood}: ${fmt(s.violent)}</p>` : ""}</div>`;
 }
 // Head to head: one row per crime type (the top three of each area) or per part of the day, as [name, A's count, B's count]
 function compareRows(A, B) {
@@ -1912,7 +1950,7 @@ function renderAbout() {
     <p>Source: Vancouver Police Department, <a href="https://geodash.vpd.ca/opendata/">GeoDASH open data</a>, for free, non-commercial use only. Data through ${through}. To look up single incidents, use VPD's <a href="https://geodash.vpd.ca/">GeoDASH crime map</a>.</p>
     <p>Shows reported incidents that police confirmed occurred, not all crime. Busy areas show more because more people are there. This is for awareness, not a safety score for any address.</p>
     <p>VPD counts every offence in an incident, while Statistics Canada counts only the most serious one, so these totals can't be compared with Statistics Canada crime figures or rates.</p>
-    <p>VPD offsets locations for privacy: property crimes to the hundred block, offences against a person across several blocks. ${fmt(noLocationCount())} incidents ${periodLabel()} have no location and aren't shown.</p>
+    <p>VPD offsets locations for privacy: property crimes to the hundred block, offences against a person across several blocks. ${fmt(noLocationCount())} incidents ${periodLabel()} have no location and aren't shown on the map; click a spot to see offences against a person counted for its whole neighbourhood. Neighbourhood boundaries: City of Vancouver open data.</p>
     <p>Far more reports are timed at midnight than at 1 am, which usually means some incidents with no exact time are recorded as 12 am. Overnight counts may run a little high.</p>`;
   const p = d.partialYear;
   const full = state.shown.years.has(p) ? `${p} scaled to a full year` : "";
@@ -2028,6 +2066,8 @@ async function start() {
     showError("this page needs a local web server to load its data. In a terminal, go to the web folder and run python -m http.server 8000, then open http://localhost:8000.");
     return;
   }
+  // Small, and only needed for the neighbourhood counts, so it loads alongside the data and the app carries on without it
+  const gotBoundaries = fetch("boundaries.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
   try {
     const res = await fetch(CONFIG.dataUrl);
     if (!res.ok) throw new Error(res.status);
@@ -2041,6 +2081,7 @@ async function start() {
     return;
   }
   state.data.points = pointRows(state.data.points);
+  boundaries = await gotBoundaries;
   $("status").classList.remove("show");
   addCoverageMask(state.data.points);
   // Neighbourhood names for the map's label layer (see mapStyle), ranked busiest first by reports within about 1 km of
