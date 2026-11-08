@@ -290,7 +290,9 @@ map.createPane("maskOutside");
 map.getPane("maskOutside").style.zIndex = 450;   // above the heat layer
 map.getPane("maskOutside").style.pointerEvents = "none";
 let coverage = null;                             // the smoothed coverage grid, kept so the colours can change with the theme
-const maskLayers = [];
+// Each theme's shading, painted once and kept: repainting it took ~100 ms, which made the theme switch stutter.
+// Both stay on the map and styles.css shows the current theme's, fading between them with the panels
+const masks = {};
 
 function addCoverageMask(points) {
   const SW = [49.0, -123.6], NE = [49.5, -122.7]; // a box bigger than anything the map can show
@@ -353,7 +355,11 @@ function addCoverageMask(points) {
 
   const km2 = field.filter((v) => v <= 0.5).length * (SHADE.cellMeters / 1000) ** 2;   // the land the data covers
   coverage = { field, rows, cols, idx, SW, NE, dLat, dLng, km2 };
-  paintCoverage();
+  for (const t in masks) { masks[t].forEach((l) => map.removeLayer(l)); delete masks[t]; }
+  const theme = isDark() ? "dark" : "light";
+  paintCoverage(theme);
+  // The other theme's when the browser is idle, so it's ready before anyone clicks the switch
+  (window.requestIdleCallback || setTimeout)(() => paintCoverage(theme === "dark" ? "light" : "dark"));
 }
 
 // Is this spot in the darkened area outside the data (the water, Burnaby, the North Shore)?
@@ -364,12 +370,11 @@ function isOutside(ll) {
   return r < 0 || r >= rows || c < 0 || c >= cols || field[idx(r, c)] > 0.5;
 }
 
-// Paint the coverage grid in the current theme's colours (called again when the theme changes)
-function paintCoverage() {
-  if (!coverage) return;
+// Paint the coverage grid in one theme's colours, unless that theme's is already painted
+function paintCoverage(theme) {
+  if (!coverage || masks[theme]) return;
   const { field, rows, cols, idx, SW, NE } = coverage;
-  const colours = SHADE[isDark() ? "dark" : "light"];
-  while (maskLayers.length) map.removeLayer(maskLayers.pop());
+  const colours = SHADE[theme];
   // Paint at 4x the grid resolution so the curved edge stays smooth (row 0 is the south edge)
   const UP = 4, W = cols * UP, H = rows * UP;
   const e = Math.max(SHADE.edgeSoftness, 0.01);
@@ -396,10 +401,12 @@ function paintCoverage() {
     ctx.putImageData(img, 0, 0);
     return canvas.toDataURL();
   };
-  maskLayers.push(
-    L.imageOverlay(make(colours.inside, false), [SW, NE], { pane: "maskInside", interactive: false }).addTo(map),
-    L.imageOverlay(make(colours.outside, true), [SW, NE], { pane: "maskOutside", interactive: false }).addTo(map),
-  );
+  const opts = (pane) => ({ pane, interactive: false, className: `mask-${theme}` });
+  masks[theme] = [
+    // The light theme's inside tint is fully clear, so it isn't drawn at all
+    ...(colours.inside[3] ? [L.imageOverlay(make(colours.inside, false), [SW, NE], opts("maskInside")).addTo(map)] : []),
+    L.imageOverlay(make(colours.outside, true), [SW, NE], opts("maskOutside")).addTo(map),
+  ];
 }
 
 // ---------------------------------------------------------------------
@@ -695,11 +702,25 @@ heatProto.draw = function (minOpacity) {
   }
   return this;
 };
+// The filter's red, green, blue and opacity tables: entry i is the ramp at strength i / 255
+let rampShown = null, rampRun = 0;
+function setRamp(grad) {
+  rampShown = grad;
+  document.querySelectorAll("#heat-ramp feComponentTransfer > *").forEach((f, c) =>
+    f.setAttribute("tableValues", Array.from({ length: 256 }, (_, i) => grad[i * 4 + c] / 255).join(" ")));
+}
+// A new ramp (a theme switch) eases in over 0.3 s, in step with the panels' colour fade, instead of jumping
 heatProto.gradient = function (stops) {
   setGradient.call(this, stops);
-  // The filter's red, green, blue and opacity tables: entry i is the ramp at strength i / 255
-  document.querySelectorAll("#heat-ramp feComponentTransfer > *").forEach((f, c) =>
-    f.setAttribute("tableValues", Array.from({ length: 256 }, (_, i) => this._grad[i * 4 + c] / 255).join(" ")));
+  const from = rampShown, to = this._grad, run = ++rampRun, t0 = performance.now();
+  if (!from || reduceMotion) { setRamp(to); return this; }
+  const step = (t) => {
+    if (run !== rampRun) return;   // a newer switch took over
+    const k = Math.min(1, (t - t0) / 300);
+    setRamp(k < 1 ? from.map((v, i) => v + (to[i] - v) * k) : to);
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
   return this;
 };
 heat._heat.gradient(heat.options.gradient);   // it was set before these existed
@@ -1962,10 +1983,12 @@ $("theme-toggle").addEventListener("click", () => {
   document.documentElement.setAttribute("data-theme", next);
   try { localStorage.setItem("theme", next); } catch (e) {}   // remember the choice for next visit
   syncThemeButton();
-  paintCoverage();                                            // re-colour the inside/outside shading
+  paintCoverage(next);                                        // normally painted already (see addCoverageMask)
   paintCircles();
   paintBasemap();
-  heat.setOptions({ gradient: heatGradient() });
+  // Only the colour ramp changes: the heat canvas holds strength alone, so it needs no redraw
+  heat.options.gradient = heatGradient();
+  heat._heat.gradient(heat.options.gradient);
   if (state.data) labelLegend();
 });
 syncThemeButton();

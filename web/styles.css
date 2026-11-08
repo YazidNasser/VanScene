@@ -422,6 +422,10 @@ button.cmp.empty:hover { border-color: var(--muted); }
 .leaflet-heatmap-layer, .heat-snap { transition: opacity 0.5s ease; }
 .leaflet-heatmap-layer, .heat-morph, .heat-snap { filter: url(#heat-ramp); }   /* the canvases hold only strength: this colours them */
 body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
+/* Both themes' map shading is drawn (see paintCoverage): the other theme's fades out with the panels. :where() keeps
+   this weaker than Leaflet's zoom transition, which it would otherwise replace */
+:where(.mask-light, .mask-dark) { transition: opacity 0.3s; }
+:root[data-theme="dark"] .mask-light, :root:not([data-theme="dark"]) .mask-dark { opacity: 0 !important; }   /* beats Leaflet's inline opacity */
 .views button, .year-pick button, .day-track button, .btn, .x, .theme-toggle, .filters-btn {
   transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.12s; }
 .views button:active, .year-pick button:not(:disabled):active, .day-track button:active, .btn:active, .x:active, .theme-toggle:active { transform: scale(0.96); }
