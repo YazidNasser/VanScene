@@ -1493,7 +1493,7 @@ function compareInsight(A, B, rows) {
   return `<div class="tip">${ICON_INFO}<span>${parts.join(" ")}</span></div>`;
 }
 
-// Compare and Trends close back to the map view, as clicking their view button a second time does
+// Compare and Trends close back to the map view with their own close button
 const closeView = (what) => `<button type="button" class="x" data-action="open-map" aria-label="Close ${what}">${ICON_X}</button>`;
 function renderCompare() {
   const A = state.a && areaStats(state.a), B = state.b && areaStats(state.b), rows = compareRows(A, B);
@@ -1931,7 +1931,7 @@ for (const b of document.querySelectorAll(".views button, .rail button")) {
   b.addEventListener("click", () => {
     if (!state.data) return;
     if (isPhone()) closeFilters();   // the open filters hide every view panel, so the tap would look like it did nothing
-    setView(b.dataset.view === state.view ? "map" : b.dataset.view);   // a second click on Compare or Trends closes it
+    setView(b.dataset.view);
   });
 }
 // The search lives in the header, except on phones where the header has no room and it joins the Filters row
