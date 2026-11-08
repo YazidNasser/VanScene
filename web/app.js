@@ -386,16 +386,21 @@ Object.assign(L.HeatLayer.prototype, {
 // zoom rather than to the screen, so the same spots stay together while the map moves. Cells are [lat, lng, strength]
 // at their spots' weighted centre. Kept per zoom until the heat's data changes (see updateHeat)
 const heatCellCache = new Map();
-function cellsAt(z) {
-  if (!heatSpots.length) return [];   // also the layer's first draw, before the helpers below exist
-  if (heatCellCache.has(z)) return heatCellCache.get(z);
-  const radius = heatRadius(z), size = (radius + heatBlur(radius)) / 2, scale = heatScale(z), cells = new Map();
-  for (const [lat, lng, n] of heatSpots) {
+// Spots summed into zoom z's cells as [x * n, y * n, n] (map pixels weighted by count), for cellsAt and heatScale
+function binSpots(spots, z) {
+  const radius = heatRadius(z), size = (radius + heatBlur(radius)) / 2, cells = new Map();
+  for (const [lat, lng, n] of spots) {
     const p = map.project([lat, lng], z), key = Math.floor(p.x / size) * 1e8 + Math.floor(p.y / size), s = cells.get(key);
     if (s) { s[0] += p.x * n; s[1] += p.y * n; s[2] += n; } else cells.set(key, [p.x * n, p.y * n, n]);
   }
+  return [...cells.values()];
+}
+function cellsAt(z) {
+  if (!heatSpots.length) return [];   // also the layer's first draw, before the helpers below exist
+  if (heatCellCache.has(z)) return heatCellCache.get(z);
+  const scale = heatScale(z);
   // Square root: the busiest cells are many times the rest, so on a straight scale downtown saturated into one blob
-  const out = [...cells.values()].map(([x, y, n]) => {
+  const out = binSpots(heatSpots, z).map(([x, y, n]) => {
     const ll = map.unproject([x / n, y / n], z);
     return [ll.lat, ll.lng, Math.min(Math.sqrt(n * scale), 1)];
   });
@@ -950,18 +955,12 @@ function updateHeat() {
 const heatRadius = (z) => 8 + (z - CONFIG.minZoom) * 3;
 const heatBlur = (radius) => radius * 1.25;
 // Scale the heat so only real hotspots of the average year reach the top colour and quiet areas fade out
-// (instead of the whole city turning orange). Add up the average year's incidents in screen cells the same way
-// leaflet.heat does, then find how busy a "hotspot" cell is. That only depends on the zoom and refSpots, so it's
+// (instead of the whole city turning orange). Add up the average year's incidents in the same cells the heat
+// is drawn in, then find how busy a "hotspot" cell is. That only depends on the zoom and refSpots, so it's
 // worked out once for each zoom
 function heatScale(z) {
   if (refScales.has(z)) return refScales.get(z);
-  const radius = heatRadius(z), cellSize = (radius + heatBlur(radius)) / 2, sums = new Map();
-  for (const [lat, lng, n] of refSpots) {
-    const p = map.project([lat, lng], z);
-    const key = Math.floor(p.x / cellSize) * 1e7 + Math.floor(p.y / cellSize);
-    sums.set(key, (sums.get(key) || 0) + n);
-  }
-  const counts = [...sums.values()].sort((a, b) => a - b);
+  const counts = binSpots(refSpots, z).map((c) => c[2]).sort((a, b) => a - b);
   const busy = counts.length ? counts[Math.min(counts.length - 1, Math.floor(counts.length * CONFIG.hotspotLevel))] : 1;
   const scale = CONFIG.heatStrength / Math.max(busy, 1);   // a cell as busy as `busy` shows at full strength
   refScales.set(z, scale);
