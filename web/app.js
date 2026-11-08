@@ -105,7 +105,24 @@ const baseTiles = L.tileLayer(canvasUrl("Base"), {
   attribution: 'Tiles &copy; <a href="https://www.esri.com">Esri</a>, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   maxZoom: 16,
 }).addTo(map);
-const labelTiles = L.tileLayer(canvasUrl("Reference"), { maxZoom: 16, pane: "labels" }).addTo(map);
+// Only from street zoom: further out its city names are in another typeface and would sit on top of ours
+const labelTiles = L.tileLayer(canvasUrl("Reference"), { minZoom: 14, maxZoom: 16, pane: "labels" }).addTo(map);
+// Less detail far out, more close in: neighbourhood names give way to street names at street zoom
+const hoodMarkers = [];
+function syncLabelDetail() {
+  map.getContainer().classList.toggle("street-zoom", map.getZoom() >= 15);
+  // Like Apple Maps, a name that would overlap one already placed is left out until there's room (shorter names first)
+  const placed = [];
+  for (const m of hoodMarkers) {
+    const el = m.getElement()?.firstElementChild;
+    if (!el) continue;
+    el.style.visibility = "";
+    const r = el.getBoundingClientRect();
+    if (placed.some((p) => r.left < p.right + 6 && r.right + 6 > p.left && r.top < p.bottom + 3 && r.bottom + 3 > p.top)) el.style.visibility = "hidden";
+    else placed.push(r);
+  }
+}
+map.on("zoomend", syncLabelDetail);
 
 // ---------------------------------------------------------------------
 // Step 1b: lighter colour where our data covers, darker everywhere else
@@ -1540,10 +1557,16 @@ async function start() {
   $("status").classList.remove("show");
   addCoverageMask(state.data.points);
   // Neighbourhood names in the page's own type, on the label layer above the heat (the basemap leaves them out at city zoom)
-  for (const h of state.data.neighbourhoods) {
-    const icon = L.divIcon({ className: "hood-label", html: `<span>${h.name}</span>`, iconSize: [0, 0] });
-    L.marker([h.lat, h.lng], { icon, pane: "labels", interactive: false, keyboard: false }).addTo(map);
+  // Busiest first (reports within about 1 km of each centre), so where names would collide the busier area keeps its name
+  const busy = new Map(state.data.neighbourhoods.map((h) => [h, 0]));
+  for (const p of state.data.points) {
+    for (const h of busy.keys()) if (Math.abs(p[0] - h.lat) < 0.009 && Math.abs(p[1] - h.lng) < 0.014) busy.set(h, busy.get(h) + 1);
   }
+  for (const h of [...busy.keys()].sort((a, b) => busy.get(b) - busy.get(a))) {
+    const icon = L.divIcon({ className: "hood-label", html: `<span>${h.name}</span>`, iconSize: [0, 0] });
+    hoodMarkers.push(L.marker([h.lat, h.lng], { icon, pane: "labels", interactive: false, keyboard: false }).addTo(map));
+  }
+  syncLabelDetail();
   buildControls();
   const linked = readUrl();
   buildPeriods();
