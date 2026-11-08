@@ -5,11 +5,23 @@
 
 **See where and when crime is reported in Vancouver, in plain language.**
 
-[![Open VanScene](https://img.shields.io/badge/Open_VanScene-live-2ea44f)](https://vanscene.vercel.app) [![Watch the 60-second demo](https://img.shields.io/badge/Demo-60_seconds-1f6feb?logo=youtube&logoColor=white)](https://youtu.be/DbSOYitXOZY) [![Data: VPD GeoDASH open data](https://img.shields.io/badge/Data-VPD_GeoDASH-6e7781)](https://geodash.vpd.ca/opendata/)
+[![Open VanScene](https://img.shields.io/badge/Open_VanScene-live-2ea44f)](https://vanscene.vercel.app) [![Watch the 60-second datathon demo](https://img.shields.io/badge/Datathon_demo-60_seconds-1f6feb?logo=youtube&logoColor=white)](https://youtu.be/DbSOYitXOZY) [![Data: VPD GeoDASH open data](https://img.shields.io/badge/Data-VPD_GeoDASH-6e7781)](https://geodash.vpd.ca/opendata/)
 
 <!-- The #gh-*-mode-only endings follow the reader's GitHub theme; <picture> would follow the OS theme instead -->
-<img alt="VanScene: picking years and evening hours, opening an area near Mount Pleasant, then comparing it with Kitsilano" src="docs/vanscene-demo.gif#gh-light-mode-only">
-<img alt="VanScene: picking years and evening hours, opening an area near Mount Pleasant, then comparing it with Kitsilano" src="docs/vanscene-demo-dark.gif#gh-dark-mode-only">
+<img alt="VanScene: picking 2025 and theft from cars, opening an area near Mount Pleasant, comparing it with Kitsilano, then the city-wide trends" src="docs/vanscene-demo.gif#gh-light-mode-only">
+<img alt="VanScene: picking 2025 and theft from cars, opening an area near Mount Pleasant, comparing it with Kitsilano, then the city-wide trends" src="docs/vanscene-demo-dark.gif#gh-dark-mode-only">
+
+### Then and now
+
+VanScene was built in a week by Crimes Against Humanity for the Build Trilemma Datathon 2026. The [60-second demo](https://youtu.be/DbSOYitXOZY) shows it as we presented it there.
+
+The animation above is VanScene today, after [Basel](https://github.com/baselnasser99)'s work since the datathon:
+
+- **A new map.** Clearer colours and labels, a green-to-red heat map that stays smooth while you zoom, and a calm dark mode.
+- **A new look.** A frosted sidebar that slides away, the Fold logo, raised search and filter fields, and a layout built for phones.
+- **Fairer comparisons.** Four equal six-hour parts of the day, single hours you can pick, and two areas side by side in Compare.
+- **Always current.** The police data refreshes every Sunday, and is checked and tested before it goes live.
+- **Open to everyone.** A one-line summary of every chart for screen readers, full keyboard use, and AA contrast throughout.
 
 VanScene turns the Vancouver Police Department's open crime data into a map you can read at a glance. It's for people choosing a neighbourhood or getting to know one: compare areas, see what kinds of incidents get reported there and at what time of day, and check whether a year was unusual.
 
