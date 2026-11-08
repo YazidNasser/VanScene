@@ -19,6 +19,7 @@
   --on-ring: #1c252d;      /* text on the ring colour */
   --b: var(--ring);        /* area B: the same colour as A, told apart by its letter */
   --bar-bg: #ebe8e0;
+  --hover: color-mix(in srgb, var(--ink) 14%, transparent);   /* a clear ink tint under the pointer, in either theme */
   /* The frosted header and panels: their tint, their edge, and the see-through fills inside them */
   --glass: rgba(255, 255, 255, 0.94); --glass-edge: rgba(28, 37, 45, 0.08);
   --glass-fill: rgba(28, 37, 45, 0.05); --glass-fill-2: rgba(28, 37, 45, 0.09);
@@ -111,7 +112,7 @@ a { color: var(--sea); }
 .theme-toggle svg { width: 16px; height: 16px; }
 /* Beside the name, like Apple Maps' sidebar button: hides or shows the filters card (wider screens only) */
 .side-toggle { flex: none; display: grid; place-items: center; width: 34px; height: 34px; margin-left: -4px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; }
-.side-toggle:hover { color: var(--ink); background: var(--surface-2) !important; }
+.side-toggle:hover { color: var(--ink); background: var(--hover) !important; }
 .side-toggle svg { width: 18px; height: 18px; }
 .theme-toggle .sun, :root[data-theme="dark"] .theme-toggle .moon { display: none; }
 :root[data-theme="dark"] .theme-toggle .sun { display: block; }
@@ -235,7 +236,8 @@ select { width: 100%; height: 40px; background: var(--surface); border: 1px soli
 .day-track { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 3px; row-gap: 4px; }
 .day-track > button:not(.all) { border: 0; border-radius: 7px; padding: 7px 2px; font-size: 0.84rem; cursor: pointer; white-space: nowrap;
   background: transparent; color: var(--muted); }   /* styled like the year chips, so the two pickers read the same */
-.day-track > button:not(.all):hover { color: var(--ink); background: var(--surface-2); }
+/* Hover is an ink tint a clear step above the "in" and picked fills, so you see which part you are about to pick */
+.day-track > button:not(.all):hover, .day-track.any > button:not(.all):hover { color: var(--ink); background: var(--hover); }
 .day-track > button[aria-pressed="true"]:not(.all) { background: var(--bar-bg); color: var(--ink); font-weight: 700; }
 .day-track > button[aria-pressed="mixed"]:not(.all) { background: var(--bar-bg); color: var(--ink); box-shadow: inset 0 -2px 0 var(--sea); }   /* some of its hours */
 .day-track .all { position: absolute; bottom: calc(100% + 4px); right: 0; padding: 2px 6px; border: 0; background: transparent; cursor: pointer;
@@ -248,8 +250,9 @@ select { width: 100%; height: 40px; background: var(--surface); border: 1px soli
 .track-bars .hr { flex: 1; display: flex; align-items: flex-end; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 2px; }
 .track-bars .hr i { display: block; width: 100%; min-height: 2px; border-radius: 1px 1px 0 0; background: var(--bar-bg);
   transition: height 0.4s var(--ease), background-color 0.15s; }
-.track-bars .hr:hover { background: var(--surface-2); }
-.track-bars .hr:hover i { background: var(--faint); }
+/* The hour under the pointer lights up in the full ink, its column faintly tinted, whatever is picked */
+.track-bars .hr:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.track-bars .hr:hover i, .day-track.any .track-bars .hr:hover i { background: var(--ink); }
 .track-bars .hr[aria-pressed="true"] i { background: var(--sea); }
 .day-track .tick { grid-row: 3; font-size: 0.75rem; color: var(--faint); font-variant-numeric: tabular-nums; }
 .day-track .tick:nth-of-type(2) { grid-column: 2; }
@@ -398,7 +401,8 @@ body, .site-head, .panel, select, .search { transition: background-color 0.3s, c
 .views button, .year-pick button, .day-track button, .btn, .x, .theme-toggle, .filters-btn {
   transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.12s; }
 .views button:active, .year-pick button:not(:disabled):active, .day-track button:active, .btn:active, .x:active, .theme-toggle:active { transform: scale(0.96); }
-.year-pick > button:not(:disabled):not([aria-pressed="true"]):hover { background: var(--surface-2); color: var(--ink); }
+.year-pick > button:not(:disabled):not([aria-pressed="true"]):hover,
+.year-pick.all-in > button[data-year]:not(.all):not([data-year="none"]):not(:disabled):hover { background: var(--hover); color: var(--ink); }
 .year-pick .year-actions button:not([aria-pressed="true"]):hover { text-decoration: underline; }
 .x:hover { border-color: var(--sea); background: var(--sea-soft); }
 .app[data-view="map"] .area, .app[data-view="compare"] .compare, .app[data-view="trends"] .trends, .filters { animation: rise 0.45s var(--ease) both; }
