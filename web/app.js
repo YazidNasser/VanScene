@@ -96,7 +96,7 @@ const map = L.map("map", {
 // or shrank and then snapped to size, and a wheel spin queued up jumps. Instead the wheel, the +/- buttons,
 // double-click, the keyboard and every animated setView or fitBounds move the map a little each frame towards
 // where it's heading, the way a touch pinch does: MapLibre redraws the streets and names at their real size
-// (the bridge's pinch path), and the heat is moved along as a picture and redrawn once the map stops (see glideHeat).
+// (the bridge's pinch path), and the heat is redrawn with it each frame (see map.on("zoom") in step 2).
 // More scrolling just moves the target on, so the zoom follows the wheel without steps
 let glide = null;   // { at: the screen point that stays put, ll: the place under it, target: zoom, raw: the wheel's unrounded target, v: its speed, ms, input, t, stopped }
 // Glide towards `zoom` around container point `at`. `ms` sets the pace: most of the way in ~4 × ms
@@ -417,8 +417,6 @@ const HEAT_PAD = 0.35;   // of the map's size, on each side: covers a half-step 
 Object.assign(L.HeatLayer.prototype, {
   _reset() {
     const map = this._map, size = map.getSize(), pad = size.multiplyBy(HEAT_PAD).round();
-    // A glide moved the old picture along with the streets (see glideHeat): fade it into the new one rather than swap
-    if (this._gliding) { this._gliding = false; fadeHeat(); }
     this._pad = pad; this._center = map.getCenter(); this._zoom = map.getZoom();
     L.DomUtil.setPosition(this._canvas, map.containerPointToLayerPoint(pad.multiplyBy(-1)));
     const w = size.x + 2 * pad.x, h = size.y + 2 * pad.y;
@@ -431,7 +429,7 @@ Object.assign(L.HeatLayer.prototype, {
   _redraw() {
     this._frame = null;
     if (!this._pad || !this._heat._width || !this._heat._height) return;
-    // Hidden under a zoom's own frames: wait for them to finish (endMorph), so this ~70 ms doesn't stall them
+    // Hidden under a zoom's own frames: wait for them to finish (endMorph), so it doesn't hold them up
     if (this._morph?.parentNode) { this._stale = true; return; }
     const map = this._map, pad = this._pad, w = this._heat._width, h = this._heat._height, r = this._heat._r, data = [];
     for (const [lat, lng, v] of cellsAt(map.getZoom())) {
@@ -485,20 +483,21 @@ function cellsAt(z) {
 // new zoom's own detail, blobs settling to their usual size and splitting into finer hotspots (or merging, zooming
 // out), finishing just after the map stops. A scroll or pinch of several steps carries on from whatever blend is on
 // screen, so nothing snaps back.
-// Frames go to a second canvas covering only the visible map, at half resolution and stretched back up: a full
-// redraw takes ~70 ms, too slow for every frame, and the blur hides the softer pixels
+// Frames go to a second canvas covering only the visible map, at half resolution and stretched back up: a quarter of
+// the pixels to fill each frame, and the blur hides the softer pixels
 const MORPH_Q = 0.5, SETTLE_MS = 450;
 const smooth = (u) => u * u * (3 - 2 * u);
 // Draw `sets` of [cells, weight, place] with blobs of `radius`: place(z, i) gives cell i of zoom z's [x, y] on screen
 function drawMorph(layer, radius, sets, place) {
+  if (layer._morphGL?.gl.isContextLost()) { layer._morph.remove(); layer._morph = layer._morphGL = layer._morphHeat = null; }   // start afresh
   const view = map.getSize(), cv = layer._morph ??= Object.assign(document.createElement("canvas"), { className: "leaflet-layer heat-morph" });
+  layer._morphGL ??= glHeat(cv);   // before simpleheat asks for a 2D canvas, which would rule WebGL out
   const w = Math.ceil(view.x * MORPH_Q), h = Math.ceil(view.y * MORPH_Q);
   if (cv.width !== w || cv.height !== h || !layer._morphHeat) {
     cv.width = w; cv.height = h; cv.style.width = `${view.x}px`; cv.style.height = `${view.y}px`;
     layer._morphHeat = simpleheat(cv);   // leaflet.heat's drawing engine, a global from its script
   }
   const sh = layer._morphHeat;
-  sh._grad = layer._heat._grad;
   sh.radius(radius * MORPH_Q, heatBlur(radius) * MORPH_Q);
   L.DomUtil.setPosition(cv, map.containerPointToLayerPoint([0, 0]));
   if (!cv.parentNode) layer._canvas.parentNode.appendChild(cv);
@@ -510,9 +509,53 @@ function drawMorph(layer, radius, sets, place) {
       if (x > -r && y > -r && x < w + r && y < h + r) data.push([x, y, cell[2] * weight]);
     });
   }
-  sh.data(data).draw(layer.options.minOpacity);
+  if (layer._morphGL) drawGL(layer._morphGL, sh, data, layer.options.minOpacity);
+  else sh.data(data).draw(layer.options.minOpacity);
   layer._morphR = radius;
   layer._canvas.style.visibility = "hidden";
+}
+// Zoom frames draw with WebGL where it's there: the 2D canvas spends ~2 µs on every blob, and a few quick wheel notches
+// stack up ~7,000 blobs (~15 ms a frame, which made zooming judder), where WebGL draws them all in one go. Each blob is
+// two triangles showing leaflet.heat's own blob picture for this radius, so the frames look just like the still heat
+function glHeat(cv) {
+  const gl = cv.getContext("webgl", { antialias: false, depth: false });
+  if (!gl) return null;
+  const prog = gl.createProgram();
+  for (const [type, src] of [
+    [gl.VERTEX_SHADER, "attribute vec4 p; attribute float a; uniform vec2 view; varying vec2 uv; varying float v;"
+      + "void main() { gl_Position = vec4(p.xy / view * vec2(2, -2) + vec2(-1, 1), 0, 1); uv = p.zw; v = a; }"],
+    [gl.FRAGMENT_SHADER, "precision mediump float; uniform sampler2D blob; varying vec2 uv; varying float v;"
+      + "void main() { gl_FragColor = vec4(0, 0, 0, texture2D(blob, uv).a * v); }"],
+  ]) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s); gl.attachShader(prog, s);
+  }
+  gl.bindAttribLocation(prog, 0, "p"); gl.bindAttribLocation(prog, 1, "a");
+  gl.linkProgram(prog); gl.useProgram(prog);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 20, 0);    // x, y on the canvas, u, v in the blob
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 20, 16);   // strength
+  gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);   // layered like the 2D canvas
+  return { gl, view: gl.getUniformLocation(prog, "view"), blob: null };
+}
+const QUAD = [[0, 0], [1, 0], [0, 1], [0, 1], [1, 0], [1, 1]];
+// simpleheat's draw, on WebGL: `data` is [x, y, strength] per blob, `sh` holds the blob picture and its reach
+function drawGL(g, sh, data, minOpacity) {
+  const gl = g.gl, r = sh._r, w = gl.canvas.width, h = gl.canvas.height, f = new Float32Array(data.length * 30);
+  if (g.blob !== sh._circle) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sh._circle); g.blob = sh._circle; }
+  let i = 0;
+  for (const [x, y, v] of data) {
+    const a = Math.max(v, minOpacity);
+    for (const [u, t] of QUAD) { f[i++] = x + (2 * u - 1) * r; f[i++] = y + (2 * t - 1) * r; f[i++] = u; f[i++] = t; f[i++] = a; }
+  }
+  gl.viewport(0, 0, w, h); gl.uniform2f(g.view, w, h);
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.bufferData(gl.ARRAY_BUFFER, f, gl.STREAM_DRAW);
+  gl.drawArrays(gl.TRIANGLES, 0, data.length * 6);
 }
 // A new zoom step towards zoom `target`, starting at visual zoom `zNow`. What's on screen is kept as the blend to
 // ease out of: the cells shown so far with their weights, and the blob size
@@ -570,28 +613,22 @@ function startMorph(layer, e) {
   };
   frame();
 }
-// A pinch on a touch screen moves the map itself frame by frame, with no zoom animation: a new step each time it
-// passes a quarter zoom (the steps cellsAt works in), drawn as it goes
+// A pinch on a touch screen, and a glide (see the top), move the map itself frame by frame, with no zoom animation.
+// A pinch starts a new step each time it passes a quarter zoom (the steps cellsAt works in); a glide eases straight
+// towards the zoom it's heading for, so it works out only that zoom's cells (up to ~35 ms), not every quarter on the way
 map.on("zoom", (e) => {
   if (!e.pinch || reduceMotion || !heatSpots.length) return;
-  if (e.glide) return glideHeat(heat);
   cancelAnimationFrame(heat._morphFrame);
   heat._morphRun = (heat._morphRun || 0) + 1;
-  heat._morphFrame = requestAnimationFrame(() => {
-    const z = map.getZoom(), target = quarterZoom(z);
+  const draw = () => {
+    const z = map.getZoom(), target = e.glide ? glide.target : quarterZoom(z);
     if (!heat._step || !heat._morph?.parentNode || heat._step.target !== target) beginStep(heat, target, z);
     drawStep(heat, map.getZoomScale(z, heat._step.zNow), liveSpots(heat));
-  });
+  };
+  // A glide moves once a frame, from its own animation frame: draw straight away, so the heat moves with the streets
+  if (e.glide) draw(); else heat._morphFrame = requestAnimationFrame(draw);
 });
 const quarterZoom = (z) => Math.round(z * 4) / 4;
-// A glide (see the top) moves the map every frame, and redrawing the heat takes ~20-70 ms, which made the whole zoom
-// judder and slow laptops lag. So the heat already drawn is moved and scaled with the streets, as a picture (a
-// glide is short), and once the map stops it's redrawn for the new zoom and crossfaded in (see _reset)
-function glideHeat(layer) {
-  if (layer._morph?.parentNode) endMorph(layer);   // a pinch or zoom animation still settling: finish it first
-  layer._gliding = true;
-  placeHeat(layer, map.getZoom(), map.getCenter());
-}
 // The map has stopped (from _reset, just after the full redraw underneath, which waits for these frames to end):
 // finish settling where everything now is
 function zoomStopped(layer) {
@@ -638,13 +675,28 @@ const heat = L.heatLayer([], {
   minOpacity: CONFIG.heatFloor,
   gradient: heatGradient(),
 }).addTo(map);
-// leaflet.heat keeps each pixel's own strength as its opacity and ignores the ramp's; take the ramp's, so it can fade in
-Object.getPrototypeOf(heat._heat)._colorize = (px, grad) => {
-  for (let i = 3; i < px.length; i += 4) {
-    const j = px[i] * 4;
-    if (j) { px[i - 3] = grad[j]; px[i - 2] = grad[j + 1]; px[i - 1] = grad[j + 2]; px[i] = grad[j + 3]; }
+// leaflet.heat read its whole canvas back to colour it pixel by pixel, ~80 ms for the padded heat and ~20 ms for a
+// zoom frame, too slow to keep up with a zoom. Now it draws only each spot's strength (a few ms) and the #heat-ramp
+// filter (index.html, styles.css) colours that on the graphics card. Each pixel takes the ramp's opacity as well as
+// its colour, so the ramp can fade in
+const heatProto = Object.getPrototypeOf(heat._heat), setGradient = heatProto.gradient;
+heatProto.draw = function (minOpacity) {
+  const ctx = this._ctx;
+  ctx.clearRect(0, 0, this._width, this._height);
+  for (const [x, y, v] of this._data) {
+    ctx.globalAlpha = Math.max(v / this._max, minOpacity);
+    ctx.drawImage(this._circle, x - this._r, y - this._r);
   }
+  return this;
 };
+heatProto.gradient = function (stops) {
+  setGradient.call(this, stops);
+  // The filter's red, green, blue and opacity tables: entry i is the ramp at strength i / 255
+  document.querySelectorAll("#heat-ramp feComponentTransfer > *").forEach((f, c) =>
+    f.setAttribute("tableValues", Array.from({ length: 256 }, (_, i) => this._grad[i * 4 + c] / 255).join(" ")));
+  return this;
+};
+heat._heat.gradient(heat.options.gradient);   // it was set before these existed
 // Its own pane, drawn see-through (see --heat-opacity) so streets and names show through
 map.createPane("heat");
 map.getPane("heat").style.zIndex = 390;          // above the inside tint, below the circles (400)

@@ -420,6 +420,7 @@ button.cmp.empty:hover { border-color: var(--muted); }
 /* ---------------- Motion ---------------- */
 .leaflet-heat-pane { opacity: var(--heat-opacity); }
 .leaflet-heatmap-layer, .heat-snap { transition: opacity 0.5s ease; }
+.leaflet-heatmap-layer, .heat-morph, .heat-snap { filter: url(#heat-ramp); }   /* the canvases hold only strength: this colours them */
 body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
 .views button, .year-pick button, .day-track button, .btn, .x, .theme-toggle, .filters-btn {
   transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.12s; }
