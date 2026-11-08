@@ -28,7 +28,7 @@ VanScene turns the Vancouver Police Department's open crime data into a map you 
 - **Compare two areas.** Place A and B, and both are listed side by side: counts, change from the year before, and each area's top crime types with their share of its reports.
 - **See the trend.** Trends shows the whole city year by year and hour by hour, with reports per day.
 - **Share what you see.** The link keeps the view, years, crime type, hours and the spots you picked.
-- **Use it your way.** It works on phones (the views sit in a bar at the bottom), with a keyboard, with a screen reader, and in light or dark mode.
+- **Use it your way.** It works on phones (the views sit in a bar at the bottom), with a keyboard, with a screen reader, and in light or dark mode. On wider screens the filters slide away to give the map the whole width.
 
 ## A one-minute walkthrough
 

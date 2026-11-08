@@ -417,24 +417,25 @@ function fadeHeat() {
   setTimeout(() => snap.remove(), 600);
 }
 
-// Circles for the clicked area (Map view) and the two areas (Compare view)
-const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 3, fillOpacity: 0.1, interactive: false });
-const areaCircle = L.circle(CONFIG.center, circleStyle(cssVar("--sea")));
+// Circles for the clicked area (Map view) and the two areas (Compare view): the true 500 m edge, drawn faint so the
+// handle at the centre is what reads first
+const circleStyle = (color) => ({ radius: CONFIG.radiusMeters, color, weight: 1.5, opacity: 0.6, fillOpacity: 0.04, interactive: false });
+const areaCircle = L.circle(CONFIG.center, circleStyle(cssVar("--ring")));
 // A pin at the clicked spot, so the selection reads at a glance as well as by its outline
-const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin", iconSize: [16, 16] }), interactive: false, keyboard: false });
-const circleA = L.circle(CONFIG.center, circleStyle(cssVar("--sea")));
+const areaPin = L.marker(CONFIG.center, { icon: L.divIcon({ className: "area-pin", iconSize: [14, 14] }), interactive: false, keyboard: false });
+const circleA = L.circle(CONFIG.center, circleStyle(cssVar("--ring")));
 const circleB = L.circle(CONFIG.center, circleStyle(cssVar("--b")));
 // The A and B labels in the middle of each circle are handles: drag one to move that area
-const handleIcon = (slot) => L.divIcon({ className: `ab-handle ab-${slot}`, html: slot.toUpperCase(), iconSize: [28, 28] });
+const handleIcon = (slot) => L.divIcon({ className: `ab-handle ab-${slot}`, html: slot.toUpperCase(), iconSize: [34, 34] });
 const handleA = L.marker(CONFIG.center, { icon: handleIcon("a"), draggable: true, title: "Drag to move area A" });
 const handleB = L.marker(CONFIG.center, { icon: handleIcon("b"), draggable: true, title: "Drag to move area B" });
 const OUTSIDE_NOTE = "That's outside the City of Vancouver, so there's no VPD data for it. Pick a spot in the lit area.";
 // A dashed preview of the area under the cursor, so you can see what a click will summarize
 const ghost = L.circle(CONFIG.center, { radius: CONFIG.radiusMeters, weight: 1.5, dashArray: "4 6", fill: false, interactive: false });
-const ghostColour = () => cssVar(state.view === "compare" && state.nextSlot === "b" ? "--b" : "--sea");
+const ghostColour = () => cssVar(state.view === "compare" && state.nextSlot === "b" ? "--b" : "--ring");
 function paintCircles() {
-  areaCircle.setStyle({ color: cssVar("--sea") });
-  circleA.setStyle({ color: cssVar("--sea") });
+  areaCircle.setStyle({ color: cssVar("--ring") });
+  circleA.setStyle({ color: cssVar("--ring") });
   circleB.setStyle({ color: cssVar("--b") });
   ghost.setStyle({ color: ghostColour() });
 }
@@ -822,7 +823,7 @@ map.on("zoomend", () => {
 function panelPadding(bounds) {
   const mr = $("map").getBoundingClientRect(), W = mr.width, H = mr.height;
   const pad = { l: 0, r: 0, t: 0, b: 0 }, corners = [];
-  for (const el of document.querySelectorAll(".panel")) {
+  for (const el of document.querySelectorAll(".panel, .site-head")) {   // on wider screens the header floats over the map too
     const rr = el.getBoundingClientRect();
     if (!rr.width || !rr.height || getComputedStyle(el).display === "none") continue;
     if (rr.width < W * 0.6) {
@@ -1124,10 +1125,10 @@ for (const [slot, handle, circle] of [["a", handleA, circleA], ["b", handleB, ci
 
 // One area's card, or an empty card for an area not placed yet (slot is "A" or "B")
 function compareCard(s, slot) {
-  const colour = slot === "A" ? "var(--sea)" : "var(--b)", placing = state.nextSlot === slot.toLowerCase();
+  const colour = slot === "A" ? "var(--ring)" : "var(--b)", placing = state.nextSlot === slot.toLowerCase();
   // An empty card is a button: click it to pick that area, then click the map
   if (!s) return `<button type="button" class="cmp empty${placing ? " placing" : ""}" data-action="slot-${slot.toLowerCase()}">
-    <span><b style="color:${colour}">${slot}</b> · ${placing ? `Click the map to place area ${slot}, then drag its label to move it` : `Pick ${slot}, then click the map`}</span></button>`;
+    <span><b>${slot}</b> · ${placing ? `Click the map to place area ${slot}, then drag its label to move it` : `Pick ${slot}, then click the map`}</span></button>`;
   return `<div class="cmp${placing ? " placing" : ""}"><h3 class="who"><b style="background:${colour}">${slot}</b>Near ${s.name}</h3>
     <p class="big" data-count="${s.now}" data-key="${slot}">${fmt(s.now)}</p>${s.change ? `<span class="pill ${s.change.cls}" title="${s.change.text}">${s.change.text.replace("same dates ", "")}</span>` : ""}
     <p class="hint">Busiest per hour: ${busiestShort(s.buckets)}</p></div>`;
@@ -1582,6 +1583,33 @@ $("filters-btn").addEventListener("click", () => {
   $("filters-btn").setAttribute("aria-expanded", String(open));
   if (open) $("toast").classList.remove("show");   // on a phone the note would sit on top of the open panel
 });
+// Wider screens: the header's sidebar button, or the name beside it, slides the filters drawer away to give the map the
+// whole width, and the name folds down to the mark, as on Apple Maps. The choice is remembered
+function setSidebar(open) {
+  document.body.classList.toggle("side-hidden", !open);
+  const label = open ? "Hide filters" : "Show filters", brand = $("brand-btn"), live = !isPhone();
+  $("side-toggle").setAttribute("aria-expanded", String(open));
+  $("side-toggle").setAttribute("aria-label", label);
+  $("side-toggle").title = label;
+  brand.tabIndex = live ? 0 : -1;   // phones have no sidebar, so there the name is just the name
+  if (live) {
+    brand.removeAttribute("aria-hidden");
+    Object.entries({ "aria-label": label, "aria-expanded": String(open), "aria-controls": "filters", title: label }).forEach(([a, v]) => brand.setAttribute(a, v));
+  } else {
+    brand.setAttribute("aria-hidden", "true");
+    ["aria-label", "aria-expanded", "aria-controls", "title"].forEach((a) => brand.removeAttribute(a));
+  }
+}
+function toggleSidebar(open) {
+  setSidebar(open);
+  try { localStorage.setItem("sidebar", open ? "open" : "hidden"); } catch (e) {}
+}
+$("side-toggle").addEventListener("click", () => toggleSidebar(document.body.classList.contains("side-hidden")));
+$("brand-btn").addEventListener("click", () => { if (!isPhone()) toggleSidebar(document.body.classList.contains("side-hidden")); });
+phoneQuery.addEventListener("change", () => setSidebar(!document.body.classList.contains("side-hidden")));
+let startOpen = true;
+try { startOpen = localStorage.getItem("sidebar") !== "hidden"; } catch (e) {}
+setSidebar(startOpen);
 
 function syncThemeButton() {
   const label = isDark() ? "Switch to light mode" : "Switch to dark mode";
