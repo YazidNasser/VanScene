@@ -1493,11 +1493,13 @@ function compareInsight(A, B, rows) {
   return `<div class="tip">${ICON_INFO}<span>${parts.join(" ")}</span></div>`;
 }
 
+// Compare and Trends close back to the map view, as clicking their view button a second time does
+const closeView = (what) => `<button type="button" class="x" data-action="open-map" aria-label="Close ${what}">${ICON_X}</button>`;
 function renderCompare() {
   const A = state.a && areaStats(state.a), B = state.b && areaStats(state.b), rows = compareRows(A, B);
   $("compare").innerHTML = `${sheetHandle}
-    <div class="cmp-head"><div><h2>Compare two areas</h2>
-      <p>Within ${CONFIG.radiusMeters} m of each spot, ${periodLabel()} · ${filterLine()}.</p></div>
+    <div class="cmp-head"><div class="card-head"><div><h2>Compare two areas</h2>
+      <p>Within ${CONFIG.radiusMeters} m of each spot, ${periodLabel()} · ${filterLine()}.</p></div>${closeView("Compare")}</div>
       <div class="cmp-actions">
         <div class="slot-pick" role="group" aria-label="Which area a map click places"><span>Place</span>
           <button type="button" class="ab a" data-action="slot-a" aria-pressed="${state.nextSlot === "a"}">A</button><button type="button" class="ab b" data-action="slot-b" aria-pressed="${state.nextSlot === "b"}">B</button></div>
@@ -1516,7 +1518,7 @@ function weekday(y, m, d) {   // 0 = Sunday (Sakamoto's method)
 
 function renderTrends() {
   if (noYears()) {
-    $("trends").innerHTML = `${sheetHandle}<h2>Vancouver</h2><p class="sub">${filterLine()}.</p>${pickYear}`;
+    $("trends").innerHTML = `${sheetHandle}<div class="card-head"><div><h2>Vancouver</h2><p class="sub">${filterLine()}.</p></div>${closeView("Trends")}</div>${pickYear}`;
     return;
   }
   const perYear = new Map(), types = new Map(), hours = new Array(24).fill(0), days = new Array(7).fill(0);
@@ -1545,8 +1547,8 @@ function renderTrends() {
   }
 
   $("trends").innerHTML = `${sheetHandle}
-    <h2>Vancouver ${periodLabel()}</h2>
-    <p class="sub">${filterLine()}. Click the map to add an area.</p>
+    <div class="card-head"><div><h2>Vancouver ${periodLabel()}</h2>
+      <p class="sub">${filterLine()}. Click the map to add an area.</p></div>${closeView("Trends")}</div>
     ${trendMetrics({ total, before, perYear, top, hours, days })}
     <div class="tsec"><h3>Year by year</h3>
       <div class="ybars" role="img" aria-label="${attr(yearSummary(span, perYear, "Reports city-wide"))}">${span.map((y, i) => `<div>${missing.includes(y)
@@ -1929,7 +1931,7 @@ for (const b of document.querySelectorAll(".views button, .rail button")) {
   b.addEventListener("click", () => {
     if (!state.data) return;
     if (isPhone()) closeFilters();   // the open filters hide every view panel, so the tap would look like it did nothing
-    setView(b.dataset.view);
+    setView(b.dataset.view === state.view ? "map" : b.dataset.view);   // a second click on Compare or Trends closes it
   });
 }
 // The search lives in the header, except on phones where the header has no room and it joins the Filters row

@@ -144,11 +144,11 @@ a { color: var(--sea); }
 /* Compare's and Trends' panels run down the right, so the zoom buttons move beside them
    (wider screens only: on phones the zoom buttons are hidden and these panels are bottom sheets) */
 @media (min-width: 761px) {
-  .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 436px; }   /* the 420px panel + 16px gutter */
+  .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 496px; }   /* the 420px panel + 16px gutter + the 60px rail */
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 360px; }   /* an open area card: 344px + 16px */
 }
 @media (min-width: 761px) and (max-width: 1150px) {
-  .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 356px; }   /* the slimmer 340px panels */
+  .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 416px; }   /* the slimmer 340px panels + the 60px rail */
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 316px; }   /* the slimmer 300px area card */
 }
 /* A soft shadow under the area circles rather than an outline, just enough to lift a thin ring off the heat */
@@ -195,11 +195,14 @@ a { color: var(--sea); }
   /* The name folds away into the mark as the drawer goes, and unfolds as it comes back */
   .wm-text { transition: max-width 0.25s ease-in-out, margin-left 0.25s ease-in-out, opacity 0.2s ease-in-out; }
   body.side-hidden .wm-text { max-width: 0; margin-left: 0; opacity: 0; }
-  /* The views' rail runs down the right edge under the header. The map stops at its edge, so the panels, zoom buttons,
-     credits and notes all keep their places beside it without each needing to know the rail is there */
-  .app { margin-right: 60px; }
-  .rail { display: flex; flex-direction: column; align-items: center; gap: 8px; position: absolute; z-index: 10; top: 58px; right: 0; bottom: 0; width: 60px; padding: 12px 0;
-    background: var(--surface); border-left: 1px solid var(--line); }
+  /* While Compare or Trends is open, the views also show as a slim rail down the right edge, sliding in with the panel
+     and away again on the plain map; the panel, zoom buttons and credits step left to clear it */
+  body { --rail-w: 60px; }
+  .rail { display: flex; flex-direction: column; align-items: center; gap: 8px; top: 58px; right: 0; bottom: 0; width: var(--rail-w); padding: 12px 0;
+    border-width: 0 0 0 1px; border-radius: 0; transition: transform 0.25s ease-in-out, visibility 0.25s; }
+  .app[data-view="map"] ~ .rail { transform: translateX(calc(100% + 2px)); visibility: hidden; }
+  .app:not([data-view="map"]) :is(.compare, .trends) { right: calc(var(--rail-w) + 16px); }
+  .app:not([data-view="map"]) #map .leaflet-bottom.leaflet-left { right: var(--rail-w); }
   .rail button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--muted); cursor: pointer;
     transition: background-color 0.2s, color 0.2s, transform 0.12s; }
   .rail button svg { width: 18px; height: 18px; transition: transform 0.25s var(--ease); }
@@ -356,6 +359,7 @@ details.about p { margin-top: 8px; }
 .cmp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .cmp-head h2 { font-size: 1rem; font-weight: 700; }
 .cmp-head p { font-size: 0.82rem; color: var(--muted); }
+.cmp-head > .card-head { flex: 1 1 100%; }   /* the title and its close button take the whole first line */
 .cmp-actions { display: flex; align-items: center; gap: 6px; }
 .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 12px; font-size: 0.82rem; cursor: pointer; }
 .btn:hover { border-color: var(--sea); }
