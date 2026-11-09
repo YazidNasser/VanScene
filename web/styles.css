@@ -539,6 +539,14 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   #map .leaflet-control-zoom { display: none; }
   #map .leaflet-bottom.leaflet-right { bottom: auto; top: 108px; }   /* just clear of the search panel, which ends 103px down */
   .toast { top: 136px; left: 50%; max-width: calc(100% - 32px); }   /* below the search row, clear of the bottom sheet */
+  /* The same frosted glass as wider screens, on the panels, sheets and the views bar, so the map shows softly through.
+     The header stays solid: on phones it sits above the map, so there is nothing behind it to show */
+  .panel, .views { background: var(--glass); border-color: var(--glass-edge);
+    -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
+    --surface-2: var(--glass-fill); --bar-bg: var(--glass-fill-2); --faint: var(--muted); }
+  :root:not([data-theme="dark"]) :is(.panel, .views) { --muted: #48525c; --sea: #155a96; }   /* 4.5:1 over the darkest heat */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .panel, .views { background: var(--surface); } }
+  @media (prefers-reduced-transparency: reduce) { .panel, .views { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 }
 
 /* Touch screens, any size: the small filter controls get 44px tap heights */
