@@ -159,13 +159,13 @@ map.setMaxBounds([[49.10, -123.55], [49.40, -122.70]]);
 L.control.zoom({ position: "bottomright" }).addTo(map);
 L.control.scale({ position: "bottomright", imperial: false, maxWidth: 110 }).addTo(map);   // sits above the zoom buttons
 
-// The basemap: OpenFreeMap's vector tiles (free, no key) drawn by MapLibre in our own colours, after Apple Maps:
+// The basemap: OpenFreeMap's vector tiles (free, no key) drawn by MapLibre in our own colours:
 // blue water, green parks, white roads and warm highways by day; slate land, deep blue water and teal parks at night.
 // Its names are drawn by a second layer in their own pane above the heat, so they stay readable where reports are densest
 map.createPane("labels");
 map.getPane("labels").style.zIndex = 395;        // above the heat (390), below the circles (400) and the outside shade (450)
 map.getPane("labels").style.pointerEvents = "none";
-// Roads in three steps, as Apple Maps draws them: quiet side streets (road), stand-out main roads (major) and the
+// Roads in three steps: quiet side streets (road), stand-out main roads (major) and the
 // brightest highways, so the city's structure reads at a glance
 const MAP_COLOURS = {
   light: { land: "#eef1f4", built: "#e7ebef", building: "#dbe0e6", park: "#cbe7bd", water: "#9ecff2", road: "#ffffff", major: "#ffffff", secondary: "#ffffff",
@@ -187,7 +187,7 @@ const PAINT = [
   [/^railway/, "line-color", "rail"],
   [/water_name/, "text-color", "waterText"], [/highway-name-(minor|major)|label_(city|town)$/, "text-color", "text"],
 ];
-// Every label's outline, as Apple Maps draws it: thin, soft and close to the land colour, so letters lift off busy
+// Every label's outline is thin, soft and close to the land colour, so letters lift off busy
 // ground without looking stickered on
 const halo = (c) => ({ "text-halo-color": c.halo, "text-halo-width": 1, "text-halo-blur": 0.6 });
 function mapStyle(labels) {
@@ -200,16 +200,16 @@ function mapStyle(labels) {
     // Full-strength text (the style fades some names), so street names stay readable over the heat
     if (l.type === "symbol") Object.assign(paint, { "text-opacity": 1, ...halo(c) });
     if (l.id === "building") paint["fill-outline-color"] = c.building;
-    // Only the arterials stand out, as in Apple Maps: primary roads in full, secondary ones softer, and the many
+    // Only the arterials stand out: primary roads in full, secondary ones softer, and the many
     // tertiary roads drawn like side streets
     if (rule[2] === "major") paint["line-color"] = ["match", ["get", "class"], ["primary", "trunk"], c.major, "secondary", c.secondary, c.road];
     const layer = { ...l, paint };
-    // Neighbouring cities named large, as Apple Maps does; Vancouver itself is left out, since our neighbourhood names fill it
+    // Neighbouring cities named large; Vancouver itself is left out, since our neighbourhood names fill it
     if (/label_(city|town)$/.test(l.id)) {
       layer.filter = ["all", l.filter, ["!=", ["get", "name"], "Vancouver"]];
       layer.layout = { ...l.layout, "text-size": 17, "text-font": ["Noto Sans Bold"] };
     }
-    // Main streets named from city zoom in small capitals, as Apple Maps names its arterials: a regular weight and
+    // Main streets named from city zoom in small capitals: a regular weight and
     // smaller than the bold, wider-spaced district names, so the two never read as the same kind of label
     if (l.id === "highway-name-major") {
       layer.layout = { ...l.layout, "text-transform": "uppercase", "text-letter-spacing": 0.04,
@@ -217,7 +217,7 @@ function mapStyle(labels) {
     }
     layers.push(layer);
   }
-  // Park names in green, like Apple Maps: the big parks from city zoom (named points in the tiles' park layer),
+  // Park names in green: the big parks from city zoom (named points in the tiles' park layer),
   // then every park at street zoom (points of interest, only in the tiles from z14, which this layer reaches at
   // Leaflet zoom 15 since the bridge runs MapLibre one level lower). Stanley Park is skipped: our neighbourhood label names it
   if (labels) {
@@ -236,7 +236,7 @@ function mapStyle(labels) {
       paint: { "text-color": color, ...halo(c) } });
     layers.push(named("hood-names", ["!", ["has", "city"]], { "text-size": 11, "text-transform": "uppercase", "text-letter-spacing": 0.12,
       "text-max-width": 7, "text-padding": 4, "symbol-sort-key": ["get", "rank"] }, c.district));
-    // As Apple Maps sets it: large and bold at a fixed size, so it stays big while the map zooms in around it
+    // Large and bold at a fixed size, so it stays big while the map zooms in around it
     layers.push(named("city-name", ["has", "city"], { "text-size": 28, "text-letter-spacing": -0.01 }, c.city));
     return { ...ofmStyle, sources: { ...ofmStyle.sources, hoods: { type: "geojson", data: hoodNames } }, layers };
   }
@@ -274,7 +274,7 @@ if (glBase) {
 // The covered area is worked out from the incidents in data.json, so no extra file is needed.
 const SHADE = {
   // [red, green, blue, strength 0-1] for the area our data covers (inside) and everywhere else (outside)
-  // Lighter than before so the basemap's water and parks keep their colour; outside stays dimmed but readable, as Apple advises
+  // Lighter than before so the basemap's water and parks keep their colour; outside stays dimmed but readable
   light: { inside: [255, 255, 255, 0], outside: [30, 40, 48, 0.45] },
   dark: { inside: [255, 255, 255, 0.03], outside: [8, 12, 24, 0.5] },
   cellMeters: 250,                 // grid size used to find the covered area
@@ -1995,14 +1995,14 @@ for (const b of document.querySelectorAll(".views button, .rail button")) {
     setView(b.dataset.view);
   });
 }
-// Phones have no header, so its parts move, as on Apple Maps for iPhone: the search and theme switch onto the bottom
-// sheet's resting capsule, the name to the sheet's foot (above the refresh date), and the map key onto the map as a
-// chip. Wider screens put them all back
+// Phones have no header, so its parts move: the search onto the bottom sheet's resting capsule, the name and theme
+// switch to the sheet's foot (above the refresh date), and the map key onto the map as a chip. Wider screens put them
+// all back
 function placeSearch() {
   const phone = isPhone(), search = document.querySelector(".search"), brand = document.querySelector(".brand"),
     head = document.querySelector(".site-head"), theme = $("theme-toggle"), legend = $("legend");
   // The map credit sits in its map corner (setPosition rebuilds it there). On phones it moves to the sheet's foot,
-  // after the refresh date, where Apple keeps its legal links, rather than running across the top of a small map
+  // after the refresh date, rather than running across the top of a small map
   map.attributionControl.setPosition("bottomleft");
   if (phone) {
     $("filters-top").append(search);
@@ -2049,7 +2049,7 @@ $("filters-handle").addEventListener("click", () => {
   if (up) releaseCard();
 });
 // (Searching in Compare places an area by name, so there the search leaves the Compare card be)
-$("search").addEventListener("focus", () => { if (isPhone()) { setSheet("full"); if (state.view === "map") releaseCard(); } });   // as on Apple Maps: typing lifts the sheet clear of the keyboard
+$("search").addEventListener("focus", () => { if (isPhone()) { setSheet("full"); if (state.view === "map") releaseCard(); } });   // typing lifts the sheet clear of the keyboard
 // Dragging any sheet's handle moves the sheet with the finger, as on iPhone. On release it settles at the nearest
 // height it can rest at (the filters: rest, half, full; a card: shrunk or open), carried on a step by a quick flick.
 // A tap still works through the handle's own click; after a drag, the click the browser may send as well is ignored
@@ -2120,7 +2120,7 @@ document.addEventListener("click", (e) => {
   if (performance.now() < swallowClickUntil && e.target.closest(".sheet-handle")) { e.stopPropagation(); swallowClickUntil = 0; }
 }, true);
 // Wider screens: the header's sidebar button, or the name beside it, slides the filters drawer away to give the map the
-// whole width, and the name folds down to the mark, as on Apple Maps. The choice is remembered
+// whole width, and the name folds down to the mark. The choice is remembered
 function setSidebar(open) {
   document.body.classList.toggle("side-hidden", !open);
   const label = open ? "Hide filters" : "Show filters", brand = $("brand-btn"), live = !isPhone();
@@ -2212,7 +2212,7 @@ async function start() {
   addCoverageMask(state.data.points);
   // Neighbourhood names for the map's label layer (see mapStyle), ranked busiest first by reports within about 1 km of
   // each centre, so where names would collide the busier area keeps its name. The city's own name sits in the open
-  // space between Fairview, Mount Pleasant and Shaughnessy, roughly where Apple Maps puts it
+  // space between Fairview, Mount Pleasant and Shaughnessy, clear of the neighbourhood names
   const hoods = state.data.neighbourhoods, busy = new Array(hoods.length).fill(0);
   for (const p of state.data.points) {   // plain index loops: this runs hoods × incidents times at startup
     for (let i = 0; i < hoods.length; i++) if (Math.abs(p[LAT] - hoods[i].lat) < 0.009 && Math.abs(p[LNG] - hoods[i].lng) < 0.014) busy[i]++;
