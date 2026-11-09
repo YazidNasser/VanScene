@@ -407,6 +407,12 @@ function paintCoverage(theme) {
     // The light theme's inside tint is fully clear, so it isn't drawn at all
     ...(colours.inside[3] ? [L.imageOverlay(make(colours.inside, false), [SW, NE], opts("maskInside")).addTo(map)] : []),
     L.imageOverlay(make(colours.outside, true), [SW, NE], opts("maskOutside")).addTo(map),
+    // Past the box everything is outside: one flat sheet of the same shade with the box cut out, so a wide screen
+    // zoomed out (which can see beyond the box) stays dimmed right to the edges
+    L.polygon([[[-85, -180], [-85, 180], [85, 180], [85, -180]], [SW, [SW[0], NE[1]], NE, [NE[0], SW[1]]]], {
+      // A whole screen of margin each way: Leaflet redraws shapes only when a drag ends, so no gap opens mid-drag
+      ...opts("maskOutside"), renderer: L.svg({ pane: "maskOutside", padding: 1 }), stroke: false, fillColor: `rgb(${colours.outside.slice(0, 3)})`, fillOpacity: colours.outside[3],
+    }).addTo(map),
   ];
 }
 
