@@ -2016,17 +2016,14 @@ phoneQuery.addEventListener("change", () => setSidebar(!document.body.classList.
 let startOpen = true;
 try { startOpen = localStorage.getItem("sidebar") !== "hidden"; } catch (e) {}
 setSidebar(startOpen);
-// The rail button moves the views between the header and a slim rail down the right edge, in every view; remembered
+// The rail button moves the views between the header and a slim rail down the right edge, in every view. Not remembered:
+// every visit opens with the views on top in the header, where newcomers look for them first
 function setRail(on) {
   document.body.classList.toggle("rail-on", on);
   $("rail-toggle").setAttribute("aria-pressed", String(on));
 }
-$("rail-toggle").addEventListener("click", () => {
-  const on = !document.body.classList.contains("rail-on");
-  setRail(on);
-  try { localStorage.setItem("rail", on ? "on" : "off"); } catch (e) {}
-});
-try { setRail(localStorage.getItem("rail") === "on"); } catch (e) {}
+$("rail-toggle").addEventListener("click", () => setRail(!document.body.classList.contains("rail-on")));
+try { localStorage.removeItem("rail"); } catch (e) {}   // clear the choice older versions saved
 
 function syncThemeButton() {
   const label = isDark() ? "Switch to light mode" : "Switch to dark mode";
