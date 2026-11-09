@@ -493,34 +493,42 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
 
 /* ---------------- Phones: the map fills the screen; everything else is in a sheet pulled up from the bottom ---------------- */
 @media (max-width: 760px) {
-  /* No header bar, as on Apple Maps: app.js moves the name and theme switch onto the bottom sheet, and the views float top right */
+  /* No header bar, as on Apple Maps for iPhone. app.js moves the search and theme switch onto the bottom sheet, the
+     name to the sheet's foot and the map key onto the map; the views float top right */
   .site-head { position: absolute; height: 0; padding: 0; border: 0; }
   .head-search, .side-toggle, .views { display: none; }
-  .filters .brand { display: flex; align-items: center; justify-content: space-between; }
   .brand-btn { cursor: default; }   /* no sidebar to fold away on phones */
-  .filters .brand h1 { font-size: 1.15rem; }
-  .filters .theme-toggle { width: 40px; height: 40px; background: transparent; }
+  .filters .brand h1 { font-size: 1.05rem; }
   /* Map, Compare and Trends as a slim pill of icons, clear of the notch. It steps aside while the sheet is pulled up over it */
-  .rail { display: flex; flex-direction: column; gap: 4px; position: fixed; z-index: 11; top: calc(12px + env(safe-area-inset-top)); right: 12px; padding: 4px; border-radius: 14px;
+  .rail { display: flex; flex-direction: column; gap: 4px; position: fixed; z-index: 11; top: calc(12px + env(safe-area-inset-top)); right: 12px; padding: 4px; border-radius: 26px;
     transition: opacity 0.2s, visibility 0.2s, background-color 0.3s, border-color 0.3s; }
   body:has(.filters.open) .rail { opacity: 0; visibility: hidden; }
-  .rail button { width: 44px; height: 44px; }
+  .rail button { width: 44px; height: 44px; border-radius: 22px; }
 
-  /* The filters are a sheet along the bottom. At rest it shows only its handle, the search and the map key; tap or
-     swipe up on the handle (or tap the search) and the rest rises into view */
-  .filters { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 85%; padding: 0 16px calc(14px + env(safe-area-inset-bottom)); gap: 10px;
-    border-radius: 18px 18px 0 0; border-width: 1px 0 0; transition: max-height 0.3s var(--ease); }
-  .filters-top { display: flex; }
-  .filters-body, .updated, details.about { display: none; }
-  .filters.open { z-index: 12; }
+  /* The filters are a sheet with three heights, as on Apple Maps for iPhone. At rest it's a floating capsule holding just
+     the handle, the search and the theme switch. Swipe up on the handle for half the screen (.open), again for all of
+     it (.full); swipe down to step back. Tapping the search goes straight to full, clear of the keyboard */
+  .filters { top: auto; left: 12px; right: 12px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; max-height: 50%; padding: 0 12px 12px; gap: 14px;
+    border-width: 1px; border-radius: 30px; transition: left 0.3s var(--ease), right 0.3s var(--ease), bottom 0.3s var(--ease), max-height 0.3s var(--ease), border-radius 0.3s var(--ease); }
+  .filters .sheet-handle { height: 22px; }
+  .filters .sheet-handle::before { margin-top: 8px; }
+  .filters-top { display: flex; align-items: center; gap: 8px; }
+  .filters .search { height: 44px; border-radius: 22px; }
+  .filters .theme-toggle { width: 44px; height: 44px; background: var(--surface-2); border-color: transparent; }
+  .filters-body, .filters .brand, .updated, details.about { display: none; }
+  .filters.open { z-index: 12; left: 8px; right: 8px; padding-bottom: 16px; }
+  .filters.full { left: 0; right: 0; bottom: 0; max-height: calc(100% - 12px - env(safe-area-inset-top)); border-width: 1px 0 0; border-radius: 30px 30px 0 0;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
   .filters.open .filters-body { display: flex; }
-  .filters.open .updated, .filters.open details.about { display: block; }
-  /* The open sheet covers most of the map; hide the cards behind it rather than let them show through */
+  .filters.open .brand, .filters.open .updated, .filters.open details.about { display: block; }
+  .filters.open .brand { margin-top: 6px; }   /* the foot: the name, the refresh date and About, as Apple ends its sheet */
+  /* The open sheet covers much of the map; hide the cards behind it rather than let them show through */
   .app:has(.filters.open) :is(.area, .compare, .trends) { visibility: hidden; }
-  .filters:not(.open) { overflow: visible; }   /* at rest, let the suggestions hang outside the short sheet */
-  .filters:not(.open) .suggest { top: auto; bottom: calc(100% + 6px); transform-origin: bottom; }   /* and open them upward, over the map */
-  /* One row: Fewer, the ramp, More */
-  .legend { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 8px; }
+  .filters:not(.open) { overflow: visible; }   /* let the suggestions hang outside the short capsule */
+
+  /* The map key as a small frosted chip in the top left, where Apple shows the weather: Fewer, the ramp, More */
+  .app > .legend { position: absolute; z-index: 5; top: calc(30px + env(safe-area-inset-top)); left: 10px; width: 190px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 14px;
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 8px; font-size: 0.8rem; }
   .legend .lab { display: none; }
   .legend .ramp { grid-area: 1 / 2; height: 7px; }
   .legend .ends { display: contents; }
@@ -528,10 +536,10 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .legend .ends span:last-child { grid-area: 1 / 3; }
   .legend-note { grid-column: 1 / -1; }
 
-  /* The area, Compare and Trends cards float just above the resting sheet (--peek, its height, set by app.js), so the
-     search and filters stay in reach. Their tops stop below the floating buttons */
-  .area, .compare, .trends { left: 8px; right: 8px; bottom: calc(var(--peek, 166px) + 8px); top: auto; width: auto;
-    max-height: calc(100% - var(--peek, 166px) - 190px); border-radius: 18px; padding: 0 16px 16px; }   /* 190px: the pill's 168px and a gap */
+  /* The area, Compare and Trends cards float just above the resting capsule (--peek: from its top to the screen's foot,
+     set by app.js), so the search stays in reach. Their tops stop below the floating buttons */
+  .area, .compare, .trends { left: 12px; right: 12px; bottom: calc(var(--peek, 90px) + 8px); top: auto; width: auto;
+    max-height: calc(100% - var(--peek, 90px) - 190px); border-radius: 26px; padding: 0 16px 16px; }   /* 190px: the pill's 168px and a gap */
   /* The handle scrolls away with the card's heading and close button rather than staying pinned, where the text
      would run straight through the grip on see-through glass. It takes swipes itself, so the page doesn't scroll */
   .sheet-handle { display: block; flex: none; width: 100%; height: 32px; border: 0; background: transparent; cursor: pointer; touch-action: none; }
@@ -542,18 +550,18 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .cmp { padding: 10px; }
   .h2h { grid-template-columns: minmax(0, 1fr) 76px 76px; font-size: 0.8rem; }
   #map .leaflet-control-zoom { display: none; }
-  /* The map credit, then the scale under it, in the top left: the one corner the sheet and floating buttons leave free */
+  /* The map credit along the very top left, the key chip under it, then the scale */
   #map .leaflet-bottom.leaflet-left { bottom: auto; right: auto; left: 0; top: env(safe-area-inset-top); }
   #map .leaflet-control-attribution { border-radius: 0 0 6px 0; padding: 2px 8px; }
-  #map .leaflet-bottom.leaflet-right { bottom: auto; right: auto; left: 0; top: calc(26px + env(safe-area-inset-top)); }
+  #map .leaflet-bottom.leaflet-right { bottom: auto; right: auto; left: 0; top: calc(72px + env(safe-area-inset-top)); }
   .toast { top: calc(12px + env(safe-area-inset-top)); left: calc(50% - 30px); max-width: calc(100% - 152px); }   /* between the corners, clear of the floating buttons */
   /* The same frosted glass as wider screens on everything over the map, so the map shows softly through */
-  .panel { background: var(--glass); border-color: var(--glass-edge);
+  .panel, .app > .legend { background: var(--glass); border-color: var(--glass-edge);
     -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
     --surface-2: var(--glass-fill); --bar-bg: var(--glass-fill-2); --faint: var(--muted); }
-  :root:not([data-theme="dark"]) .panel { --muted: #48525c; --sea: #155a96; }   /* 4.5:1 over the darkest heat */
-  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .panel { background: var(--surface); } }
-  @media (prefers-reduced-transparency: reduce) { .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+  :root:not([data-theme="dark"]) :is(.panel, .app > .legend) { --muted: #48525c; --sea: #155a96; }   /* 4.5:1 over the darkest heat */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .panel, .app > .legend { background: var(--surface); } }
+  @media (prefers-reduced-transparency: reduce) { .panel, .app > .legend { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 }
 
 /* Touch screens, any size: the small filter controls get 44px tap heights */

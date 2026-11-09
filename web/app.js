@@ -1984,31 +1984,50 @@ for (const b of document.querySelectorAll(".views button, .rail button")) {
     setView(b.dataset.view);
   });
 }
-// The name, search and theme switch live in the header, except on phones, which have no header: there they top the
-// filters' bottom sheet, the name just under its handle with the theme switch beside it, as on Apple Maps
+// Phones have no header, so its parts move, as on Apple Maps for iPhone: the search and theme switch onto the bottom
+// sheet's resting capsule, the name to the sheet's foot (above the refresh date), and the map key onto the map as a
+// chip. Wider screens put them all back
 function placeSearch() {
-  (isPhone() ? $("filters-top") : $("head-search")).prepend(document.querySelector(".search"));
-  const brand = document.querySelector(".brand"), head = document.querySelector(".site-head");
-  if (isPhone()) { $("filters-handle").after(brand); brand.append($("theme-toggle")); }
-  else { head.prepend(brand); head.append($("theme-toggle")); }
+  const phone = isPhone(), search = document.querySelector(".search"), brand = document.querySelector(".brand"),
+    head = document.querySelector(".site-head"), theme = $("theme-toggle"), legend = $("legend");
+  if (phone) {
+    $("filters-top").append(search, theme);
+    $("updated").before(brand);
+    $("app").append(legend);   // out of the sheet: inside its blur, a chip couldn't sit on the map
+  } else {
+    $("head-search").prepend(search);
+    head.prepend(brand);
+    head.append(theme);
+    $("filters-body").after(legend);
+  }
 }
 phoneQuery.addEventListener("change", placeSearch);
 placeSearch();
-// Phones: the filters' bottom sheet rests low, showing the search and the map key; its handle pulls the rest up
-function setFilters(open) {
-  $("filters").classList.toggle("open", open);
-  $("filters-handle").setAttribute("aria-expanded", String(open));
-  if (open) $("toast").classList.remove("show");   // the note would sit on top of the open sheet
+// Phones: the filters' sheet has three heights: at rest (just the search), half the screen (.open) and all of it (.full)
+const SHEET_HEIGHTS = ["rest", "half", "full"];
+function sheetHeight() {
+  const f = $("filters");
+  return f.classList.contains("full") ? "full" : f.classList.contains("open") ? "half" : "rest";
 }
-function closeFilters() { setFilters(false); }
-$("filters-handle").addEventListener("click", () => setFilters(!$("filters").classList.contains("open")));
-$("search").addEventListener("focus", () => { if (isPhone()) setFilters(true); });   // as on Apple Maps: typing lifts the sheet clear of the keyboard
-// The cards float just above the resting sheet, so they need its height. Only measured at rest, not while it's pulled up
+function setSheet(height) {
+  const f = $("filters");
+  f.classList.toggle("open", height !== "rest");
+  f.classList.toggle("full", height === "full");
+  $("filters-handle").setAttribute("aria-expanded", String(height !== "rest"));
+  if (height !== "rest") $("toast").classList.remove("show");   // the note would sit on top of the open sheet
+}
+function closeFilters() { setSheet("rest"); }
+$("filters-handle").addEventListener("click", () => setSheet(sheetHeight() === "rest" ? "half" : "rest"));
+$("search").addEventListener("focus", () => { if (isPhone()) setSheet("full"); });   // as on Apple Maps: typing lifts the sheet clear of the keyboard
+// The cards float just above the resting capsule, so they need the distance from its top to the screen's foot.
+// Only measured at rest, not while the sheet is pulled up
 new ResizeObserver(() => {
-  if (isPhone() && !$("filters").classList.contains("open")) $("app").style.setProperty("--peek", $("filters").offsetHeight + "px");
+  const f = $("filters");
+  if (isPhone() && sheetHeight() === "rest") $("app").style.setProperty("--peek", $("app").clientHeight - f.offsetTop + "px");
 }).observe($("filters"));
-// A swipe on any sheet's handle moves that sheet the way the finger went: up opens it, down puts it away. A tap still
-// toggles it through the handle's own click; after a swipe, the click the browser may send as well is ignored
+// A swipe on any sheet's handle moves that sheet the way the finger went: the filters step up or down one height, a
+// card opens or shrinks. A tap still works through the handle's own click; after a swipe, the click the browser may
+// send as well is ignored
 let swallowClickUntil = 0;
 document.addEventListener("pointerdown", (e) => {
   const handle = e.target.closest(".sheet-handle");
@@ -2022,7 +2041,10 @@ document.addEventListener("pointerup", (e) => {
   const dy = e.clientY - Number(handle.dataset.startY);
   delete handle.dataset.startY;
   if (Math.abs(dy) < 24) return;   // a tap
-  if ((handle.getAttribute("aria-expanded") === "true") !== (dy < 0)) handle.click();
+  if (handle.id === "filters-handle") {
+    const i = SHEET_HEIGHTS.indexOf(sheetHeight()) + (dy < 0 ? 1 : -1);
+    setSheet(SHEET_HEIGHTS[Math.max(0, Math.min(2, i))]);
+  } else if ((handle.getAttribute("aria-expanded") === "true") !== (dy < 0)) handle.click();
   swallowClickUntil = performance.now() + 400;
 });
 document.addEventListener("click", (e) => {
