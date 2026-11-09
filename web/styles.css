@@ -526,8 +526,11 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .filters.open .brand { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
   .filters .leaflet-control-attribution { margin-top: -8px; font-size: 0.78rem; color: var(--muted); }
   .filters .leaflet-control-attribution a { color: var(--sea); }
-  /* The open sheet covers much of the map; hide the cards behind it rather than let them show through */
-  .app:has(.filters.open) :is(.area, .compare, .trends) { visibility: hidden; }
+  /* The open sheet covers much of the map, so the cards slip down and fade out behind it, and back as it goes down.
+     Their entrance animation lets go once played, or its held frame would pin them in place */
+  .app[data-view] :is(.area, .compare, .trends) { animation-fill-mode: backwards; transition: opacity 0.25s var(--ease), transform 0.3s var(--ease), visibility 0s; }
+  .app:has(.filters.open) :is(.area, .compare, .trends) { opacity: 0; transform: translateY(16px); visibility: hidden; pointer-events: none;
+    transition: opacity 0.2s, transform 0.25s var(--ease), visibility 0s 0.25s; }
   .filters:not(.open) { overflow: visible; }   /* let the suggestions hang outside the short capsule */
   /* No scroll bars on the sheets and cards: they're scrolled with a finger, and the bar only crowds the rounded edge */
   .panel { scrollbar-width: none; }
@@ -566,7 +569,10 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .h2h { grid-template-columns: minmax(0, 1fr) 76px 76px; font-size: 0.8rem; }
   #map .leaflet-control-zoom { display: none; }
   #map .leaflet-bottom.leaflet-right { bottom: auto; right: auto; left: 2px; top: calc(54px + env(safe-area-inset-top)); }   /* the scale, under the key chip */
-  .toast { top: calc(12px + env(safe-area-inset-top)); left: calc(50% - 30px); max-width: calc(100% - 152px); }   /* between the corners, clear of the floating buttons */
+  /* Notes as a small pill just above the search capsule, the thing they point to, rather than a box over the key in the
+     corner. While a card holds the bottom, they sit just under the top row instead */
+  .toast { top: auto; bottom: calc(112px + env(safe-area-inset-bottom)); left: 50%; max-width: calc(100% - 48px); padding: 8px 12px; gap: 8px; border-radius: 14px; font-size: 0.8rem; }
+  .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .toast { top: calc(60px + env(safe-area-inset-top)); bottom: auto; }
   /* The same frosted glass as wider screens on everything over the map, so the map shows softly through */
   .panel, .app > .legend { background: var(--glass); border-color: var(--glass-edge);
     -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);

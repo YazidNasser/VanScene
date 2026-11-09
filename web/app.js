@@ -2022,8 +2022,19 @@ function setSheet(height) {
   if (height !== "rest") $("toast").classList.remove("show");   // the note would sit on top of the open sheet
 }
 function closeFilters() { setSheet("rest"); }
-$("filters-handle").addEventListener("click", () => setSheet(sheetHeight() === "rest" ? "half" : "rest"));
-$("search").addEventListener("focus", () => { if (isPhone()) setSheet("full"); });   // as on Apple Maps: typing lifts the sheet clear of the keyboard
+// A real pull-up of the sheet in the map view lets go of the picked spot, so putting the sheet back down shows the map
+// and the search, and a new tap on the map picks again. It waits for the card to fade out, and keeps the spot if the
+// sheet went straight back down (just a peek)
+function releaseSpot() {
+  if (state.view !== "map" || !state.selected) return;
+  setTimeout(() => { if (sheetHeight() !== "rest") { state.selected = null; syncCircles(); renderPanels(); } }, 300);
+}
+$("filters-handle").addEventListener("click", () => {
+  const up = sheetHeight() === "rest";
+  setSheet(up ? "half" : "rest");
+  if (up) releaseSpot();
+});
+$("search").addEventListener("focus", () => { if (isPhone()) { setSheet("full"); releaseSpot(); } });   // as on Apple Maps: typing lifts the sheet clear of the keyboard
 // Dragging any sheet's handle moves the sheet with the finger, as on iPhone. On release it settles at the nearest
 // height it can rest at (the filters: rest, half, full; a card: shrunk or open), carried on a step by a quick flick.
 // A tap still works through the handle's own click; after a drag, the click the browser may send as well is ignored
@@ -2048,6 +2059,7 @@ function settleSheet(panel, name, px) {
   const low = name === "rest" || name === "shrunk";
   const apply = () => panel.id === "filters" ? setSheet(name) : setCard(panel, name);
   if (!low) apply();   // going up: show the content as it rises; going down: hide it once there
+  if (!low && panel.id === "filters") releaseSpot();
   panel.style.transition = ["height", "left", "right", "bottom", "border-radius"].map((p) => p + " 0.28s var(--ease)").join(", ");
   panel.style.height = px + "px";
   setTimeout(() => { if (low) apply(); panel.style.removeProperty("height"); panel.style.removeProperty("max-height"); panel.style.removeProperty("transition"); panel.style.removeProperty("overflow"); }, 290);
