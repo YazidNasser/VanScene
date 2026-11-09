@@ -1555,7 +1555,7 @@ function renderCompare() {
       <div class="cmp-actions">
         <div class="slot-pick" role="group" aria-label="Which area a map click places"><span>Place</span>
           <button type="button" class="ab a" data-action="slot-a" aria-pressed="${state.nextSlot === "a"}">A</button><button type="button" class="ab b" data-action="slot-b" aria-pressed="${state.nextSlot === "b"}">B</button></div>
-        <button type="button" class="btn" data-action="swap">Swap</button><button type="button" class="btn" data-action="reset">Clear</button></div></div>
+        <button type="button" class="btn" data-action="swap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg><span class="lbl">Swap</span></button><button type="button" class="btn" data-action="reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span class="lbl">Clear</span></button></div></div>
     ${noYears() ? pickYear : `<div class="cmp-grid">${compareCard(A, "A", changed("a"))}${compareCard(B, "B", changed("b"))}</div>${compareTable(A, B, rows)}${compareInsight(A, B, rows)}`}`;
   lastCompare = { a: state.a, b: state.b };
   $("compare").classList.toggle("incomplete", !(A && B));   // phones keep the card slim until both areas are down

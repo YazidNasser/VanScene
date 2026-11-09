@@ -379,6 +379,7 @@ details.about p { margin-top: 8px; }
 .cmp-actions { display: flex; align-items: center; gap: 6px; }
 .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 12px; font-size: 0.82rem; cursor: pointer; }
 .btn:hover { border-color: var(--sea); }
+.btn svg { display: none; }   /* Swap and Clear show their icons on phones only, where they shrink to icon buttons */
 .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .cmp { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; justify-items: start; }
 .cmp .who { display: flex; align-items: flex-start; gap: 8px; font-weight: 700; font-size: 0.9rem; line-height: 1.3; }
@@ -576,8 +577,16 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .cmp.placing { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 10%, transparent); }   /* the area the next map tap places; glides between cards */
   .cmp.fresh { animation: cmp-in 0.32s var(--ease) both; }   /* a card whose area was just placed, moved or cleared */
   .compare .slot-pick { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .compare .cmp-actions { margin-left: auto; }
-  .compare .btn { padding: 4px 10px; font-size: 0.78rem; }
+  /* Swap and Clear as two small icon buttons on the title's line, beside the close button, rather than a row of their own */
+  .compare .cmp-head { position: relative; }
+  .compare .cmp-actions { position: absolute; top: -7px; right: 44px; gap: 4px; }   /* level with the title, clear of the line under it */
+  .compare .btn { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border-radius: 9px; }
+  .compare .btn svg { display: block; width: 16px; height: 16px; }
+  .compare .btn .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .compare .card-head h2 { padding-right: 76px; }   /* clear of the two icon buttons */
+  /* Each area's name on one line, trimmed if it's long, so both cards show their count at the open height */
+  .compare .cmp .who { display: block; justify-self: stretch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .compare .cmp .who b { display: inline-grid; vertical-align: -5px; margin-right: 6px; }
   .compare:not(.tall) .cmp .hint { display: none; }
   .cmp.empty { min-height: 84px; font-size: 0.86rem; }
   /* Until both areas are down, the card stays slim so the map is free for the next tap: each area is a one-line chip
