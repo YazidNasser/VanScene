@@ -174,7 +174,12 @@ a { color: var(--sea); }
 #map .ab-handle.placing { box-shadow: 0 0 0 4px color-mix(in srgb, var(--slot) 30%, transparent); }   /* a soft ring on the handle a click will move */
 #map .ab-handle.leaflet-drag-target, #map .ab-handle:active { cursor: grabbing; transform: scale(1.1); }
 
-.rail { display: none; }   /* wider screens only: phones keep the views in the bottom bar */
+.rail { display: none; }   /* shown when wider screens turn it on, and always on phones, where it floats top right */
+.rail button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--muted); cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, transform 0.12s; }
+.rail button svg { width: 18px; height: 18px; transition: transform 0.25s var(--ease); }
+.rail button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.rail button:active { transform: scale(0.94); }
 .panel { position: absolute; z-index: 10; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
 .filters { top: 16px; left: 16px; max-height: calc(100% - 32px); width: var(--side-w); padding: 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
 /* Wider screens: the map runs under the header, and the header and every panel are one frosted material, like
@@ -219,11 +224,6 @@ a { color: var(--sea); }
   .views { transition: opacity 0.25s ease-in-out, visibility 0.25s; }   /* only fades, so the search beside it stays put */
   body.rail-on .views { opacity: 0; visibility: hidden; }
   body.rail-on .site-head::after { right: var(--rail-w); }   /* header and rail meet as one sheet of glass */
-  .rail button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--muted); cursor: pointer;
-    transition: background-color 0.2s, color 0.2s, transform 0.12s; }
-  .rail button svg { width: 18px; height: 18px; transition: transform 0.25s var(--ease); }
-  .rail button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
-  .rail button:active { transform: scale(0.94); }
   /* Solid where the browser can't blur, or the person has asked for less transparency */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .site-head, .panel { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .site-head, .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
@@ -238,7 +238,7 @@ a { color: var(--sea); }
 .sheet-handle { display: none; }
 
 /* ---------------- Filters panel ---------------- */
-.filters-top { display: none; gap: 8px; }   /* only used on phones (search and Filters button) */
+.filters-top { display: none; gap: 8px; }   /* only used on phones, where the search moves into it */
 .search { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; }
 .search:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 12%, transparent), 0 10px 26px rgba(0, 0, 0, 0.14); }   /* a soft ink halo while typing */
 .search input::placeholder { color: var(--faint); opacity: 1; }   /* the browser's own grey was 3.1:1 on dark */
@@ -255,7 +255,6 @@ a { color: var(--sea); }
 @starting-style { .suggest:not([hidden]) { opacity: 0; transform: translateY(-6px) scale(0.98); } }
 .suggest li { padding: 8px 10px; border-radius: 7px; font-size: 0.92rem; cursor: pointer; }
 .suggest li:hover, .suggest li[aria-selected="true"] { background: var(--surface-2); }
-.filters-btn { display: none; }
 .filters-body { display: flex; flex-direction: column; gap: 18px; }
 .lab { display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 7px; }
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
@@ -380,6 +379,7 @@ details.about p { margin-top: 8px; }
 .cmp-actions { display: flex; align-items: center; gap: 6px; }
 .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 12px; font-size: 0.82rem; cursor: pointer; }
 .btn:hover { border-color: var(--sea); }
+.btn svg { display: none; }   /* Swap and Clear show their icons on phones only, where they shrink to icon buttons */
 .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .cmp { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; justify-items: start; }
 .cmp .who { display: flex; align-items: flex-start; gap: 8px; font-weight: 700; font-size: 0.9rem; line-height: 1.3; }
@@ -398,6 +398,7 @@ button.cmp.empty { width: 100%; background: transparent; cursor: pointer; font: 
 button.cmp.empty:hover { border-color: var(--muted); }
 .cmp.placing { border-color: var(--muted); }
 .cmp.empty.placing { border-style: solid; color: var(--ink); }
+.cmp:not(.placing) .if-placing, .cmp.placing .if-waiting { display: none; }
 /* "Place A | B": which area a map click puts down */
 .slot-pick { display: inline-flex; align-items: center; gap: 4px; margin-right: 6px; font-size: 0.82rem; color: var(--muted); }
 .slot-pick span { margin-right: 2px; }
@@ -458,7 +459,7 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
    this weaker than Leaflet's zoom transition, which it would otherwise replace */
 :where(.mask-light, .mask-dark) { transition: opacity 0.3s; }
 :root[data-theme="dark"] .mask-light, :root:not([data-theme="dark"]) .mask-dark { opacity: 0 !important; }   /* beats Leaflet's inline opacity */
-.views button, .year-pick button, .day-track button, .btn, .x, .theme-toggle, .filters-btn {
+.views button, .year-pick button, .day-track button, .btn, .x, .theme-toggle {
   transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.12s; }
 .views button:active, .year-pick button:not(:disabled):active, .day-track button:active, .btn:active, .x:active, .theme-toggle:active { transform: scale(0.96); }
 .year-pick > button:not(:disabled):not([aria-pressed="true"]):hover,
@@ -492,35 +493,60 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .compare, .trends { width: 340px; }
 }
 
-/* ---------------- Phones: search on top, details in a bottom sheet ---------------- */
-@media (max-width: 760px) {
-  .site-head { height: 52px; padding: 0 16px; gap: 8px; }
-  .head-search, .side-toggle { display: none; }
-  .brand-btn { cursor: default; }   /* no sidebar on phones */
-  .brand h1 { font-size: 1rem; }
-  .filters-top { display: flex; }
-  /* Map, Compare and Trends in a bar along the bottom, in thumb reach; the map and sheets sit above it */
-  .brand { flex: 1; }
-  .views { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; gap: 4px; border: 0; border-top: 1px solid var(--line); border-radius: 0;
-    background: var(--surface); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
-  .views button { flex: 1; flex-direction: column; justify-content: center; gap: 2px; min-height: 48px; padding: 4px; font-size: 0.78rem; }
-  .views button svg { width: 20px; height: 20px; }
-  .app { margin-bottom: calc(61px + env(safe-area-inset-bottom)); }   /* the bar's height, so nothing hides under it */
-  .theme-toggle { width: 44px; height: 44px; }
+@keyframes cmp-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } }
 
-  .filters { top: 8px; left: 8px; right: 8px; bottom: auto; width: auto; max-height: calc(100% - 16px); padding: 10px; gap: 10px; }
-  .filters-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 0 12px; height: 44px; cursor: pointer; font-size: 0.88rem; }
-  .filters-btn svg { width: 16px; height: 16px; }
-  .filters-btn[aria-expanded="true"] { background: var(--sea); color: var(--on-sea); border-color: var(--sea); }
-  .filters-body, details.about { display: none; }
-  .filters.open { z-index: 12; }
-  /* An open Filters panel covers most of the map; hide the sheet behind it rather than let it show through */
-  .app:has(.filters.open) :is(.area, .compare, .trends) { visibility: hidden; }
-  .filters:not(.open) { overflow: visible; }   /* the closed panel is one row: let the suggestions hang below it */
+/* ---------------- Phones: the map fills the screen; everything else is in a sheet pulled up from the bottom ---------------- */
+@media (max-width: 760px) {
+  /* No header bar, as on Apple Maps for iPhone. app.js moves the search and theme switch onto the bottom sheet, the
+     name to the sheet's foot and the map key onto the map; the views float top right */
+  .site-head { position: absolute; height: 0; padding: 0; border: 0; }
+  .head-search, .side-toggle, .views { display: none; }
+  .app { overflow: hidden; }   /* the sheet tucked below the screen mustn't make the page scroll */
+  .brand-btn { cursor: default; }   /* no sidebar to fold away on phones */
+  .filters .brand h1 { font-size: 1.05rem; }
+  /* Map, Compare and Trends as a slim pill of icons, clear of the notch. It steps aside while the sheet is pulled up over it */
+  .rail { display: flex; flex-direction: column; gap: 4px; position: fixed; z-index: 11; top: calc(12px + env(safe-area-inset-top)); right: 12px; padding: 4px; border-radius: 26px;
+    transition: opacity 0.2s, visibility 0.2s, background-color 0.3s, border-color 0.3s; }
+  body:has(.filters.open) .rail { opacity: 0; visibility: hidden; }
+  .rail button { width: 44px; height: 44px; border-radius: 22px; }
+
+  /* The filters are a sheet with three heights, as on Apple Maps for iPhone. At rest it's a floating capsule holding just
+     the handle and the search. Drag the handle up for half the screen (.open) or all of it (.full), down to step back.
+     Tapping the search goes straight to full, clear of the keyboard */
+  .filters { top: auto; left: 12px; right: 12px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; max-height: 50%; padding: 0 12px 12px; gap: 14px;
+    border-width: 1px; border-radius: 30px; transition: left 0.3s var(--ease), right 0.3s var(--ease), bottom 0.3s var(--ease), max-height 0.3s var(--ease), border-radius 0.3s var(--ease), transform 0.3s var(--ease); }
+  .filters .sheet-handle { height: 22px; }
+  .filters .sheet-handle::before { margin-top: 8px; }
+  .filters-top { display: flex; align-items: center; gap: 8px; }
+  .filters .search { height: 44px; border-radius: 22px; }
+  .filters .theme-toggle { width: 40px; height: 40px; background: var(--surface-2); border-color: transparent; }
+  .filters-body, .filters .brand, .updated, .filters .leaflet-control-attribution, details.about { display: none; }
+  .filters.open { z-index: 12; left: 8px; right: 8px; padding-bottom: 16px; }
+  .filters.full { left: 0; right: 0; bottom: 0; max-height: calc(100% - 12px - env(safe-area-inset-top)); border-width: 1px 0 0; border-radius: 30px 30px 0 0;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
   .filters.open .filters-body { display: flex; }
-  .filters.open details.about { display: block; }
-  /* One row: Fewer, the ramp, More */
-  .legend { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 8px; }
+  .filters.open .brand, .filters.open .updated, .filters.open .leaflet-control-attribution, .filters.open details.about { display: block; }
+  /* The foot, as Apple ends its sheet: the name with the theme switch on its right, the refresh date, the map credit and About */
+  .filters.open .brand { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+  .filters .leaflet-control-attribution { margin-top: -8px; font-size: 0.78rem; color: var(--muted); }
+  .filters .leaflet-control-attribution a { color: var(--sea); }
+  /* The open sheet covers much of the map, so the cards slip down and fade out behind it, and back as it goes down.
+     Their entrance animation lets go once played, or its held frame would pin them in place */
+  .app[data-view] :is(.area, .compare, .trends) { animation-fill-mode: backwards; transition: opacity 0.25s var(--ease), transform 0.3s var(--ease), visibility 0s; }
+  .app:has(.filters.open) :is(.area, .compare, .trends) { opacity: 0; transform: translateY(16px); visibility: hidden; pointer-events: none;
+    transition: opacity 0.2s, transform 0.25s var(--ease), visibility 0s 0.25s; }
+  .filters:not(.open) { overflow: visible; }   /* let the suggestions hang outside the short capsule */
+  /* No scroll bars on the sheets and cards: they're scrolled with a finger, and the bar only crowds the rounded edge */
+  .panel { scrollbar-width: none; }
+  .panel::-webkit-scrollbar { display: none; }
+  /* While a card is showing (Compare, Trends, or a picked spot), the resting capsule tucks below the screen with just
+     its handle along the bottom edge, and the card takes its place, leaving more of the map. Drag the handle up to
+     bring the search and filters back; closing the card brings the capsule back too */
+  .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .filters:not(.open) { transform: translateY(calc(100% - 22px + 8px + env(safe-area-inset-bottom))); }
+
+  /* The map key as a small frosted chip in the top left, where Apple shows the weather: Fewer, the ramp, More */
+  .app > .legend { position: absolute; z-index: 5; top: calc(12px + env(safe-area-inset-top)); left: 12px; width: 190px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 14px;
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 8px; font-size: 0.8rem; }
   .legend .lab { display: none; }
   .legend .ramp { grid-area: 1 / 2; height: 7px; }
   .legend .ends { display: contents; }
@@ -528,17 +554,63 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .legend .ends span:last-child { grid-area: 1 / 3; }
   .legend-note { grid-column: 1 / -1; }
 
-  .area, .compare, .trends { left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 48%; border-radius: 18px 18px 0 0; border-bottom: 0; padding: 4px 16px 18px; }
-  .sheet-handle { display: block; width: 100%; height: 32px; border: 0; background: transparent; cursor: pointer; position: sticky; top: 0; z-index: 1; }
+  /* The area, Compare and Trends cards float just above the tucked sheet's handle. Their tops stop below the floating buttons */
+  .area, .compare, .trends { left: 12px; right: 12px; bottom: calc(30px + env(safe-area-inset-bottom)); top: auto; width: auto;
+    --card-max: calc(100% - 30px - env(safe-area-inset-bottom) - 190px);   /* the tallest a card gets: 190px clears the pill's 168px */
+    max-height: min(var(--card-max), 32%); border-radius: 26px; padding: 0 16px 16px; }
+  /* A card opens at a third of the screen so most of the map stays free to tap and pan; drag its handle up for .tall */
+  .area.tall, .compare.tall, .trends.tall { max-height: var(--card-max); }
+  /* The handle scrolls away with the card's heading and close button rather than staying pinned, where the text
+     would run straight through the grip on see-through glass. It takes swipes itself, so the page doesn't scroll */
+  .sheet-handle { display: block; flex: none; width: 100%; height: 32px; border: 0; background: transparent; cursor: pointer; touch-action: none; }
   .sheet-handle::before { content: ""; display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--faint); margin: 10px auto 0; }
-  .panel.collapsed { max-height: 102px; overflow: hidden; }
+  /* Shrunk, a card keeps just its handle and heading (title, line under it, close button), nothing cut off halfway */
+  .panel.collapsed { overflow: hidden; }
+  /* No close button on the cards: drag one down past its shrunk height to close it. It stays for keyboards and screen readers */
+  :is(.area, .compare, .trends) .x { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .panel.collapsed > :not(.sheet-handle, .card-head, .cmp-head), .panel.collapsed .cmp-head > :not(.card-head) { display: none; }
   .big { font-size: 2.2rem; }
-  .cmp-grid { gap: 8px; }   /* still side by side in the bottom sheet */
+  .cmp-grid { gap: 8px; }   /* still side by side in the card */
   .cmp { padding: 10px; }
+  /* Phones pick an area by tapping its card (the highlight glides across), so the "Place A | B" row is left for keyboards and screen readers only;
+     Swap and Clear sit on the right, small. At the card's open height each area shows its name, count and change;
+     the busiest hour and offences against a person come with the tall height */
+  .cmp { cursor: pointer; transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease), color 0.25s; }
+  .cmp.placing { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 10%, transparent); }   /* the area the next map tap places; glides between cards */
+  .cmp.fresh { animation: cmp-in 0.32s var(--ease) both; }   /* a card whose area was just placed, moved or cleared */
+  .compare .slot-pick { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* Swap and Clear as two small icon buttons on the title's line, beside the close button, rather than a row of their own */
+  .compare .cmp-head { position: relative; }
+  .compare .cmp-actions { position: absolute; top: -7px; right: 0; gap: 4px; }   /* level with the title, clear of the line under it */
+  .compare .btn { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border-radius: 9px; }
+  .compare .btn svg { display: block; width: 16px; height: 16px; }
+  .compare .btn .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .compare .card-head h2 { padding-right: 76px; }   /* clear of the two icon buttons */
+  /* Each area's name on one line, trimmed if it's long, so both cards show their count at the open height */
+  .compare .cmp .who { display: block; justify-self: stretch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .compare .cmp .who b { display: inline-grid; vertical-align: -5px; margin-right: 6px; }
+  .compare:not(.tall) .cmp .hint { display: none; }
+  .cmp.empty { min-height: 84px; font-size: 0.86rem; }
+  /* Until both areas are down, the card stays slim so the map is free for the next tap: each area is a one-line chip
+     (its name and count, or what to tap), and the table, the extra lines and Swap wait until there's a pair to compare */
+  .compare.incomplete :is(.h2h, .tip, [data-action="swap"]), .compare.incomplete .cmp :is(.pill, .hint) { display: none; }
+  .compare.incomplete .cmp { min-height: 0; padding: 8px 10px; gap: 2px; }
+  .compare.incomplete .cmp .who { font-size: 0.82rem; }
+  .compare.incomplete .cmp .big { font-size: 1.15rem; }
   .h2h { grid-template-columns: minmax(0, 1fr) 76px 76px; font-size: 0.8rem; }
   #map .leaflet-control-zoom { display: none; }
-  #map .leaflet-bottom.leaflet-right { bottom: auto; top: 108px; }   /* just clear of the search panel, which ends 103px down */
-  .toast { top: 136px; left: 50%; max-width: calc(100% - 32px); }   /* below the search row, clear of the bottom sheet */
+  #map .leaflet-bottom.leaflet-right { bottom: auto; right: auto; left: 2px; top: calc(54px + env(safe-area-inset-top)); }   /* the scale, under the key chip */
+  /* Notes as a small pill just above the search capsule, the thing they point to, rather than a box over the key in the
+     corner. While a card holds the bottom, they sit just under the top row instead */
+  .toast { top: auto; bottom: calc(112px + env(safe-area-inset-bottom)); left: 50%; max-width: calc(100% - 48px); padding: 8px 12px; gap: 8px; border-radius: 14px; font-size: 0.8rem; }
+  .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .toast { top: calc(60px + env(safe-area-inset-top)); bottom: auto; }
+  /* The same frosted glass as wider screens on everything over the map, so the map shows softly through */
+  .panel, .app > .legend { background: var(--glass); border-color: var(--glass-edge);
+    -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
+    --surface-2: var(--glass-fill); --bar-bg: var(--glass-fill-2); --faint: var(--muted); }
+  :root:not([data-theme="dark"]) :is(.panel, .app > .legend) { --muted: #48525c; --sea: #155a96; }   /* 4.5:1 over the darkest heat */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .panel, .app > .legend { background: var(--surface); } }
+  @media (prefers-reduced-transparency: reduce) { .panel, .app > .legend { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 }
 
 /* Touch screens, any size: the small filter controls get 44px tap heights */

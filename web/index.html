@@ -61,11 +61,9 @@
     <div id="map" role="application" aria-label="Map of Vancouver. Click to summarize an area."></div>
 
     <aside class="panel filters" id="filters" aria-label="Filters">
-      <div class="filters-top" id="filters-top">
-        <button type="button" class="filters-btn" id="filters-btn" aria-expanded="false" aria-controls="filters-body">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filters
-        </button>
-      </div>
+      <!-- Phones only: the grip of the bottom sheet; tap or swipe it to pull the filters up or put them away -->
+      <button type="button" class="sheet-handle" id="filters-handle" aria-label="Show or hide filters" aria-expanded="false" aria-controls="filters-body"></button>
+      <div class="filters-top" id="filters-top"></div>
 
       <div class="filters-body" id="filters-body">
         <fieldset>

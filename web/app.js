@@ -1458,6 +1458,7 @@ function setCompareSpot(ll) {
   if (!state[other]) state.nextSlot = other;
   syncCircles();
   growCircle(slot === "a" ? circleA : circleB);
+  if (isPhone() && cardHeight($("compare")) === "tall") setCard($("compare"), "open");   // a tap on the map wants the map in view
   renderPanels();
   // With both placed, show both: area B could land behind the bottom sheet on a phone once its card filled in
   if (state.a && state.b) keepInView(areaBounds(state.a).extend(areaBounds(state.b)));
@@ -1467,7 +1468,9 @@ function setCompareSpot(ll) {
 function pickSlot(slot) {
   state.nextSlot = slot;
   syncCircles();
-  renderPanels();
+  // Only the highlight moves, so it can glide across; rebuilding the cards would make it jump
+  for (const c of $("compare").querySelectorAll(".cmp[data-slot]")) c.classList.toggle("placing", c.dataset.slot === slot);
+  for (const b of $("compare").querySelectorAll(".slot-pick .ab")) b.setAttribute("aria-pressed", String(b.dataset.action === `slot-${slot}`));
 }
 // Dragging a handle moves its circle live and updates the card when it's let go
 for (const [slot, handle, circle] of [["a", handleA, circleA], ["b", handleB, circleB]]) {
@@ -1484,13 +1487,17 @@ for (const [slot, handle, circle] of [["a", handleA, circleA], ["b", handleB, ci
   handle.on("click", () => pickSlot(slot));
 }
 
-// One area's card, or an empty card for an area not placed yet (slot is "A" or "B")
-function compareCard(s, slot) {
-  const placing = state.nextSlot === slot.toLowerCase();
-  // An empty card is a button: click it to pick that area, then click the map
-  if (!s) return `<button type="button" class="cmp empty${placing ? " placing" : ""}" data-action="slot-${slot.toLowerCase()}">
-    <span><b>${slot}</b> · ${placing ? `Click the map to place area ${slot}, then drag its label to move it` : `Pick ${slot}, then click the map`}</span></button>`;
-  return `<div class="cmp${placing ? " placing" : ""}"><h3 class="who"><b>${slot}</b>Near ${s.name}</h3>
+// One area's card, or an empty card for an area not placed yet (slot is "A" or "B"). On phones, tapping either card
+// picks which area the next map tap places, and "fresh" marks a card whose area just changed so it fades in
+let lastCompare = {};
+function compareCard(s, slot, fresh) {
+  const phone = isPhone(), key = slot.toLowerCase(), act = phone ? "Tap" : "Click";
+  const cls = `cmp${state.nextSlot === key ? " placing" : ""}${fresh && phone ? " fresh" : ""}`;
+  // An empty card is a button; it says what to do whether or not it's the picked one, and CSS shows the right line
+  if (!s) return `<button type="button" class="${cls} empty" data-slot="${key}" data-action="slot-${key}">
+    <span class="if-placing"><b>${slot}</b> · ${phone ? `Tap the map to place ${slot}` : `Click the map to place area ${slot}, then drag its label to move it`}</span>
+    <span class="if-waiting"><b>${slot}</b> · ${phone ? `Tap here, then the map` : `Pick ${slot}, then click the map`}</span></button>`;
+  return `<div class="${cls}" data-slot="${key}"${phone ? ` data-action="slot-${key}"` : ""}><h3 class="who"><b>${slot}</b>Near ${s.name}</h3>
     <p class="big" data-count="${s.now}" data-key="${slot}">${fmt(s.now)}</p>${s.change ? `<span class="pill ${s.change.cls}" title="${s.change.text}">${s.change.text.replace("same dates ", "")}</span>` : ""}
     <p class="hint">Busiest per hour: ${busiestShort(s.buckets)}</p>
     ${state.type === "all" && s.violent != null ? `<p class="hint">Offences against a person in all of ${s.hood}: ${fmt(s.violent)}</p>` : ""}</div>`;
@@ -1548,9 +1555,13 @@ function renderCompare() {
       <div class="cmp-actions">
         <div class="slot-pick" role="group" aria-label="Which area a map click places"><span>Place</span>
           <button type="button" class="ab a" data-action="slot-a" aria-pressed="${state.nextSlot === "a"}">A</button><button type="button" class="ab b" data-action="slot-b" aria-pressed="${state.nextSlot === "b"}">B</button></div>
-        <button type="button" class="btn" data-action="swap">Swap</button><button type="button" class="btn" data-action="reset">Clear</button></div></div>
-    ${noYears() ? pickYear : `<div class="cmp-grid">${compareCard(A, "A")}${compareCard(B, "B")}</div>${compareTable(A, B, rows)}${compareInsight(A, B, rows)}`}`;
+        <button type="button" class="btn" data-action="swap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg><span class="lbl">Swap</span></button><button type="button" class="btn" data-action="reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span class="lbl">Clear</span></button></div></div>
+    ${noYears() ? pickYear : `<div class="cmp-grid">${compareCard(A, "A", changed("a"))}${compareCard(B, "B", changed("b"))}</div>${compareTable(A, B, rows)}${compareInsight(A, B, rows)}`}`;
+  lastCompare = { a: state.a, b: state.b };
+  $("compare").classList.toggle("incomplete", !(A && B));   // phones keep the card slim until both areas are down
 }
+// Whether an area was placed, moved or cleared since the cards were last drawn
+const changed = (slot) => slot in lastCompare && lastCompare[slot] !== state[slot];
 
 // ---------------------------------------------------------------------
 // Trends view: the whole city for the current filters
@@ -1882,6 +1893,7 @@ function bindMapClicks() {
     if (isOutside(e.latlng)) return showToast(OUTSIDE_NOTE);
     $("toast").classList.remove("show");   // the opening hint has done its job
     if (state.view === "compare") setCompareSpot(e.latlng); else selectPoint(e.latlng);
+    if (isPhone()) closeFilters();   // lower the pulled-up sheet so the new card can be seen
   });
   if (window.matchMedia("(hover: hover)").matches) {   // no cursor to follow on touch screens
     map.on("mousemove", (e) => {
@@ -1983,19 +1995,130 @@ for (const b of document.querySelectorAll(".views button, .rail button")) {
     setView(b.dataset.view);
   });
 }
-// The search lives in the header, except on phones where the header has no room and it joins the Filters row
+// Phones have no header, so its parts move, as on Apple Maps for iPhone: the search and theme switch onto the bottom
+// sheet's resting capsule, the name to the sheet's foot (above the refresh date), and the map key onto the map as a
+// chip. Wider screens put them all back
 function placeSearch() {
-  (isPhone() ? $("filters-top") : $("head-search")).prepend(document.querySelector(".search"));
+  const phone = isPhone(), search = document.querySelector(".search"), brand = document.querySelector(".brand"),
+    head = document.querySelector(".site-head"), theme = $("theme-toggle"), legend = $("legend");
+  // The map credit sits in its map corner (setPosition rebuilds it there). On phones it moves to the sheet's foot,
+  // after the refresh date, where Apple keeps its legal links, rather than running across the top of a small map
+  map.attributionControl.setPosition("bottomleft");
+  if (phone) {
+    $("filters-top").append(search);
+    $("updated").before(brand);
+    brand.append(theme);   // the theme switch sits on the right of the name in the sheet's foot
+    $("updated").after(map.attributionControl.getContainer());
+    $("app").append(legend);   // out of the sheet: inside its blur, a chip couldn't sit on the map
+  } else {
+    $("head-search").prepend(search);
+    head.prepend(brand);
+    head.append(theme);
+    $("filters-body").after(legend);
+  }
 }
 phoneQuery.addEventListener("change", placeSearch);
 placeSearch();
-function closeFilters() { $("filters").classList.remove("open"); $("filters-btn").setAttribute("aria-expanded", "false"); }
-$("filters-btn").addEventListener("click", () => {
-  const open = !$("filters").classList.contains("open");
-  $("filters").classList.toggle("open", open);
-  $("filters-btn").setAttribute("aria-expanded", String(open));
-  if (open) $("toast").classList.remove("show");   // on a phone the note would sit on top of the open panel
+// Phones: the filters' sheet has three heights: at rest (just the search), half the screen (.open) and all of it (.full)
+const SHEET_HEIGHTS = ["rest", "half", "full"];
+function sheetHeight() {
+  const f = $("filters");
+  return f.classList.contains("full") ? "full" : f.classList.contains("open") ? "half" : "rest";
+}
+function setSheet(height) {
+  const f = $("filters");
+  f.classList.toggle("open", height !== "rest");
+  f.classList.toggle("full", height === "full");
+  $("filters-handle").setAttribute("aria-expanded", String(height !== "rest"));
+  if (height !== "rest") $("toast").classList.remove("show");   // the note would sit on top of the open sheet
+}
+function closeFilters() { setSheet("rest"); }
+// A real pull-up of the sheet closes the card under it: the area card lets go of its spot, and Compare or Trends go
+// back to the map view. Putting the sheet back down then shows the map and the search. It waits for the card to fade
+// out, and keeps the card if the sheet went straight back down (just a peek)
+function releaseCard() {
+  if (state.view === "map" && !state.selected) return;
+  setTimeout(() => {
+    if (sheetHeight() === "rest") return;
+    if (state.view === "map") { state.selected = null; syncCircles(); renderPanels(); } else setView("map");
+  }, 300);
+}
+$("filters-handle").addEventListener("click", () => {
+  const up = sheetHeight() === "rest";
+  setSheet(up ? "half" : "rest");
+  if (up) releaseCard();
 });
+// (Searching in Compare places an area by name, so there the search leaves the Compare card be)
+$("search").addEventListener("focus", () => { if (isPhone()) { setSheet("full"); if (state.view === "map") releaseCard(); } });   // as on Apple Maps: typing lifts the sheet clear of the keyboard
+// Dragging any sheet's handle moves the sheet with the finger, as on iPhone. On release it settles at the nearest
+// height it can rest at (the filters: rest, half, full; a card: shrunk or open), carried on a step by a quick flick.
+// A tap still works through the handle's own click; after a drag, the click the browser may send as well is ignored
+let swallowClickUntil = 0, drag = null;
+// A card rests shrunk to its heading, open (a third of the screen, set in the styles) or tall. Dragged right down
+// ("gone") it closes, as its hidden close button would: the area card lets go of its spot, Compare and Trends go back to the map
+const cardHeight = (panel) => panel.classList.contains("collapsed") ? "shrunk" : panel.classList.contains("tall") ? "tall" : "open";
+function setCard(panel, name) {
+  panel.classList.toggle("collapsed", name === "shrunk");
+  panel.classList.toggle("tall", name === "tall");
+  panel.querySelector(".sheet-handle").setAttribute("aria-expanded", String(name !== "shrunk"));
+}
+// Each height a sheet can rest at, in pixels, read by trying each one on with animations off
+function restingHeights(panel) {
+  const filters = panel.id === "filters", was = filters ? sheetHeight() : cardHeight(panel);
+  const tryOn = (h) => filters ? setSheet(h) : setCard(panel, h);
+  panel.style.transition = "none";
+  const heights = (filters ? SHEET_HEIGHTS : ["shrunk", "open", "tall"]).map((h) => { tryOn(h); return [h, panel.offsetHeight]; });
+  tryOn(was);
+  return filters ? heights : [["gone", 0], ...heights];
+}
+function settleSheet(panel, name, px) {
+  const low = name === "rest" || name === "shrunk" || name === "gone";
+  const apply = () => panel.id === "filters" ? setSheet(name) : name === "gone" ? panel.querySelector(".x").click() : setCard(panel, name);
+  if (!low) apply();   // going up: show the content as it rises; going down: hide it once there
+  if (!low && panel.id === "filters") releaseCard();
+  panel.style.transition = ["height", "left", "right", "bottom", "border-radius"].map((p) => p + " 0.28s var(--ease)").join(", ");
+  panel.style.height = px + "px";
+  setTimeout(() => { if (low) apply(); panel.style.removeProperty("height"); panel.style.removeProperty("max-height"); panel.style.removeProperty("transition"); panel.style.removeProperty("overflow"); }, 290);
+}
+document.addEventListener("pointerdown", (e) => {
+  const handle = e.target.closest(".sheet-handle");
+  if (!handle || !isPhone()) return;
+  handle.setPointerCapture(e.pointerId);   // keep getting the pointer if the finger slides off the thin handle
+  const panel = handle.closest(".panel");
+  // While a card shows, the resting sheet is tucked below the screen with only its handle showing, so a drag starts
+  // from that sliver rather than from the whole capsule
+  const tucked = panel.id === "filters" && sheetHeight() === "rest" && (state.view !== "map" || $("area").innerHTML !== "");
+  drag = { handle, panel, heights: restingHeights(panel), y0: e.clientY, h0: tucked ? 30 : panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false };
+});
+document.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const { panel, heights, y0, h0 } = drag;
+  if (!drag.moved) {
+    if (Math.abs(e.clientY - y0) < 6) return;   // not a drag yet: could still be a tap
+    drag.moved = true;
+    if (panel.id === "filters" && sheetHeight() === "rest") setSheet("half");   // let the content show as it's pulled up
+    panel.style.transition = "none"; panel.style.maxHeight = "none"; panel.style.overflow = "hidden";
+  }
+  const lo = heights[0][1], hi = heights[heights.length - 1][1];
+  panel.style.height = Math.max(Math.min(h0, lo - 30), Math.min(hi + 30, h0 - (e.clientY - y0))) + "px";
+  drag.v = (e.clientY - drag.y) / Math.max(1, e.timeStamp - drag.t);   // px per ms, downward positive
+  drag.y = e.clientY; drag.t = e.timeStamp;
+});
+function endDrag() {
+  if (!drag) return;
+  const { panel, heights, moved, v } = drag;
+  drag = null;
+  if (!moved) { panel.style.removeProperty("transition"); return; }   // a tap: the click toggles it
+  const aim = panel.offsetHeight - v * 150;   // where a flick would carry it
+  const [name, px] = heights.reduce((best, h) => Math.abs(h[1] - aim) < Math.abs(best[1] - aim) ? h : best);
+  settleSheet(panel, name, px);
+  swallowClickUntil = performance.now() + 400;
+}
+document.addEventListener("pointerup", endDrag);
+document.addEventListener("pointercancel", endDrag);
+document.addEventListener("click", (e) => {
+  if (performance.now() < swallowClickUntil && e.target.closest(".sheet-handle")) { e.stopPropagation(); swallowClickUntil = 0; }
+}, true);
 // Wider screens: the header's sidebar button, or the name beside it, slides the filters drawer away to give the map the
 // whole width, and the name folds down to the mark, as on Apple Maps. The choice is remembered
 function setSidebar(open) {
