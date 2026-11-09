@@ -515,8 +515,11 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
      Tapping the search goes straight to full, clear of the keyboard */
   .filters { top: auto; left: 12px; right: 12px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; max-height: 50%; padding: 0 12px 12px; gap: 14px;
     border-width: 1px; border-radius: 30px; transition: left 0.3s var(--ease), right 0.3s var(--ease), bottom 0.3s var(--ease), max-height 0.3s var(--ease), border-radius 0.3s var(--ease), transform 0.3s var(--ease); }
-  .filters .sheet-handle { height: 22px; }
-  .filters .sheet-handle::before { margin-top: 8px; }
+  .filters .sheet-handle { height: 26px; }
+  .filters .sheet-handle::before { margin-top: 10px; }
+  /* A finger can grab a sheet by its heading as well as its handle, and the resting capsule anywhere (app.js tells a
+     drag from a tap), so those parts take the swipe instead of the page */
+  :is(.filters-top, .filters:not(.open), .card-head, .cmp-head) { touch-action: none; }
   .filters-top { display: flex; align-items: center; gap: 8px; }
   .filters .search { height: 44px; border-radius: 22px; }
   .filters .theme-toggle { width: 40px; height: 40px; background: var(--surface-2); border-color: transparent; }
@@ -542,7 +545,9 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   /* While a card is showing (Compare, Trends, or a picked spot), the resting capsule tucks below the screen with just
      its handle along the bottom edge, and the card takes its place, leaving more of the map. Drag the handle up to
      bring the search and filters back; closing the card brings the capsule back too */
-  .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .filters:not(.open) { transform: translateY(calc(100% - 22px + 8px + env(safe-area-inset-bottom))); }
+  .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .filters:not(.open) { transform: translateY(calc(100% - 36px)); }
+  /* That leaves its top 44px showing above the phone's home bar (the safe area), a strip a thumb can catch without
+     setting off the system's own swipe up from the very bottom edge */
 
   /* The map key as a small frosted chip in the top left, where Apple shows the weather: Fewer, the ramp, More */
   .app > .legend { position: absolute; z-index: 5; top: calc(12px + env(safe-area-inset-top)); left: 12px; width: 190px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 14px;
@@ -555,8 +560,8 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .legend-note { grid-column: 1 / -1; }
 
   /* The area, Compare and Trends cards float just above the tucked sheet's handle. Their tops stop below the floating buttons */
-  .area, .compare, .trends { left: 12px; right: 12px; bottom: calc(30px + env(safe-area-inset-bottom)); top: auto; width: auto;
-    --card-max: calc(100% - 30px - env(safe-area-inset-bottom) - 190px);   /* the tallest a card gets: 190px clears the pill's 168px */
+  .area, .compare, .trends { left: 12px; right: 12px; bottom: calc(52px + env(safe-area-inset-bottom)); top: auto; width: auto;
+    --card-max: calc(100% - 52px - env(safe-area-inset-bottom) - 190px);   /* the tallest a card gets: 190px clears the pill's 168px */
     max-height: min(var(--card-max), 32%); border-radius: 26px; padding: 0 16px 16px; }
   /* A card opens at a third of the screen so most of the map stays free to tap and pan; drag its handle up for .tall */
   .area.tall, .compare.tall, .trends.tall { max-height: var(--card-max); }
@@ -606,8 +611,13 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .toast { top: calc(60px + env(safe-area-inset-top)); bottom: auto; }
   /* The same frosted glass as wider screens on everything over the map, so the map shows softly through */
   .panel, .app > .legend { background: var(--glass); border-color: var(--glass-edge);
-    -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
+    -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
     --surface-2: var(--glass-fill); --bar-bg: var(--glass-fill-2); --faint: var(--muted); }
+  /* Kept light for speed: every blurred layer is redrawn each frame the map moves under it, which phones feel. So the
+     blur is softer than on wider screens with no colour boost, the small views pill and key chip are near-solid with
+     no blur, and the area rings drop their soft shadow */
+  .rail, .app > .legend { background: color-mix(in srgb, var(--surface) 92%, transparent); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :root[data-theme] #map .leaflet-overlay-pane path { filter: none; }
   :root:not([data-theme="dark"]) :is(.panel, .app > .legend) { --muted: #48525c; --sea: #155a96; }   /* 4.5:1 over the darkest heat */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .panel, .app > .legend { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .panel, .app > .legend { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
