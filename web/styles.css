@@ -35,7 +35,7 @@
   --tile-filter: none;     /* only used by the fallback raster tiles */
   --control-shadow: 0 1px 3px rgba(28, 37, 45, 0.14), 0 4px 12px rgba(28, 37, 45, 0.08);
   --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  /* Text on the map: Apple's own SF where the device has it, like Apple Maps, otherwise the page's face */
+  /* Text on the map: the device's own system face where it has one, otherwise the page's face */
   --map-font: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
   color-scheme: light;
   box-sizing: border-box;
@@ -43,9 +43,9 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 :root[data-theme="dark"] {
-  /* Deep navy, like Apple's own dark panels and the night map's water: surfaces darker and bluer than the map's slate
+  /* Deep navy, like the night map's water: surfaces darker and bluer than the map's slate
      land so they sit clearly above it, the map's label inks for text. The accent and both area rings are that white ink, thin and
-     neutral like Apple Maps' own marks, so the heat keeps all the colour */
+     and neutral, so the heat keeps all the colour */
   --ink: #e6ebf1; --muted: #aab3bf; --faint: #959fae; --line: #2f3849;
   --page: #141a26; --surface: #1a2130; --surface-2: #232b3b;
   --sea: #e6ebf1; --sea-soft: #2c3546; --on-sea: #141a26; --ring: #e6ebf1; --on-ring: #141a26; --circle: var(--ring);
@@ -80,7 +80,7 @@ a { color: var(--sea); }
 /* The logo: the name's first letter is the mark, a V of two map panels meeting at a crease */
 .wordmark { display: inline-flex; align-items: center; }
 /* On wider screens the name is also the sidebar toggle: a click hides the filters (the name folding into the mark)
-   or brings them back, as Apple Maps' sidebar does */
+   or brings them back */
 .brand-btn { border: 0; background: none; padding: 0; cursor: pointer; font-weight: inherit; }
 .wm-text { display: inline-block; overflow: hidden; white-space: nowrap; max-width: 6em; margin-left: 0.32em; }
 .mark { flex: none; width: 1.3em; height: 1.3em; overflow: visible; }
@@ -109,7 +109,7 @@ a { color: var(--sea); }
 .theme-toggle { flex: none; display: grid; place-items: center; width: 36px; height: 36px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; cursor: pointer; }
 .theme-toggle:hover { border-color: var(--sea); }
 .theme-toggle svg { width: 16px; height: 16px; }
-/* Beside the name, like Apple Maps' sidebar button: hides or shows the filters card (wider screens only) */
+/* Beside the name, the sidebar button: hides or shows the filters card (wider screens only) */
 .side-toggle { flex: none; display: grid; place-items: center; width: 34px; height: 34px; margin-left: -4px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer;
   transition: background-color 0.2s, color 0.2s, transform 0.12s; }   /* fades in and out like the other header buttons */
 .side-toggle:hover { color: var(--ink); background: var(--hover); }
@@ -122,10 +122,10 @@ a { color: var(--sea); }
 .app { position: relative; flex: 1; min-height: 0; --top: 0px; }   /* --top: how far the header reaches over the map (none on phones) */
 #map { position: absolute; inset: 0; z-index: 0; background: var(--map-bg); cursor: crosshair; }
 #map .osm-fallback { filter: grayscale(1) var(--tile-filter); }
-/* Map controls float over busy colour, so they get a thin stroke and a light shadow to stand off it (Apple's map guidance) */
+/* Map controls float over busy colour, so they get a thin stroke and a light shadow to stand off it */
 #map .leaflet-bar { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: var(--control-shadow); }
 #map.leaflet-container { font-family: var(--map-font); }
-/* Leaflet sets the + and − in a monospace face; a light weight of the map face, like Apple's zoom stepper */
+/* Leaflet sets the + and − in a monospace face; a light weight of the map face suits plain + and − signs */
 #map .leaflet-bar a { width: 40px; height: 40px; line-height: 38px; font: 300 24px/38px var(--map-font); text-indent: 0; background: var(--surface); color: var(--ink); border-bottom-color: var(--line); }
 #map .leaflet-bar a:first-child, #map .leaflet-bar a:last-child { border-radius: 0; }
 #map .leaflet-bar a:hover { background: var(--surface-2); }
@@ -182,13 +182,13 @@ a { color: var(--sea); }
 .rail button:active { transform: scale(0.94); }
 .panel { position: absolute; z-index: 10; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
 .filters { top: 16px; left: 16px; max-height: calc(100% - 32px); width: var(--side-w); padding: 18px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
-/* Wider screens: the map runs under the header, and the header and every panel are one frosted material, like
-   Apple Maps', so they read as a single layer over the map, whose colours show softly through. Fills inside
+/* Wider screens: the map runs under the header, and the header and every panel are one frosted material, so they
+   read as a single layer over the map, whose colours show softly through. Fills inside
    are see-through tints of the ink, and hints use the secondary grey, so text keeps 4.5:1 even over the brightest heat */
 @media (min-width: 761px) {
   body { position: relative; }
   .app { --top: 58px; }
-  /* Apple Maps' material: a strong blur with a colour boost, so the map's colours glow softly through the panel */
+  /* The material: a strong blur with a colour boost, so the map's colours glow softly through the panel */
   .site-head, .panel { background: var(--glass); border-color: var(--glass-edge);
     -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
     --surface-2: var(--glass-fill); --bar-bg: var(--glass-fill-2); --faint: var(--muted); }
@@ -205,7 +205,7 @@ a { color: var(--sea); }
   .filters { top: var(--top); left: 0; max-height: calc(100% - var(--top)); border-width: 0 1px 1px 0; border-radius: 0 0 16px 0; }
   /* It slides out past the left edge and back in. The entrance animation must let go once it has played, or its
      held frame would override the slide and the drawer would just pop in and out */
-  .app .filters { transition: transform 0.25s ease-in-out, visibility 0.25s; animation-fill-mode: backwards; }   /* Apple Maps' sidebar timing */
+  .app .filters { transition: transform 0.25s ease-in-out, visibility 0.25s; animation-fill-mode: backwards; }   /* a quick, even slide */
   body.side-hidden .filters { transform: translateX(calc(-100% - 2px)); visibility: hidden; }
   /* The name folds away into the mark as the drawer goes, and unfolds as it comes back */
   .wm-text { transition: max-width 0.25s ease-in-out, margin-left 0.25s ease-in-out, opacity 0.2s ease-in-out; }
@@ -497,8 +497,8 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
 
 /* ---------------- Phones: the map fills the screen; everything else is in a sheet pulled up from the bottom ---------------- */
 @media (max-width: 760px) {
-  /* No header bar, as on Apple Maps for iPhone. app.js moves the search and theme switch onto the bottom sheet, the
-     name to the sheet's foot and the map key onto the map; the views float top right */
+  /* No header bar: app.js moves the search onto the bottom sheet, the name and theme switch to the sheet's foot and
+     the map key onto the map; the views float top right */
   .site-head { position: absolute; height: 0; padding: 0; border: 0; }
   .head-search, .side-toggle, .views { display: none; }
   .app { overflow: hidden; }   /* the sheet tucked below the screen mustn't make the page scroll */
@@ -510,7 +510,7 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   body:has(.filters.open) .rail { opacity: 0; visibility: hidden; }
   .rail button { width: 44px; height: 44px; border-radius: 22px; }
 
-  /* The filters are a sheet with three heights, as on Apple Maps for iPhone. At rest it's a floating capsule holding just
+  /* The filters are a sheet with three heights. At rest it's a floating capsule holding just
      the handle and the search. Drag the handle up for half the screen (.open) or all of it (.full), down to step back.
      Tapping the search goes straight to full, clear of the keyboard */
   .filters { top: auto; left: 12px; right: 12px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; max-height: 50%; padding: 0 12px 12px; gap: 14px;
@@ -526,7 +526,7 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
     padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
   .filters.open .filters-body { display: flex; }
   .filters.open .brand, .filters.open .updated, .filters.open .leaflet-control-attribution, .filters.open details.about { display: block; }
-  /* The foot, as Apple ends its sheet: the name with the theme switch on its right, the refresh date, the map credit and About */
+  /* The sheet's foot: the name with the theme switch on its right, the refresh date, the map credit and About */
   .filters.open .brand { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
   .filters .leaflet-control-attribution { margin-top: -8px; font-size: 0.78rem; color: var(--muted); }
   .filters .leaflet-control-attribution a { color: var(--sea); }
@@ -544,7 +544,7 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
      bring the search and filters back; closing the card brings the capsule back too */
   .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .filters:not(.open) { transform: translateY(calc(100% - 22px + 8px + env(safe-area-inset-bottom))); }
 
-  /* The map key as a small frosted chip in the top left, where Apple shows the weather: Fewer, the ramp, More */
+  /* The map key as a small frosted chip in the top left: Fewer, the ramp, More */
   .app > .legend { position: absolute; z-index: 5; top: calc(12px + env(safe-area-inset-top)); left: 12px; width: 190px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 14px;
     display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 8px; font-size: 0.8rem; }
   .legend .lab { display: none; }
