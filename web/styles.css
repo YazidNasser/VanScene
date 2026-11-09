@@ -529,7 +529,9 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .legend-note { grid-column: 1 / -1; }
 
   .area, .compare, .trends { left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 48%; border-radius: 18px 18px 0 0; border-bottom: 0; padding: 4px 16px 18px; }
-  .sheet-handle { display: block; width: 100%; height: 32px; border: 0; background: transparent; cursor: pointer; position: sticky; top: 0; z-index: 1; }
+  /* The handle scrolls away with the sheet's heading and close button rather than staying pinned, where the text
+     would run straight through the grip on see-through glass */
+  .sheet-handle { display: block; width: 100%; height: 32px; border: 0; background: transparent; cursor: pointer; }
   .sheet-handle::before { content: ""; display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--faint); margin: 10px auto 0; }
   .panel.collapsed { max-height: 102px; overflow: hidden; }
   .big { font-size: 2.2rem; }
