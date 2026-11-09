@@ -1882,6 +1882,7 @@ function bindMapClicks() {
     if (isOutside(e.latlng)) return showToast(OUTSIDE_NOTE);
     $("toast").classList.remove("show");   // the opening hint has done its job
     if (state.view === "compare") setCompareSpot(e.latlng); else selectPoint(e.latlng);
+    if (isPhone()) closeFilters();   // lower the pulled-up sheet so the new card can be seen
   });
   if (window.matchMedia("(hover: hover)").matches) {   // no cursor to follow on touch screens
     map.on("mousemove", (e) => {
@@ -1983,19 +1984,50 @@ for (const b of document.querySelectorAll(".views button, .rail button")) {
     setView(b.dataset.view);
   });
 }
-// The search lives in the header, except on phones where the header has no room and it joins the Filters row
+// The name, search and theme switch live in the header, except on phones, which have no header: there they top the
+// filters' bottom sheet, the name just under its handle with the theme switch beside it, as on Apple Maps
 function placeSearch() {
   (isPhone() ? $("filters-top") : $("head-search")).prepend(document.querySelector(".search"));
+  const brand = document.querySelector(".brand"), head = document.querySelector(".site-head");
+  if (isPhone()) { $("filters-handle").after(brand); brand.append($("theme-toggle")); }
+  else { head.prepend(brand); head.append($("theme-toggle")); }
 }
 phoneQuery.addEventListener("change", placeSearch);
 placeSearch();
-function closeFilters() { $("filters").classList.remove("open"); $("filters-btn").setAttribute("aria-expanded", "false"); }
-$("filters-btn").addEventListener("click", () => {
-  const open = !$("filters").classList.contains("open");
+// Phones: the filters' bottom sheet rests low, showing the search and the map key; its handle pulls the rest up
+function setFilters(open) {
   $("filters").classList.toggle("open", open);
-  $("filters-btn").setAttribute("aria-expanded", String(open));
-  if (open) $("toast").classList.remove("show");   // on a phone the note would sit on top of the open panel
+  $("filters-handle").setAttribute("aria-expanded", String(open));
+  if (open) $("toast").classList.remove("show");   // the note would sit on top of the open sheet
+}
+function closeFilters() { setFilters(false); }
+$("filters-handle").addEventListener("click", () => setFilters(!$("filters").classList.contains("open")));
+$("search").addEventListener("focus", () => { if (isPhone()) setFilters(true); });   // as on Apple Maps: typing lifts the sheet clear of the keyboard
+// The cards float just above the resting sheet, so they need its height. Only measured at rest, not while it's pulled up
+new ResizeObserver(() => {
+  if (isPhone() && !$("filters").classList.contains("open")) $("app").style.setProperty("--peek", $("filters").offsetHeight + "px");
+}).observe($("filters"));
+// A swipe on any sheet's handle moves that sheet the way the finger went: up opens it, down puts it away. A tap still
+// toggles it through the handle's own click; after a swipe, the click the browser may send as well is ignored
+let swallowClickUntil = 0;
+document.addEventListener("pointerdown", (e) => {
+  const handle = e.target.closest(".sheet-handle");
+  if (!handle || !isPhone()) return;
+  handle.setPointerCapture(e.pointerId);   // keep getting the pointer if the finger slides off the thin handle
+  handle.dataset.startY = e.clientY;
 });
+document.addEventListener("pointerup", (e) => {
+  const handle = e.target.closest(".sheet-handle");
+  if (!handle || handle.dataset.startY === undefined) return;
+  const dy = e.clientY - Number(handle.dataset.startY);
+  delete handle.dataset.startY;
+  if (Math.abs(dy) < 24) return;   // a tap
+  if ((handle.getAttribute("aria-expanded") === "true") !== (dy < 0)) handle.click();
+  swallowClickUntil = performance.now() + 400;
+});
+document.addEventListener("click", (e) => {
+  if (performance.now() < swallowClickUntil && e.target.closest(".sheet-handle")) { e.stopPropagation(); swallowClickUntil = 0; }
+}, true);
 // Wider screens: the header's sidebar button, or the name beside it, slides the filters drawer away to give the map the
 // whole width, and the name folds down to the mark, as on Apple Maps. The choice is remembered
 function setSidebar(open) {
