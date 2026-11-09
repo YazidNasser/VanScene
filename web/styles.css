@@ -566,6 +566,8 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .sheet-handle::before { content: ""; display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--faint); margin: 10px auto 0; }
   /* Shrunk, a card keeps just its handle and heading (title, line under it, close button), nothing cut off halfway */
   .panel.collapsed { overflow: hidden; }
+  /* No close button on the cards: drag one down past its shrunk height to close it. It stays for keyboards and screen readers */
+  :is(.area, .compare, .trends) .x { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .panel.collapsed > :not(.sheet-handle, .card-head, .cmp-head), .panel.collapsed .cmp-head > :not(.card-head) { display: none; }
   .big { font-size: 2.2rem; }
   .cmp-grid { gap: 8px; }   /* still side by side in the card */
@@ -579,7 +581,7 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .compare .slot-pick { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   /* Swap and Clear as two small icon buttons on the title's line, beside the close button, rather than a row of their own */
   .compare .cmp-head { position: relative; }
-  .compare .cmp-actions { position: absolute; top: -7px; right: 44px; gap: 4px; }   /* level with the title, clear of the line under it */
+  .compare .cmp-actions { position: absolute; top: -7px; right: 0; gap: 4px; }   /* level with the title, clear of the line under it */
   .compare .btn { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border-radius: 9px; }
   .compare .btn svg { display: block; width: 16px; height: 16px; }
   .compare .btn .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

@@ -2050,7 +2050,8 @@ $("search").addEventListener("focus", () => { if (isPhone()) { setSheet("full");
 // height it can rest at (the filters: rest, half, full; a card: shrunk or open), carried on a step by a quick flick.
 // A tap still works through the handle's own click; after a drag, the click the browser may send as well is ignored
 let swallowClickUntil = 0, drag = null;
-// A card rests shrunk to its heading, open (40% of the screen, set in the styles) or tall
+// A card rests shrunk to its heading, open (a third of the screen, set in the styles) or tall. Dragged right down
+// ("gone") it closes, as its hidden close button would: the area card lets go of its spot, Compare and Trends go back to the map
 const cardHeight = (panel) => panel.classList.contains("collapsed") ? "shrunk" : panel.classList.contains("tall") ? "tall" : "open";
 function setCard(panel, name) {
   panel.classList.toggle("collapsed", name === "shrunk");
@@ -2064,11 +2065,11 @@ function restingHeights(panel) {
   panel.style.transition = "none";
   const heights = (filters ? SHEET_HEIGHTS : ["shrunk", "open", "tall"]).map((h) => { tryOn(h); return [h, panel.offsetHeight]; });
   tryOn(was);
-  return heights;
+  return filters ? heights : [["gone", 0], ...heights];
 }
 function settleSheet(panel, name, px) {
-  const low = name === "rest" || name === "shrunk";
-  const apply = () => panel.id === "filters" ? setSheet(name) : setCard(panel, name);
+  const low = name === "rest" || name === "shrunk" || name === "gone";
+  const apply = () => panel.id === "filters" ? setSheet(name) : name === "gone" ? panel.querySelector(".x").click() : setCard(panel, name);
   if (!low) apply();   // going up: show the content as it rises; going down: hide it once there
   if (!low && panel.id === "filters") releaseSpot();
   panel.style.transition = ["height", "left", "right", "bottom", "border-radius"].map((p) => p + " 0.28s var(--ease)").join(", ");
