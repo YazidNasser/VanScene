@@ -497,6 +497,7 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
      name to the sheet's foot and the map key onto the map; the views float top right */
   .site-head { position: absolute; height: 0; padding: 0; border: 0; }
   .head-search, .side-toggle, .views { display: none; }
+  .app { overflow: hidden; }   /* the sheet tucked below the screen mustn't make the page scroll */
   .brand-btn { cursor: default; }   /* no sidebar to fold away on phones */
   .filters .brand h1 { font-size: 1.05rem; }
   /* Map, Compare and Trends as a slim pill of icons, clear of the notch. It steps aside while the sheet is pulled up over it */
@@ -534,7 +535,7 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   /* Compare and Trends have their own card, so the resting capsule tucks below the screen with just its handle showing
      along the bottom edge, and the card drops into its place. Drag the handle up to bring the search and filters back */
   .app:not([data-view="map"]) .filters:not(.open) { transform: translateY(calc(100% - 22px + 8px + env(safe-area-inset-bottom))); }
-  .app:not([data-view="map"]) :is(.compare, .trends) { bottom: calc(30px + env(safe-area-inset-bottom)); max-height: calc(100% - 30px - env(safe-area-inset-bottom) - 190px); }
+  .app:not([data-view="map"]) :is(.compare, .trends) { bottom: calc(30px + env(safe-area-inset-bottom)); --card-max: calc(100% - 30px - env(safe-area-inset-bottom) - 190px); }
 
   /* The map key as a small frosted chip in the top left, where Apple shows the weather: Fewer, the ramp, More */
   .app > .legend { position: absolute; z-index: 5; top: calc(12px + env(safe-area-inset-top)); left: 12px; width: 190px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 14px;
@@ -549,7 +550,10 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   /* The area, Compare and Trends cards float just above the resting capsule (--peek: from its top to the screen's foot,
      set by app.js), so the search stays in reach. Their tops stop below the floating buttons */
   .area, .compare, .trends { left: 12px; right: 12px; bottom: calc(var(--peek, 90px) + 8px); top: auto; width: auto;
-    max-height: calc(100% - var(--peek, 90px) - 190px); border-radius: 26px; padding: 0 16px 16px; }   /* 190px: the pill's 168px and a gap */
+    --card-max: calc(100% - var(--peek, 90px) - 190px);   /* the tallest a card gets: 190px clears the pill's 168px */
+    max-height: min(var(--card-max), 40%); border-radius: 26px; padding: 0 16px 16px; }
+  /* A card opens at 40% of the screen so most of the map stays free to tap and pan; drag its handle up for .tall */
+  .area.tall, .compare.tall, .trends.tall { max-height: var(--card-max); }
   /* The handle scrolls away with the card's heading and close button rather than staying pinned, where the text
      would run straight through the grip on see-through glass. It takes swipes itself, so the page doesn't scroll */
   .sheet-handle { display: block; flex: none; width: 100%; height: 32px; border: 0; background: transparent; cursor: pointer; touch-action: none; }

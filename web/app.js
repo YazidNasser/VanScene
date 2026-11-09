@@ -2034,21 +2034,25 @@ new ResizeObserver(() => {
 // height it can rest at (the filters: rest, half, full; a card: shrunk or open), carried on a step by a quick flick.
 // A tap still works through the handle's own click; after a drag, the click the browser may send as well is ignored
 let swallowClickUntil = 0, drag = null;
+// A card rests shrunk to its heading, open (40% of the screen, set in the styles) or tall
+const cardHeight = (panel) => panel.classList.contains("collapsed") ? "shrunk" : panel.classList.contains("tall") ? "tall" : "open";
+function setCard(panel, name) {
+  panel.classList.toggle("collapsed", name === "shrunk");
+  panel.classList.toggle("tall", name === "tall");
+  panel.querySelector(".sheet-handle").setAttribute("aria-expanded", String(name !== "shrunk"));
+}
 // Each height a sheet can rest at, in pixels, read by trying each one on with animations off
 function restingHeights(panel) {
-  const filters = panel.id === "filters", was = filters ? sheetHeight() : panel.classList.contains("collapsed");
-  const tryOn = (h) => filters ? setSheet(h) : panel.classList.toggle("collapsed", h === "shrunk");
+  const filters = panel.id === "filters", was = filters ? sheetHeight() : cardHeight(panel);
+  const tryOn = (h) => filters ? setSheet(h) : setCard(panel, h);
   panel.style.transition = "none";
-  const heights = (filters ? SHEET_HEIGHTS : ["shrunk", "open"]).map((h) => { tryOn(h); return [h, panel.offsetHeight]; });
-  tryOn(filters ? was : (was ? "shrunk" : "open"));
+  const heights = (filters ? SHEET_HEIGHTS : ["shrunk", "open", "tall"]).map((h) => { tryOn(h); return [h, panel.offsetHeight]; });
+  tryOn(was);
   return heights;
 }
-function settleSheet(panel, handle, name, px) {
+function settleSheet(panel, name, px) {
   const low = name === "rest" || name === "shrunk";
-  const apply = () => {
-    if (panel.id === "filters") setSheet(name);
-    else { panel.classList.toggle("collapsed", low); handle.setAttribute("aria-expanded", String(!low)); }
-  };
+  const apply = () => panel.id === "filters" ? setSheet(name) : setCard(panel, name);
   if (!low) apply();   // going up: show the content as it rises; going down: hide it once there
   panel.style.transition = ["height", "left", "right", "bottom", "border-radius"].map((p) => p + " 0.28s var(--ease)").join(", ");
   panel.style.height = px + "px";
@@ -2080,12 +2084,12 @@ document.addEventListener("pointermove", (e) => {
 });
 function endDrag() {
   if (!drag) return;
-  const { panel, handle, heights, moved, v } = drag;
+  const { panel, heights, moved, v } = drag;
   drag = null;
   if (!moved) { panel.style.removeProperty("transition"); return; }   // a tap: the click toggles it
   const aim = panel.offsetHeight - v * 150;   // where a flick would carry it
   const [name, px] = heights.reduce((best, h) => Math.abs(h[1] - aim) < Math.abs(best[1] - aim) ? h : best);
-  settleSheet(panel, handle, name, px);
+  settleSheet(panel, name, px);
   swallowClickUntil = performance.now() + 400;
 }
 document.addEventListener("pointerup", endDrag);
