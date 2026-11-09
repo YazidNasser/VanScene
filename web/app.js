@@ -427,7 +427,9 @@ function paintCoverage(theme) {
 let heatSpots = [], refSpots = [];
 let refHours = null;                       // whether refSpots was last worked out for a time of day
 const refScales = new Map();               // the colour scale at each zoom, for refSpots (see heatScale)
-const HEAT_PAD = 0.35;   // of the map's size, on each side: covers a half-step zoom out or a short pan
+// Of the map's size, on each side: covers a half-step zoom out or a short pan. Phones keep a slimmer margin: the
+// heat's colouring filter is slow in phone browsers and its cost grows with the canvas, which this margin nearly triples
+const HEAT_PAD = phoneQuery.matches ? 0.15 : 0.35;
 Object.assign(L.HeatLayer.prototype, {
   _reset() {
     const map = this._map, size = map.getSize(), pad = size.multiplyBy(HEAT_PAD).round();
@@ -2080,35 +2082,50 @@ function settleSheet(panel, name, px) {
   panel.style.height = px + "px";
   setTimeout(() => { if (low) apply(); panel.style.removeProperty("height"); panel.style.removeProperty("max-height"); panel.style.removeProperty("transition"); panel.style.removeProperty("overflow"); }, 290);
 }
+// Where a finger can grab a sheet: its handle, the search row, anywhere on the resting capsule, and a card's heading.
+// A wide target matters on a phone, where the thin handle alone took a precise touch
+const GRAB = ".sheet-handle, .filters-top, .filters:not(.open), .card-head, .cmp-head";
 document.addEventListener("pointerdown", (e) => {
-  const handle = e.target.closest(".sheet-handle");
-  if (!handle || !isPhone()) return;
-  handle.setPointerCapture(e.pointerId);   // keep getting the pointer if the finger slides off the thin handle
-  const panel = handle.closest(".panel");
-  // While a card shows, the resting sheet is tucked below the screen with only its handle showing, so a drag starts
+  const zone = e.target.closest(GRAB);
+  if (!zone || !isPhone() || e.button > 0) return;
+  const panel = zone.closest(".panel");
+  // While a card shows, the resting sheet is tucked below the screen with only its top showing, so a drag starts
   // from that sliver rather than from the whole capsule
   const tucked = panel.id === "filters" && sheetHeight() === "rest" && (state.view !== "map" || $("area").innerHTML !== "");
-  drag = { handle, panel, heights: restingHeights(panel), y0: e.clientY, h0: tucked ? 30 : panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false };
+  drag = { panel, id: e.pointerId, x0: e.clientX, y0: e.clientY, h0: tucked ? 44 : panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false, frame: 0 };
 });
 document.addEventListener("pointermove", (e) => {
-  if (!drag) return;
-  const { panel, heights, y0, h0 } = drag;
-  if (!drag.moved) {
-    if (Math.abs(e.clientY - y0) < 6) return;   // not a drag yet: could still be a tap
-    drag.moved = true;
+  const d = drag;
+  if (!d || e.pointerId !== d.id) return;
+  const { panel, y0 } = d;
+  if (!d.moved) {
+    const dx = Math.abs(e.clientX - d.x0), dy = Math.abs(e.clientY - y0);
+    if (dy < 8 && dx < 8) return;   // not a drag yet: could still be a tap on the search or a button
+    if (dx > dy) { drag = null; return; }   // a sideways swipe isn't for the sheet
+    d.moved = true;
+    try { panel.setPointerCapture(e.pointerId); } catch (err) {}   // keep the finger if it slides off the sheet
+    d.heights = restingHeights(panel);   // read once the drag starts, so a plain tap costs nothing
     if (panel.id === "filters" && sheetHeight() === "rest") setSheet("half");   // let the content show as it's pulled up
     panel.style.transition = "none"; panel.style.maxHeight = "none"; panel.style.overflow = "hidden";
   }
-  const lo = heights[0][1], hi = heights[heights.length - 1][1];
-  panel.style.height = Math.max(Math.min(h0, lo - 30), Math.min(hi + 30, h0 - (e.clientY - y0))) + "px";
-  drag.v = (e.clientY - drag.y) / Math.max(1, e.timeStamp - drag.t);   // px per ms, downward positive
-  drag.y = e.clientY; drag.t = e.timeStamp;
+  d.v = (e.clientY - d.y) / Math.max(1, e.timeStamp - d.t);   // px per ms, downward positive
+  d.y = e.clientY; d.t = e.timeStamp;
+  // Touch events can come faster than the screen draws; resize the sheet at most once a frame
+  if (!d.frame) d.frame = requestAnimationFrame(() => {
+    d.frame = 0;
+    if (drag !== d) return;
+    const lo = d.heights[0][1], hi = d.heights[d.heights.length - 1][1];
+    panel.style.height = Math.max(Math.min(d.h0, lo - 30), Math.min(hi + 30, d.h0 - (d.y - y0))) + "px";
+  });
 });
-function endDrag() {
-  if (!drag) return;
-  const { panel, heights, moved, v } = drag;
+function endDrag(e) {
+  const d = drag;
+  if (!d || (e && e.pointerId !== d.id)) return;
   drag = null;
-  if (!moved) { panel.style.removeProperty("transition"); return; }   // a tap: the click toggles it
+  if (!d.moved) return;   // a tap: the handle's own click, the search or a button takes it
+  cancelAnimationFrame(d.frame);
+  const { panel, heights, v } = d;
+  panel.style.height = Math.max(0, d.h0 - (d.y - d.y0)) + "px";   // the last move, in case its frame hadn't drawn
   const aim = panel.offsetHeight - v * 150;   // where a flick would carry it
   const [name, px] = heights.reduce((best, h) => Math.abs(h[1] - aim) < Math.abs(best[1] - aim) ? h : best);
   settleSheet(panel, name, px);
@@ -2116,8 +2133,9 @@ function endDrag() {
 }
 document.addEventListener("pointerup", endDrag);
 document.addEventListener("pointercancel", endDrag);
+// After a drag, the click the browser may send as well mustn't press whatever the finger ended on
 document.addEventListener("click", (e) => {
-  if (performance.now() < swallowClickUntil && e.target.closest(".sheet-handle")) { e.stopPropagation(); swallowClickUntil = 0; }
+  if (performance.now() < swallowClickUntil && e.target.closest(".panel")) { e.preventDefault(); e.stopPropagation(); swallowClickUntil = 0; }
 }, true);
 // Wider screens: the header's sidebar button, or the name beside it, slides the filters drawer away to give the map the
 // whole width, and the name folds down to the mark. The choice is remembered
