@@ -506,27 +506,35 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .rail button { width: 44px; height: 44px; border-radius: 22px; }
 
   /* The filters are a sheet with three heights, as on Apple Maps for iPhone. At rest it's a floating capsule holding just
-     the handle, the search and the theme switch. Swipe up on the handle for half the screen (.open), again for all of
-     it (.full); swipe down to step back. Tapping the search goes straight to full, clear of the keyboard */
+     the handle and the search. Drag the handle up for half the screen (.open) or all of it (.full), down to step back.
+     Tapping the search goes straight to full, clear of the keyboard */
   .filters { top: auto; left: 12px; right: 12px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; max-height: 50%; padding: 0 12px 12px; gap: 14px;
-    border-width: 1px; border-radius: 30px; transition: left 0.3s var(--ease), right 0.3s var(--ease), bottom 0.3s var(--ease), max-height 0.3s var(--ease), border-radius 0.3s var(--ease); }
+    border-width: 1px; border-radius: 30px; transition: left 0.3s var(--ease), right 0.3s var(--ease), bottom 0.3s var(--ease), max-height 0.3s var(--ease), border-radius 0.3s var(--ease), transform 0.3s var(--ease); }
   .filters .sheet-handle { height: 22px; }
   .filters .sheet-handle::before { margin-top: 8px; }
   .filters-top { display: flex; align-items: center; gap: 8px; }
   .filters .search { height: 44px; border-radius: 22px; }
-  .filters .theme-toggle { width: 44px; height: 44px; background: var(--surface-2); border-color: transparent; }
+  .filters .theme-toggle { width: 40px; height: 40px; background: var(--surface-2); border-color: transparent; }
   .filters-body, .filters .brand, .updated, .filters .leaflet-control-attribution, details.about { display: none; }
   .filters.open { z-index: 12; left: 8px; right: 8px; padding-bottom: 16px; }
   .filters.full { left: 0; right: 0; bottom: 0; max-height: calc(100% - 12px - env(safe-area-inset-top)); border-width: 1px 0 0; border-radius: 30px 30px 0 0;
     padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
   .filters.open .filters-body { display: flex; }
   .filters.open .brand, .filters.open .updated, .filters.open .leaflet-control-attribution, .filters.open details.about { display: block; }
-  .filters.open .brand { margin-top: 6px; }   /* the foot: the name, the refresh date, the map credit and About, as Apple ends its sheet */
+  /* The foot, as Apple ends its sheet: the name with the theme switch on its right, the refresh date, the map credit and About */
+  .filters.open .brand { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
   .filters .leaflet-control-attribution { margin-top: -8px; font-size: 0.78rem; color: var(--muted); }
   .filters .leaflet-control-attribution a { color: var(--sea); }
   /* The open sheet covers much of the map; hide the cards behind it rather than let them show through */
   .app:has(.filters.open) :is(.area, .compare, .trends) { visibility: hidden; }
   .filters:not(.open) { overflow: visible; }   /* let the suggestions hang outside the short capsule */
+  /* No scroll bars on the sheets and cards: they're scrolled with a finger, and the bar only crowds the rounded edge */
+  .panel { scrollbar-width: none; }
+  .panel::-webkit-scrollbar { display: none; }
+  /* Compare and Trends have their own card, so the resting capsule tucks below the screen with just its handle showing
+     along the bottom edge, and the card drops into its place. Drag the handle up to bring the search and filters back */
+  .app:not([data-view="map"]) .filters:not(.open) { transform: translateY(calc(100% - 22px + 8px + env(safe-area-inset-bottom))); }
+  .app:not([data-view="map"]) :is(.compare, .trends) { bottom: calc(30px + env(safe-area-inset-bottom)); max-height: calc(100% - 30px - env(safe-area-inset-bottom) - 190px); }
 
   /* The map key as a small frosted chip in the top left, where Apple shows the weather: Fewer, the ramp, More */
   .app > .legend { position: absolute; z-index: 5; top: calc(12px + env(safe-area-inset-top)); left: 12px; width: 190px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 14px;

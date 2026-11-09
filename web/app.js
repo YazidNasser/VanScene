@@ -1994,8 +1994,9 @@ function placeSearch() {
   // after the refresh date, where Apple keeps its legal links, rather than running across the top of a small map
   map.attributionControl.setPosition("bottomleft");
   if (phone) {
-    $("filters-top").append(search, theme);
+    $("filters-top").append(search);
     $("updated").before(brand);
+    brand.append(theme);   // the theme switch sits on the right of the name in the sheet's foot
     $("updated").after(map.attributionControl.getContainer());
     $("app").append(legend);   // out of the sheet: inside its blur, a chip couldn't sit on the map
   } else {
@@ -2058,7 +2059,10 @@ document.addEventListener("pointerdown", (e) => {
   if (!handle || !isPhone()) return;
   handle.setPointerCapture(e.pointerId);   // keep getting the pointer if the finger slides off the thin handle
   const panel = handle.closest(".panel");
-  drag = { handle, panel, heights: restingHeights(panel), y0: e.clientY, h0: panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false };
+  // In Compare and Trends the resting sheet is tucked below the screen with only its handle showing, so a drag starts
+  // from that sliver rather than from the whole capsule
+  const tucked = panel.id === "filters" && sheetHeight() === "rest" && state.view !== "map";
+  drag = { handle, panel, heights: restingHeights(panel), y0: e.clientY, h0: tucked ? 30 : panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false };
 });
 document.addEventListener("pointermove", (e) => {
   if (!drag) return;
@@ -2070,7 +2074,7 @@ document.addEventListener("pointermove", (e) => {
     panel.style.transition = "none"; panel.style.maxHeight = "none"; panel.style.overflow = "hidden";
   }
   const lo = heights[0][1], hi = heights[heights.length - 1][1];
-  panel.style.height = Math.max(lo - 30, Math.min(hi + 30, h0 - (e.clientY - y0))) + "px";
+  panel.style.height = Math.max(Math.min(h0, lo - 30), Math.min(hi + 30, h0 - (e.clientY - y0))) + "px";
   drag.v = (e.clientY - drag.y) / Math.max(1, e.timeStamp - drag.t);   // px per ms, downward positive
   drag.y = e.clientY; drag.t = e.timeStamp;
 });
