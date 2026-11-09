@@ -2033,19 +2033,23 @@ function setSheet(height) {
   if (height !== "rest") $("toast").classList.remove("show");   // the note would sit on top of the open sheet
 }
 function closeFilters() { setSheet("rest"); }
-// A real pull-up of the sheet in the map view lets go of the picked spot, so putting the sheet back down shows the map
-// and the search, and a new tap on the map picks again. It waits for the card to fade out, and keeps the spot if the
-// sheet went straight back down (just a peek)
-function releaseSpot() {
-  if (state.view !== "map" || !state.selected) return;
-  setTimeout(() => { if (sheetHeight() !== "rest") { state.selected = null; syncCircles(); renderPanels(); } }, 300);
+// A real pull-up of the sheet closes the card under it: the area card lets go of its spot, and Compare or Trends go
+// back to the map view. Putting the sheet back down then shows the map and the search. It waits for the card to fade
+// out, and keeps the card if the sheet went straight back down (just a peek)
+function releaseCard() {
+  if (state.view === "map" && !state.selected) return;
+  setTimeout(() => {
+    if (sheetHeight() === "rest") return;
+    if (state.view === "map") { state.selected = null; syncCircles(); renderPanels(); } else setView("map");
+  }, 300);
 }
 $("filters-handle").addEventListener("click", () => {
   const up = sheetHeight() === "rest";
   setSheet(up ? "half" : "rest");
-  if (up) releaseSpot();
+  if (up) releaseCard();
 });
-$("search").addEventListener("focus", () => { if (isPhone()) { setSheet("full"); releaseSpot(); } });   // as on Apple Maps: typing lifts the sheet clear of the keyboard
+// (Searching in Compare places an area by name, so there the search leaves the Compare card be)
+$("search").addEventListener("focus", () => { if (isPhone()) { setSheet("full"); if (state.view === "map") releaseCard(); } });   // as on Apple Maps: typing lifts the sheet clear of the keyboard
 // Dragging any sheet's handle moves the sheet with the finger, as on iPhone. On release it settles at the nearest
 // height it can rest at (the filters: rest, half, full; a card: shrunk or open), carried on a step by a quick flick.
 // A tap still works through the handle's own click; after a drag, the click the browser may send as well is ignored
@@ -2071,7 +2075,7 @@ function settleSheet(panel, name, px) {
   const low = name === "rest" || name === "shrunk" || name === "gone";
   const apply = () => panel.id === "filters" ? setSheet(name) : name === "gone" ? panel.querySelector(".x").click() : setCard(panel, name);
   if (!low) apply();   // going up: show the content as it rises; going down: hide it once there
-  if (!low && panel.id === "filters") releaseSpot();
+  if (!low && panel.id === "filters") releaseCard();
   panel.style.transition = ["height", "left", "right", "bottom", "border-radius"].map((p) => p + " 0.28s var(--ease)").join(", ");
   panel.style.height = px + "px";
   setTimeout(() => { if (low) apply(); panel.style.removeProperty("height"); panel.style.removeProperty("max-height"); panel.style.removeProperty("transition"); panel.style.removeProperty("overflow"); }, 290);
