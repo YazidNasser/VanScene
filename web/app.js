@@ -1467,7 +1467,9 @@ function setCompareSpot(ll) {
 function pickSlot(slot) {
   state.nextSlot = slot;
   syncCircles();
-  renderPanels();
+  // Only the highlight moves, so it can glide across; rebuilding the cards would make it jump
+  for (const c of $("compare").querySelectorAll(".cmp[data-slot]")) c.classList.toggle("placing", c.dataset.slot === slot);
+  for (const b of $("compare").querySelectorAll(".slot-pick .ab")) b.setAttribute("aria-pressed", String(b.dataset.action === `slot-${slot}`));
 }
 // Dragging a handle moves its circle live and updates the card when it's let go
 for (const [slot, handle, circle] of [["a", handleA, circleA], ["b", handleB, circleB]]) {
@@ -1484,13 +1486,16 @@ for (const [slot, handle, circle] of [["a", handleA, circleA], ["b", handleB, ci
   handle.on("click", () => pickSlot(slot));
 }
 
-// One area's card, or an empty card for an area not placed yet (slot is "A" or "B")
-function compareCard(s, slot) {
-  const placing = state.nextSlot === slot.toLowerCase();
-  // An empty card is a button: click it to pick that area, then click the map
-  if (!s) return `<button type="button" class="cmp empty${placing ? " placing" : ""}" data-action="slot-${slot.toLowerCase()}">
-    <span><b>${slot}</b> · ${placing ? `Click the map to place area ${slot}, then drag its label to move it` : `Pick ${slot}, then click the map`}</span></button>`;
-  return `<div class="cmp${placing ? " placing" : ""}"><h3 class="who"><b>${slot}</b>Near ${s.name}</h3>
+// One area's card, or an empty card for an area not placed yet (slot is "A" or "B"). Clicking either card picks which
+// area the next map click places. "fresh" marks a card whose area just changed, so it fades in rather than snapping
+let lastCompare = {};
+function compareCard(s, slot, fresh) {
+  const key = slot.toLowerCase(), cls = `cmp${state.nextSlot === key ? " placing" : ""}${fresh ? " fresh" : ""}`, act = isPhone() ? "Tap" : "Click";
+  // An empty card is a button; it says what to do whether or not it's the picked one, and CSS shows the right line
+  if (!s) return `<button type="button" class="${cls} empty" data-slot="${key}" data-action="slot-${key}">
+    <span class="if-placing"><b>${slot}</b> · ${act} the map to place area ${slot}, then drag its label to move it</span>
+    <span class="if-waiting"><b>${slot}</b> · Pick ${slot}, then ${act.toLowerCase()} the map</span></button>`;
+  return `<div class="${cls}" data-slot="${key}" data-action="slot-${key}"><h3 class="who"><b>${slot}</b>Near ${s.name}</h3>
     <p class="big" data-count="${s.now}" data-key="${slot}">${fmt(s.now)}</p>${s.change ? `<span class="pill ${s.change.cls}" title="${s.change.text}">${s.change.text.replace("same dates ", "")}</span>` : ""}
     <p class="hint">Busiest per hour: ${busiestShort(s.buckets)}</p>
     ${state.type === "all" && s.violent != null ? `<p class="hint">Offences against a person in all of ${s.hood}: ${fmt(s.violent)}</p>` : ""}</div>`;
@@ -1549,8 +1554,11 @@ function renderCompare() {
         <div class="slot-pick" role="group" aria-label="Which area a map click places"><span>Place</span>
           <button type="button" class="ab a" data-action="slot-a" aria-pressed="${state.nextSlot === "a"}">A</button><button type="button" class="ab b" data-action="slot-b" aria-pressed="${state.nextSlot === "b"}">B</button></div>
         <button type="button" class="btn" data-action="swap">Swap</button><button type="button" class="btn" data-action="reset">Clear</button></div></div>
-    ${noYears() ? pickYear : `<div class="cmp-grid">${compareCard(A, "A")}${compareCard(B, "B")}</div>${compareTable(A, B, rows)}${compareInsight(A, B, rows)}`}`;
+    ${noYears() ? pickYear : `<div class="cmp-grid">${compareCard(A, "A", changed("a"))}${compareCard(B, "B", changed("b"))}</div>${compareTable(A, B, rows)}${compareInsight(A, B, rows)}`}`;
+  lastCompare = { a: state.a, b: state.b };
 }
+// Whether an area was placed, moved or cleared since the cards were last drawn
+const changed = (slot) => slot in lastCompare && lastCompare[slot] !== state[slot];
 
 // ---------------------------------------------------------------------
 // Trends view: the whole city for the current filters
