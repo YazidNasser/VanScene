@@ -1486,16 +1486,17 @@ for (const [slot, handle, circle] of [["a", handleA, circleA], ["b", handleB, ci
   handle.on("click", () => pickSlot(slot));
 }
 
-// One area's card, or an empty card for an area not placed yet (slot is "A" or "B"). Clicking either card picks which
-// area the next map click places. "fresh" marks a card whose area just changed, so it fades in rather than snapping
+// One area's card, or an empty card for an area not placed yet (slot is "A" or "B"). On phones, tapping either card
+// picks which area the next map tap places, and "fresh" marks a card whose area just changed so it fades in
 let lastCompare = {};
 function compareCard(s, slot, fresh) {
-  const key = slot.toLowerCase(), cls = `cmp${state.nextSlot === key ? " placing" : ""}${fresh ? " fresh" : ""}`, act = isPhone() ? "Tap" : "Click";
+  const phone = isPhone(), key = slot.toLowerCase(), act = phone ? "Tap" : "Click";
+  const cls = `cmp${state.nextSlot === key ? " placing" : ""}${fresh && phone ? " fresh" : ""}`;
   // An empty card is a button; it says what to do whether or not it's the picked one, and CSS shows the right line
   if (!s) return `<button type="button" class="${cls} empty" data-slot="${key}" data-action="slot-${key}">
     <span class="if-placing"><b>${slot}</b> · ${act} the map to place area ${slot}, then drag its label to move it</span>
     <span class="if-waiting"><b>${slot}</b> · Pick ${slot}, then ${act.toLowerCase()} the map</span></button>`;
-  return `<div class="${cls}" data-slot="${key}" data-action="slot-${key}"><h3 class="who"><b>${slot}</b>Near ${s.name}</h3>
+  return `<div class="${cls}" data-slot="${key}"${phone ? ` data-action="slot-${key}"` : ""}><h3 class="who"><b>${slot}</b>Near ${s.name}</h3>
     <p class="big" data-count="${s.now}" data-key="${slot}">${fmt(s.now)}</p>${s.change ? `<span class="pill ${s.change.cls}" title="${s.change.text}">${s.change.text.replace("same dates ", "")}</span>` : ""}
     <p class="hint">Busiest per hour: ${busiestShort(s.buckets)}</p>
     ${state.type === "all" && s.violent != null ? `<p class="hint">Offences against a person in all of ${s.hood}: ${fmt(s.violent)}</p>` : ""}</div>`;
