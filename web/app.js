@@ -2024,12 +2024,6 @@ function setSheet(height) {
 function closeFilters() { setSheet("rest"); }
 $("filters-handle").addEventListener("click", () => setSheet(sheetHeight() === "rest" ? "half" : "rest"));
 $("search").addEventListener("focus", () => { if (isPhone()) setSheet("full"); });   // as on Apple Maps: typing lifts the sheet clear of the keyboard
-// The cards float just above the resting capsule, so they need the distance from its top to the screen's foot.
-// Only measured at rest, not while the sheet is pulled up
-new ResizeObserver(() => {
-  const f = $("filters");
-  if (isPhone() && sheetHeight() === "rest") $("app").style.setProperty("--peek", $("app").clientHeight - f.offsetTop + "px");
-}).observe($("filters"));
 // Dragging any sheet's handle moves the sheet with the finger, as on iPhone. On release it settles at the nearest
 // height it can rest at (the filters: rest, half, full; a card: shrunk or open), carried on a step by a quick flick.
 // A tap still works through the handle's own click; after a drag, the click the browser may send as well is ignored
@@ -2063,9 +2057,9 @@ document.addEventListener("pointerdown", (e) => {
   if (!handle || !isPhone()) return;
   handle.setPointerCapture(e.pointerId);   // keep getting the pointer if the finger slides off the thin handle
   const panel = handle.closest(".panel");
-  // In Compare and Trends the resting sheet is tucked below the screen with only its handle showing, so a drag starts
+  // While a card shows, the resting sheet is tucked below the screen with only its handle showing, so a drag starts
   // from that sliver rather than from the whole capsule
-  const tucked = panel.id === "filters" && sheetHeight() === "rest" && state.view !== "map";
+  const tucked = panel.id === "filters" && sheetHeight() === "rest" && (state.view !== "map" || $("area").innerHTML !== "");
   drag = { handle, panel, heights: restingHeights(panel), y0: e.clientY, h0: tucked ? 30 : panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false };
 });
 document.addEventListener("pointermove", (e) => {

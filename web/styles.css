@@ -532,10 +532,10 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   /* No scroll bars on the sheets and cards: they're scrolled with a finger, and the bar only crowds the rounded edge */
   .panel { scrollbar-width: none; }
   .panel::-webkit-scrollbar { display: none; }
-  /* Compare and Trends have their own card, so the resting capsule tucks below the screen with just its handle showing
-     along the bottom edge, and the card drops into its place. Drag the handle up to bring the search and filters back */
-  .app:not([data-view="map"]) .filters:not(.open) { transform: translateY(calc(100% - 22px + 8px + env(safe-area-inset-bottom))); }
-  .app:not([data-view="map"]) :is(.compare, .trends) { bottom: calc(30px + env(safe-area-inset-bottom)); --card-max: calc(100% - 30px - env(safe-area-inset-bottom) - 190px); }
+  /* While a card is showing (Compare, Trends, or a picked spot), the resting capsule tucks below the screen with just
+     its handle along the bottom edge, and the card takes its place, leaving more of the map. Drag the handle up to
+     bring the search and filters back; closing the card brings the capsule back too */
+  .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .filters:not(.open) { transform: translateY(calc(100% - 22px + 8px + env(safe-area-inset-bottom))); }
 
   /* The map key as a small frosted chip in the top left, where Apple shows the weather: Fewer, the ramp, More */
   .app > .legend { position: absolute; z-index: 5; top: calc(12px + env(safe-area-inset-top)); left: 12px; width: 190px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 14px;
@@ -547,18 +547,19 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .legend .ends span:last-child { grid-area: 1 / 3; }
   .legend-note { grid-column: 1 / -1; }
 
-  /* The area, Compare and Trends cards float just above the resting capsule (--peek: from its top to the screen's foot,
-     set by app.js), so the search stays in reach. Their tops stop below the floating buttons */
-  .area, .compare, .trends { left: 12px; right: 12px; bottom: calc(var(--peek, 90px) + 8px); top: auto; width: auto;
-    --card-max: calc(100% - var(--peek, 90px) - 190px);   /* the tallest a card gets: 190px clears the pill's 168px */
-    max-height: min(var(--card-max), 40%); border-radius: 26px; padding: 0 16px 16px; }
-  /* A card opens at 40% of the screen so most of the map stays free to tap and pan; drag its handle up for .tall */
+  /* The area, Compare and Trends cards float just above the tucked sheet's handle. Their tops stop below the floating buttons */
+  .area, .compare, .trends { left: 12px; right: 12px; bottom: calc(30px + env(safe-area-inset-bottom)); top: auto; width: auto;
+    --card-max: calc(100% - 30px - env(safe-area-inset-bottom) - 190px);   /* the tallest a card gets: 190px clears the pill's 168px */
+    max-height: min(var(--card-max), 32%); border-radius: 26px; padding: 0 16px 16px; }
+  /* A card opens at a third of the screen so most of the map stays free to tap and pan; drag its handle up for .tall */
   .area.tall, .compare.tall, .trends.tall { max-height: var(--card-max); }
   /* The handle scrolls away with the card's heading and close button rather than staying pinned, where the text
      would run straight through the grip on see-through glass. It takes swipes itself, so the page doesn't scroll */
   .sheet-handle { display: block; flex: none; width: 100%; height: 32px; border: 0; background: transparent; cursor: pointer; touch-action: none; }
   .sheet-handle::before { content: ""; display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--faint); margin: 10px auto 0; }
-  .panel.collapsed { max-height: 102px; overflow: hidden; }
+  /* Shrunk, a card keeps just its handle and heading (title, line under it, close button), nothing cut off halfway */
+  .panel.collapsed { overflow: hidden; }
+  .panel.collapsed > :not(.sheet-handle, .card-head, .cmp-head), .panel.collapsed .cmp-head > :not(.card-head) { display: none; }
   .big { font-size: 2.2rem; }
   .cmp-grid { gap: 8px; }   /* still side by side in the card */
   .cmp { padding: 10px; }
