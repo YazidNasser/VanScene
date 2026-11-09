@@ -580,6 +580,12 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .compare .btn { padding: 4px 10px; font-size: 0.78rem; }
   .compare:not(.tall) .cmp .hint { display: none; }
   .cmp.empty { min-height: 84px; font-size: 0.86rem; }
+  /* Until both areas are down, the card stays slim so the map is free for the next tap: each area is a one-line chip
+     (its name and count, or what to tap), and the table, the extra lines and Swap wait until there's a pair to compare */
+  .compare.incomplete :is(.h2h, .tip, [data-action="swap"]), .compare.incomplete .cmp :is(.pill, .hint) { display: none; }
+  .compare.incomplete .cmp { min-height: 0; padding: 8px 10px; gap: 2px; }
+  .compare.incomplete .cmp .who { font-size: 0.82rem; }
+  .compare.incomplete .cmp .big { font-size: 1.15rem; }
   .h2h { grid-template-columns: minmax(0, 1fr) 76px 76px; font-size: 0.8rem; }
   #map .leaflet-control-zoom { display: none; }
   #map .leaflet-bottom.leaflet-right { bottom: auto; right: auto; left: 2px; top: calc(54px + env(safe-area-inset-top)); }   /* the scale, under the key chip */

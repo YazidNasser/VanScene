@@ -1458,6 +1458,7 @@ function setCompareSpot(ll) {
   if (!state[other]) state.nextSlot = other;
   syncCircles();
   growCircle(slot === "a" ? circleA : circleB);
+  if (isPhone() && cardHeight($("compare")) === "tall") setCard($("compare"), "open");   // a tap on the map wants the map in view
   renderPanels();
   // With both placed, show both: area B could land behind the bottom sheet on a phone once its card filled in
   if (state.a && state.b) keepInView(areaBounds(state.a).extend(areaBounds(state.b)));
@@ -1494,8 +1495,8 @@ function compareCard(s, slot, fresh) {
   const cls = `cmp${state.nextSlot === key ? " placing" : ""}${fresh && phone ? " fresh" : ""}`;
   // An empty card is a button; it says what to do whether or not it's the picked one, and CSS shows the right line
   if (!s) return `<button type="button" class="${cls} empty" data-slot="${key}" data-action="slot-${key}">
-    <span class="if-placing"><b>${slot}</b> · ${act} the map to place area ${slot}, then drag its label to move it</span>
-    <span class="if-waiting"><b>${slot}</b> · Pick ${slot}, then ${act.toLowerCase()} the map</span></button>`;
+    <span class="if-placing"><b>${slot}</b> · ${phone ? `Tap the map to place ${slot}` : `Click the map to place area ${slot}, then drag its label to move it`}</span>
+    <span class="if-waiting"><b>${slot}</b> · ${phone ? `Tap here, then the map` : `Pick ${slot}, then click the map`}</span></button>`;
   return `<div class="${cls}" data-slot="${key}"${phone ? ` data-action="slot-${key}"` : ""}><h3 class="who"><b>${slot}</b>Near ${s.name}</h3>
     <p class="big" data-count="${s.now}" data-key="${slot}">${fmt(s.now)}</p>${s.change ? `<span class="pill ${s.change.cls}" title="${s.change.text}">${s.change.text.replace("same dates ", "")}</span>` : ""}
     <p class="hint">Busiest per hour: ${busiestShort(s.buckets)}</p>
@@ -1557,6 +1558,7 @@ function renderCompare() {
         <button type="button" class="btn" data-action="swap">Swap</button><button type="button" class="btn" data-action="reset">Clear</button></div></div>
     ${noYears() ? pickYear : `<div class="cmp-grid">${compareCard(A, "A", changed("a"))}${compareCard(B, "B", changed("b"))}</div>${compareTable(A, B, rows)}${compareInsight(A, B, rows)}`}`;
   lastCompare = { a: state.a, b: state.b };
+  $("compare").classList.toggle("incomplete", !(A && B));   // phones keep the card slim until both areas are down
 }
 // Whether an area was placed, moved or cleared since the cards were last drawn
 const changed = (slot) => slot in lastCompare && lastCompare[slot] !== state[slot];
