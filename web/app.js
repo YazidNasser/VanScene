@@ -1990,9 +1990,13 @@ for (const b of document.querySelectorAll(".views button, .rail button")) {
 function placeSearch() {
   const phone = isPhone(), search = document.querySelector(".search"), brand = document.querySelector(".brand"),
     head = document.querySelector(".site-head"), theme = $("theme-toggle"), legend = $("legend");
+  // The map credit sits in its map corner (setPosition rebuilds it there). On phones it moves to the sheet's foot,
+  // after the refresh date, where Apple keeps its legal links, rather than running across the top of a small map
+  map.attributionControl.setPosition("bottomleft");
   if (phone) {
     $("filters-top").append(search, theme);
     $("updated").before(brand);
+    $("updated").after(map.attributionControl.getContainer());
     $("app").append(legend);   // out of the sheet: inside its blur, a chip couldn't sit on the map
   } else {
     $("head-search").prepend(search);
@@ -2025,28 +2029,63 @@ new ResizeObserver(() => {
   const f = $("filters");
   if (isPhone() && sheetHeight() === "rest") $("app").style.setProperty("--peek", $("app").clientHeight - f.offsetTop + "px");
 }).observe($("filters"));
-// A swipe on any sheet's handle moves that sheet the way the finger went: the filters step up or down one height, a
-// card opens or shrinks. A tap still works through the handle's own click; after a swipe, the click the browser may
-// send as well is ignored
-let swallowClickUntil = 0;
+// Dragging any sheet's handle moves the sheet with the finger, as on iPhone. On release it settles at the nearest
+// height it can rest at (the filters: rest, half, full; a card: shrunk or open), carried on a step by a quick flick.
+// A tap still works through the handle's own click; after a drag, the click the browser may send as well is ignored
+let swallowClickUntil = 0, drag = null;
+// Each height a sheet can rest at, in pixels, read by trying each one on with animations off
+function restingHeights(panel) {
+  const filters = panel.id === "filters", was = filters ? sheetHeight() : panel.classList.contains("collapsed");
+  const tryOn = (h) => filters ? setSheet(h) : panel.classList.toggle("collapsed", h === "shrunk");
+  panel.style.transition = "none";
+  const heights = (filters ? SHEET_HEIGHTS : ["shrunk", "open"]).map((h) => { tryOn(h); return [h, panel.offsetHeight]; });
+  tryOn(filters ? was : (was ? "shrunk" : "open"));
+  return heights;
+}
+function settleSheet(panel, handle, name, px) {
+  const low = name === "rest" || name === "shrunk";
+  const apply = () => {
+    if (panel.id === "filters") setSheet(name);
+    else { panel.classList.toggle("collapsed", low); handle.setAttribute("aria-expanded", String(!low)); }
+  };
+  if (!low) apply();   // going up: show the content as it rises; going down: hide it once there
+  panel.style.transition = ["height", "left", "right", "bottom", "border-radius"].map((p) => p + " 0.28s var(--ease)").join(", ");
+  panel.style.height = px + "px";
+  setTimeout(() => { if (low) apply(); panel.style.removeProperty("height"); panel.style.removeProperty("max-height"); panel.style.removeProperty("transition"); panel.style.removeProperty("overflow"); }, 290);
+}
 document.addEventListener("pointerdown", (e) => {
   const handle = e.target.closest(".sheet-handle");
   if (!handle || !isPhone()) return;
   handle.setPointerCapture(e.pointerId);   // keep getting the pointer if the finger slides off the thin handle
-  handle.dataset.startY = e.clientY;
+  const panel = handle.closest(".panel");
+  drag = { handle, panel, heights: restingHeights(panel), y0: e.clientY, h0: panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false };
 });
-document.addEventListener("pointerup", (e) => {
-  const handle = e.target.closest(".sheet-handle");
-  if (!handle || handle.dataset.startY === undefined) return;
-  const dy = e.clientY - Number(handle.dataset.startY);
-  delete handle.dataset.startY;
-  if (Math.abs(dy) < 24) return;   // a tap
-  if (handle.id === "filters-handle") {
-    const i = SHEET_HEIGHTS.indexOf(sheetHeight()) + (dy < 0 ? 1 : -1);
-    setSheet(SHEET_HEIGHTS[Math.max(0, Math.min(2, i))]);
-  } else if ((handle.getAttribute("aria-expanded") === "true") !== (dy < 0)) handle.click();
+document.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const { panel, heights, y0, h0 } = drag;
+  if (!drag.moved) {
+    if (Math.abs(e.clientY - y0) < 6) return;   // not a drag yet: could still be a tap
+    drag.moved = true;
+    if (panel.id === "filters" && sheetHeight() === "rest") setSheet("half");   // let the content show as it's pulled up
+    panel.style.transition = "none"; panel.style.maxHeight = "none"; panel.style.overflow = "hidden";
+  }
+  const lo = heights[0][1], hi = heights[heights.length - 1][1];
+  panel.style.height = Math.max(lo - 30, Math.min(hi + 30, h0 - (e.clientY - y0))) + "px";
+  drag.v = (e.clientY - drag.y) / Math.max(1, e.timeStamp - drag.t);   // px per ms, downward positive
+  drag.y = e.clientY; drag.t = e.timeStamp;
+});
+function endDrag() {
+  if (!drag) return;
+  const { panel, handle, heights, moved, v } = drag;
+  drag = null;
+  if (!moved) { panel.style.removeProperty("transition"); return; }   // a tap: the click toggles it
+  const aim = panel.offsetHeight - v * 150;   // where a flick would carry it
+  const [name, px] = heights.reduce((best, h) => Math.abs(h[1] - aim) < Math.abs(best[1] - aim) ? h : best);
+  settleSheet(panel, handle, name, px);
   swallowClickUntil = performance.now() + 400;
-});
+}
+document.addEventListener("pointerup", endDrag);
+document.addEventListener("pointercancel", endDrag);
 document.addEventListener("click", (e) => {
   if (performance.now() < swallowClickUntil && e.target.closest(".sheet-handle")) { e.stopPropagation(); swallowClickUntil = 0; }
 }, true);
