@@ -966,7 +966,7 @@ function drawTrackBars(hours) {
     bar.setAttribute("aria-label", bar.title);
   }
   // The summary is in the name: NVDA read the group's name on the way in but skipped a separate description
-  strip.setAttribute("aria-label", `Hours of the day. ${hourSummary(hours, "Reports city-wide")} Click or drag across them to pick hours, or use the arrow keys and Enter.`);
+  strip.setAttribute("aria-label", `Hours of the day. ${hourSummary(hours, "Reports city-wide")} ${isPhone() ? "Tap" : "Click"} or drag across them to pick hours, or use the arrow keys and Enter.`);
   // One Tab stop for the 24 hours (the focused one, else the first picked, else 6 am); arrows move between them
   const stop = strip.contains(document.activeElement) ? document.activeElement : strip.querySelector('[aria-pressed="true"]') || strip.firstChild;
   for (const bar of strip.children) bar.tabIndex = bar === stop ? 0 : -1;
@@ -1608,7 +1608,7 @@ function renderTrends() {
 
   $("trends").innerHTML = `${sheetHandle}
     <div class="card-head"><div><h2>Vancouver ${periodLabel()}</h2>
-      <p class="sub">${filterLine()}. Click the map to add an area.</p></div>${closeView("Trends")}</div>
+      <p class="sub">${filterLine()}. ${isPhone() ? "Tap" : "Click"} the map to add an area.</p></div>${closeView("Trends")}</div>
     ${trendMetrics({ total, before, perYear, top, hours, days })}
     <div class="tsec"><h3>Year by year</h3>
       <div class="ybars" role="img" aria-label="${attr(yearSummary(span, perYear, "Reports city-wide"))}">${span.map((y, i) => `<div>${missing.includes(y)
@@ -1805,6 +1805,8 @@ function buildTypePicker() {
   const pick = (i) => { close(); if (values[i] === state.type) return; state.type = values[i]; showType(); refresh(); };
   btn.addEventListener("click", () => (list.hidden ? open() : close()));
   btn.addEventListener("blur", close);
+  // A tap anywhere else closes it too: Safari doesn't focus a tapped button, so on phones the blur never comes
+  document.addEventListener("pointerdown", (e) => { if (!e.target.closest("#type, #type-list")) close(); });
   // mousedown, not click, so the button's blur doesn't close the list before the pick lands
   list.addEventListener("mousedown", (e) => { const li = e.target.closest("li"); if (li) { e.preventDefault(); pick([...list.children].indexOf(li)); } });
   list.addEventListener("mousemove", (e) => { const li = e.target.closest("li"); if (li && li !== list.children[active]) setActive([...list.children].indexOf(li)); });
@@ -2284,7 +2286,7 @@ async function start() {
   refresh();
   const spotted = state.view === "compare" ? state.a : state.selected;
   if (noYears()) showToast("Pick a year in the filters to see where incidents were reported.", 7000);
-  else if (!spotted) showToast(`Click anywhere on the map to see what's been reported within ${CONFIG.radiusMeters} m, or search a neighbourhood.`, 7000);
+  else if (!spotted) showToast(`${isPhone() ? "Tap" : "Click"} anywhere on the map to see what's been reported within ${CONFIG.radiusMeters} m, or search a neighbourhood.`, 7000);
   requestAnimationFrame(() => {
     map.invalidateSize();
     if (spotted) fitForView();   // a link with a spot opens on it
