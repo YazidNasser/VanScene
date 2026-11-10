@@ -455,8 +455,11 @@ button.cmp.empty:hover { border-color: var(--muted); }
 .spinner { display: block; width: 28px; height: 28px; margin: 0 auto 12px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--sea); animation: spin 0.8s linear infinite; }
 
 /* ---------------- Motion ---------------- */
-.leaflet-heat-pane { opacity: var(--heat-opacity); }
-.leaflet-heatmap-layer, .heat-snap { transition: opacity 0.5s ease; }
+/* The crossfade on a filter change (fadeHeat) fades these holders, never the coloured canvases inside: Safari draws an
+   element whose opacity is animating on a layer of its own, and the #heat-ramp filter doesn't show there, so the heat
+   was blank all through the fade and then popped in */
+.leaflet-heat-pane, .heat-snap-pane { opacity: var(--heat-opacity); transition: opacity 0.5s ease; }
+.heat-snap-pane { z-index: 390; pointer-events: none; }   /* just over the heat pane, as the old picture fades off it */
 .leaflet-heatmap-layer, .heat-morph, .heat-snap { filter: url(#heat-ramp); }   /* the canvases hold only strength: this colours them */
 body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, color 0.3s, border-color 0.3s; }
 /* Both themes' map shading is drawn (see paintCoverage): the other theme's fades out with the panels. :where() keeps
