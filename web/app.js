@@ -505,7 +505,7 @@ const smooth = (u) => u * u * (3 - 2 * u);
 function drawMorph(layer, radius, sets, place) {
   if (layer._morphGL?.gl.isContextLost()) { layer._morph.remove(); layer._morph = layer._morphGL = layer._morphHeat = null; }   // start afresh
   const view = map.getSize(), cv = layer._morph ??= Object.assign(document.createElement("canvas"), { className: "leaflet-layer heat-morph" });
-  layer._morphGL ??= glHeat(cv);   // before simpleheat asks for a 2D canvas, which would rule WebGL out
+  layer._morphGL ??= WEBKIT ? null : glHeat(cv);   // before simpleheat asks for a 2D canvas, which would rule WebGL out
   const w = Math.ceil(view.x * MORPH_Q), h = Math.ceil(view.y * MORPH_Q);
   if (cv.width !== w || cv.height !== h || !layer._morphHeat) {
     cv.width = w; cv.height = h; cv.style.width = `${view.x}px`; cv.style.height = `${view.y}px`;
@@ -530,6 +530,10 @@ function drawMorph(layer, radius, sets, place) {
   layer._morphR = radius;
   layer._canvas.style.visibility = "hidden";
 }
+// Safari, and every browser on an iPhone (all built on WebKit), shows nothing through the #heat-ramp filter on a WebGL
+// canvas, so a pinch made the heat vanish until the fingers let go. There the frames use the 2D canvas, which it colours
+// shortcut: spots WebKit by its gesture events rather than testing the filter itself; switch to a real test if a WebKit browser fixes this
+const WEBKIT = "GestureEvent" in window;
 // Zoom frames draw with WebGL where it's there: the 2D canvas spends ~2 µs on every blob, and a few quick wheel notches
 // stack up ~7,000 blobs (~15 ms a frame, which made zooming judder), where WebGL draws them all in one go. Each blob is
 // two triangles showing leaflet.heat's own blob picture for this radius, so the frames look just like the still heat
