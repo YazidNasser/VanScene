@@ -427,9 +427,7 @@ function paintCoverage(theme) {
 let heatSpots = [], refSpots = [];
 let refHours = null;                       // whether refSpots was last worked out for a time of day
 const refScales = new Map();               // the colour scale at each zoom, for refSpots (see heatScale)
-// Of the map's size, on each side: covers a half-step zoom out or a short pan. Phones keep a slimmer margin: the
-// heat's colouring filter is slow in phone browsers and its cost grows with the canvas, which this margin nearly triples
-const HEAT_PAD = phoneQuery.matches ? 0.15 : 0.35;
+const HEAT_PAD = 0.35;   // of the map's size, on each side: covers a half-step zoom out or a short pan
 Object.assign(L.HeatLayer.prototype, {
   _reset() {
     const map = this._map, size = map.getSize(), pad = size.multiplyBy(HEAT_PAD).round();
@@ -2090,8 +2088,10 @@ function settleSheet(panel, name, px) {
 const GRAB = ".sheet-handle, .filters-top, .filters:not(.open), .card-head, .cmp-head";
 document.addEventListener("pointerdown", (e) => {
   if (!isPhone() || e.button > 0) return;
-  // A card's content can be pulled down too, once it's scrolled to its top, as phone sheets work
-  const zone = e.target.closest(GRAB), card = !zone && e.target.closest(".area, .compare, .trends");
+  // A card's content, or the pulled-up sheet's, can be pulled down too once it's scrolled to its top, as phone sheets
+  // work. Not from the hours track or a list, which take their own drags and scrolls
+  if (e.target.closest(".track-bars, .suggest")) return;
+  const zone = e.target.closest(GRAB), card = !zone && e.target.closest(".area, .compare, .trends, .filters.open");
   if (!zone && !(card && card.scrollTop <= 0)) return;
   const panel = (zone || card).closest(".panel");
   // While a card shows, the resting sheet is tucked below the screen with only its top showing, so a drag starts
@@ -2100,8 +2100,11 @@ document.addEventListener("pointerdown", (e) => {
   drag = { panel, body: !!card, id: e.pointerId, x0: e.clientX, y0: e.clientY, h0: tucked ? 44 : panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false, frame: 0 };
 });
 // Safari starts scrolling a card's content as soon as a finger moves on it, and then stops sending the drag. While a
-// card scrolled to its top is pulled down, keep the browser from taking the gesture; pulled up, its content scrolls
-document.addEventListener("touchmove", (e) => { if (drag?.body && e.touches[0].clientY > drag.y0) e.preventDefault(); }, { passive: false });
+// card scrolled to its top is pulled down, keep the browser from taking the gesture; pulled up, its content scrolls.
+// Listened for on the sheet and cards only: a page-wide listener that can cancel touches makes the browser wait on
+// this script before every scroll or pinch of the map, which made panning and zooming stutter
+const holdSwipe = (e) => { if (drag?.body && e.touches[0].clientY > drag.y0) e.preventDefault(); };
+for (const id of ["filters", "area", "compare", "trends"]) $(id).addEventListener("touchmove", holdSwipe, { passive: false });
 document.addEventListener("pointermove", (e) => {
   const d = drag;
   if (!d || e.pointerId !== d.id) return;
