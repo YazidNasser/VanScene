@@ -764,7 +764,7 @@ function fadeHeat() {
     pane.style.opacity = "";
     holder.style.opacity = 0;
   }, 40);
-  setTimeout(() => holder.remove(), 600);
+  setTimeout(() => holder.remove(), isPhone() ? 1000 : 600);   // once its fade is over (slower on phones, see styles.css)
 }
 
 // Circles for the two areas (Compare view): the true 500 m edge, drawn faint so the handle at the centre is what reads first
