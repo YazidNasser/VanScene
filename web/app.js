@@ -2074,14 +2074,32 @@ function restingHeights(panel) {
   return filters ? heights : [["gone", 0], ...heights.filter(([h]) => h !== "shrunk" || was === "shrunk")];
 }
 function settleSheet(panel, name, px) {
-  const low = name === "rest" || name === "shrunk" || name === "gone";
-  const close = () => { swallowClickUntil = 0; panel.querySelector(".x").click(); };   // not the stray click the drag guard drops
-  const apply = () => panel.id === "filters" ? setSheet(name) : name === "gone" ? close() : setCard(panel, name);
+  const clear = () => ["height", "max-height", "transition", "overflow", "transform", "opacity"].forEach((p) => panel.style.removeProperty(p));
+  // A card let go to close settles onto the search capsule as it rises from its tucked strip: the card's bottom edge
+  // comes to rest just above the capsule's top while it folds down towards that edge and fades, then it closes
+  if (name === "gone") {
+    const app = $("app"), sheet = $("filters");
+    app.classList.add("releasing");   // the capsule rises now, in step with the card (styles.css)
+    const capsuleTop = app.clientHeight - parseFloat(getComputedStyle(sheet).bottom) - sheet.offsetHeight;
+    panel.style.transformOrigin = "50% 100%";
+    panel.style.transition = "transform 0.32s var(--ease), opacity 0.26s ease-in";
+    panel.style.transform = `translateY(${capsuleTop - 8 - (panel.offsetTop + panel.offsetHeight)}px) scale(0.94, 0.5)`;
+    panel.style.opacity = "0";
+    setTimeout(() => {
+      swallowClickUntil = 0;   // not the stray click the drag guard drops
+      panel.querySelector(".x").click();
+      clear(); panel.style.removeProperty("transform-origin");
+      app.classList.remove("releasing");
+    }, 330);
+    return;
+  }
+  const low = name === "rest" || name === "shrunk";
+  const apply = () => panel.id === "filters" ? setSheet(name) : setCard(panel, name);
   if (!low) apply();   // going up: show the content as it rises; going down: hide it once there
   if (!low && panel.id === "filters") releaseCard();
   panel.style.transition = ["height", "left", "right", "bottom", "border-radius"].map((p) => p + " 0.28s var(--ease)").join(", ");
   panel.style.height = px + "px";
-  setTimeout(() => { if (low) apply(); panel.style.removeProperty("height"); panel.style.removeProperty("max-height"); panel.style.removeProperty("transition"); panel.style.removeProperty("overflow"); }, 290);
+  setTimeout(() => { if (low) apply(); clear(); }, 290);
 }
 // Where a finger can grab a sheet: its handle, the search row, anywhere on the resting capsule, and a card's heading.
 // A wide target matters on a phone, where the thin handle alone took a precise touch
