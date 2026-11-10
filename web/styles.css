@@ -94,7 +94,8 @@ a { color: var(--sea); }
   transition: background-color 0.3s, color 0.3s, border-color 0.2s, box-shadow 0.25s var(--ease), transform 0.25s var(--ease); }
 .head-search .search svg, .panel .picker svg { color: var(--ink); }
 /* Under the pointer, or while open, they rise a pixel on a deeper shadow; typing in the search adds a soft ink halo */
-.head-search .search:hover, .panel .picker:hover, .panel .picker[aria-expanded="true"] { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 10px 26px rgba(0, 0, 0, 0.14); }
+.head-search .search:hover, .panel .picker[aria-expanded="true"] { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 10px 26px rgba(0, 0, 0, 0.14); }
+@media (hover: hover) { .panel .picker:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 10px 26px rgba(0, 0, 0, 0.14); } }
 .head-search .search:focus-within { transform: translateY(-1px); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 12%, transparent), 0 10px 26px rgba(0, 0, 0, 0.14); }
 .views { flex: none; display: flex; gap: 2px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
 .views button { border: 0; background: transparent; border-radius: 7px; padding: 6px 14px; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
@@ -288,12 +289,12 @@ legend { padding: 0; }
 .day-track > button:not(.all) { border: 0; border-radius: 7px; padding: 7px 2px; font-size: 0.84rem; cursor: pointer; white-space: nowrap;
   background: transparent; color: var(--muted); }   /* styled like the year chips, so the two pickers read the same */
 /* Hover is an ink tint a clear step above the "in" and picked fills, so you see which part you are about to pick */
-.day-track > button:not(.all):hover, .day-track.any > button:not(.all):hover { color: var(--ink); background: var(--hover); }
+@media (hover: hover) { .day-track > button:not(.all):hover, .day-track.any > button:not(.all):hover { color: var(--ink); background: var(--hover); } }
 .day-track > button[aria-pressed="true"]:not(.all) { background: var(--bar-bg); color: var(--ink); font-weight: 700; }
 .day-track > button[aria-pressed="mixed"]:not(.all) { background: var(--bar-bg); color: var(--ink); box-shadow: inset 0 -2px 0 var(--sea); }   /* some of its hours */
 .day-track .all { position: absolute; bottom: calc(100% + 4px); right: 0; padding: 2px 6px; border: 0; background: transparent; cursor: pointer;
   font-size: 0.8125rem; color: var(--sea); }
-.day-track .all:not(:disabled):hover { text-decoration: underline; }
+@media (hover: hover) { .day-track .all:not(:disabled):hover { text-decoration: underline; } }
 .day-track .all:disabled { color: var(--muted); cursor: default; }   /* "All 24 hours": a note, not a link */
 .day-track.any .track-bars .hr i { background: color-mix(in srgb, var(--sea) 45%, transparent); }   /* any time: every hour is in, a softer accent than picked hours */
 /* Each hour is a button the full height of the strip, so even a short bar is easy to hit; drag across them to paint */
@@ -302,8 +303,10 @@ legend { padding: 0; }
 .track-bars .hr i { display: block; width: 100%; min-height: 2px; border-radius: 1px 1px 0 0; background: var(--bar-bg);
   transition: height 0.4s var(--ease), background-color 0.15s; }
 /* The hour under the pointer lights up in the full ink, its column faintly tinted, whatever is picked */
-.track-bars .hr:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
-.track-bars .hr:hover i, .day-track.any .track-bars .hr:hover i { background: var(--ink); }
+@media (hover: hover) {
+  .track-bars .hr:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+  .track-bars .hr:hover i, .day-track.any .track-bars .hr:hover i { background: var(--ink); }
+}
 .track-bars .hr[aria-pressed="true"] i { background: var(--sea); }
 .day-track .tick { grid-row: 3; font-size: 0.75rem; color: var(--faint); font-variant-numeric: tabular-nums; }
 .day-track .tick:nth-of-type(2) { grid-column: 2; }
@@ -462,9 +465,13 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
 .views button, .year-pick button, .day-track button, .btn, .x, .theme-toggle {
   transition: background-color 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.12s; }
 .views button:active, .year-pick button:not(:disabled):active, .day-track button:active, .btn:active, .x:active, .theme-toggle:active { transform: scale(0.96); }
-.year-pick > button:not(:disabled):not([aria-pressed="true"]):hover,
-.year-pick.all-in > button[data-year]:not(.all):not([data-year="none"]):not(:disabled):hover { background: var(--hover); color: var(--ink); }
-.year-pick .year-actions button:not([aria-pressed="true"]):hover { text-decoration: underline; }
+/* The filters' hover looks (here and above) are for a mouse or trackpad only: on a touch screen the browser keeps the
+   last tapped control "hovered", so a year or time of day just switched off still looked picked */
+@media (hover: hover) {
+  .year-pick > button:not(:disabled):not([aria-pressed="true"]):hover,
+  .year-pick.all-in > button[data-year]:not(.all):not([data-year="none"]):not(:disabled):hover { background: var(--hover); color: var(--ink); }
+  .year-pick .year-actions button:not([aria-pressed="true"]):hover { text-decoration: underline; }
+}
 .x:hover { border-color: var(--sea); background: var(--sea-soft); }
 .app[data-view="map"] .area, .app[data-view="compare"] .compare, .app[data-view="trends"] .trends, .filters { animation: rise 0.45s var(--ease) both; }
 /* Motion answers what you did: a new spot or view slides its card in and grows its bars; a filter change only rolls the numbers */
