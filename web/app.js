@@ -2054,8 +2054,9 @@ $("filters-handle").addEventListener("click", () => {
 });
 // (Searching in Compare places an area by name, so there the search leaves the Compare card be)
 $("search").addEventListener("focus", () => { if (isPhone()) { setSheet("full"); if (state.view === "map") releaseCard(); } });   // typing lifts the sheet clear of the keyboard
-// Phones: the bottom bar's search lifts the sheet first, as a hidden box can't take focus (or bring up the keyboard)
-$("rail-search").addEventListener("click", () => { setSheet("full"); $("search").focus(); });
+// Phones: the bottom bar's search brings the sheet up halfway, so the year, type and time can be picked first;
+// tapping the search box there then takes it to full with the keyboard
+$("rail-search").addEventListener("click", () => { setSheet("half"); releaseCard(); });
 // Dragging any sheet's handle moves the sheet with the finger, as on iPhone. On release it settles at the nearest
 // height it can rest at (the filters: rest, half, full; a card: shrunk or open), carried on a step by a quick flick.
 // A tap still works through the handle's own click; after a drag, the click the browser may send as well is ignored
@@ -2104,9 +2105,10 @@ function settleSheet(panel, name, px) {
   panel.style.height = px + "px";
   setTimeout(() => { if (low) apply(); clear(); }, 290);
 }
-// Where a finger can grab a sheet: its handle, the search row and a card's heading.
+// Where a finger can grab a sheet: its handle, the search row, a card's heading, and the bottom bar (phones), which
+// pulls the put-away filters sheet up from nothing.
 // A wide target matters on a phone, where the thin handle alone took a precise touch
-const GRAB = ".sheet-handle, .filters-top, .card-head, .cmp-head";
+const GRAB = ".sheet-handle, .filters-top, .card-head, .cmp-head, .rail";
 document.addEventListener("pointerdown", (e) => {
   if (!isPhone() || e.button > 0) return;
   // A card's content, or the pulled-up sheet's, can be pulled down too once it's scrolled to its top, as phone sheets
@@ -2114,8 +2116,8 @@ document.addEventListener("pointerdown", (e) => {
   if (e.target.closest(".track-bars, .suggest")) return;
   const zone = e.target.closest(GRAB), card = !zone && e.target.closest(".area, .compare, .trends, .filters.open");
   if (!zone && !(card && card.scrollTop <= 0)) return;
-  const panel = (zone || card).closest(".panel");
-  drag = { panel, body: !!card, id: e.pointerId, x0: e.clientX, y0: e.clientY, h0: panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false, frame: 0 };
+  const bar = !!zone?.matches(".rail"), panel = bar ? $("filters") : (zone || card).closest(".panel");
+  drag = { panel, body: !!card, id: e.pointerId, x0: e.clientX, y0: e.clientY, h0: bar ? 0 : panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false, frame: 0 };
 });
 // Safari starts scrolling a card's content as soon as a finger moves on it, and then stops sending the drag. While a
 // card scrolled to its top is pulled down, keep the browser from taking the gesture; pulled up, its content scrolls.

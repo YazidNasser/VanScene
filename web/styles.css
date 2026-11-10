@@ -514,8 +514,10 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .filters .brand h1 { font-size: 1.05rem; }
   /* Map, Compare, Trends and Search as a floating bar of icons along the bottom, in a thumb's reach and clear of the
      home bar. The open view sits in a soft inner pill. It steps aside while the sheet is pulled up over it */
-  .rail { display: flex; gap: 4px; position: fixed; z-index: 11; left: 12px; right: 12px; bottom: calc(8px + env(safe-area-inset-bottom)); padding: 5px; border-radius: 30px;
-    transition: opacity 0.2s, visibility 0.2s, background-color 0.3s, border-color 0.3s; }
+  .rail { display: flex; gap: 4px; position: fixed; z-index: 11; left: 12px; right: 12px; bottom: calc(8px + env(safe-area-inset-bottom)); padding: 12px 5px 5px; border-radius: 30px;
+    touch-action: none; transition: opacity 0.2s, visibility 0.2s, background-color 0.3s, border-color 0.3s; }
+  /* A faint grip along its top: the bar can be swiped up anytime to pull the search and filters up with the finger */
+  .rail::before { content: ""; position: absolute; top: 5px; left: 50%; width: 32px; height: 4px; margin-left: -16px; border-radius: 2px; background: color-mix(in srgb, var(--muted) 45%, transparent); }
   body:has(.filters.open) .rail { opacity: 0; visibility: hidden; }
   .rail button, .rail .rail-search { display: grid; flex: 1; width: auto; height: 50px; border-radius: 25px; background: transparent; }
   .rail button svg { width: 24px; height: 24px; }
@@ -566,8 +568,8 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .legend-note { grid-column: 1 / -1; }
 
   /* The area, Compare and Trends cards float just above the bottom bar. Their tops stop below the key chip */
-  .area, .compare, .trends { left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); top: auto; width: auto;
-    --card-max: calc(100% - 76px - env(safe-area-inset-bottom) - 64px - env(safe-area-inset-top));   /* the tallest a card gets, clear of the key chip */
+  .area, .compare, .trends { left: 12px; right: 12px; bottom: calc(83px + env(safe-area-inset-bottom)); top: auto; width: auto;
+    --card-max: calc(100% - 83px - env(safe-area-inset-bottom) - 64px - env(safe-area-inset-top));   /* the tallest a card gets, clear of the key chip */
     max-height: min(var(--card-max), 32%); border-radius: 26px; padding: 0 16px 16px; }
   /* A card opens at a third of the screen so most of the map stays free to tap and pan; drag its handle up for .tall */
   .area.tall, .compare.tall, .trends.tall { max-height: var(--card-max); }
@@ -613,7 +615,7 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   #map .leaflet-bottom.leaflet-right { bottom: auto; right: auto; left: 2px; top: calc(54px + env(safe-area-inset-top)); }   /* the scale, under the key chip */
   /* Notes as a small pill just above the bottom bar, rather than a box over the key in the corner. While a card holds
      the bottom, they sit just under the top row instead */
-  .toast { top: auto; bottom: calc(80px + env(safe-area-inset-bottom)); left: 50%; max-width: calc(100% - 48px); padding: 8px 12px; gap: 8px; border-radius: 14px; font-size: 0.8rem; }
+  .toast { top: auto; bottom: calc(88px + env(safe-area-inset-bottom)); left: 50%; max-width: calc(100% - 48px); padding: 8px 12px; gap: 8px; border-radius: 14px; font-size: 0.8rem; }
   .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .toast { top: calc(60px + env(safe-area-inset-top)); bottom: auto; }
   /* The same frosted glass as wider screens on everything over the map, so the map shows softly through */
   .panel, .app > .legend { background: var(--glass); border-color: var(--glass-edge);
