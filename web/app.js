@@ -2074,14 +2074,23 @@ function restingHeights(panel) {
   return filters ? heights : [["gone", 0], ...heights.filter(([h]) => h !== "shrunk" || was === "shrunk")];
 }
 function settleSheet(panel, name, px) {
-  const low = name === "rest" || name === "shrunk" || name === "gone";
-  const close = () => { swallowClickUntil = 0; panel.querySelector(".x").click(); };   // not the stray click the drag guard drops
-  const apply = () => panel.id === "filters" ? setSheet(name) : name === "gone" ? close() : setCard(panel, name);
+  const clear = () => ["height", "max-height", "transition", "overflow", "transform", "opacity"].forEach((p) => panel.style.removeProperty(p));
+  // A card let go to close slides on down off the screen from where the finger left it, gathering speed and fading as
+  // it goes (rather than squashing to nothing), and closes once it's out of sight
+  if (name === "gone") {
+    panel.style.transition = "transform 0.32s cubic-bezier(0.4, 0, 1, 1), opacity 0.32s ease-in";
+    panel.style.transform = "translateY(calc(100% + 60px))";
+    panel.style.opacity = "0";
+    setTimeout(() => { swallowClickUntil = 0; panel.querySelector(".x").click(); clear(); }, 330);   // not the stray click the drag guard drops
+    return;
+  }
+  const low = name === "rest" || name === "shrunk";
+  const apply = () => panel.id === "filters" ? setSheet(name) : setCard(panel, name);
   if (!low) apply();   // going up: show the content as it rises; going down: hide it once there
   if (!low && panel.id === "filters") releaseCard();
   panel.style.transition = ["height", "left", "right", "bottom", "border-radius"].map((p) => p + " 0.28s var(--ease)").join(", ");
   panel.style.height = px + "px";
-  setTimeout(() => { if (low) apply(); panel.style.removeProperty("height"); panel.style.removeProperty("max-height"); panel.style.removeProperty("transition"); panel.style.removeProperty("overflow"); }, 290);
+  setTimeout(() => { if (low) apply(); clear(); }, 290);
 }
 // Where a finger can grab a sheet: its handle, the search row, anywhere on the resting capsule, and a card's heading.
 // A wide target matters on a phone, where the thin handle alone took a precise touch
