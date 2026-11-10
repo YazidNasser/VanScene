@@ -2037,6 +2037,7 @@ function closeFilters() { setSheet("rest"); }
 // back to the map view. Putting the sheet back down then shows the map and the search. It waits for the card to fade
 // out, and keeps the card if the sheet went straight back down (just a peek)
 function releaseCard() {
+  $("app").classList.remove("keep-tucked");   // slid up by hand: from now on it rests as the full capsule again
   if (state.view === "map" && !state.selected) return;
   setTimeout(() => {
     if (sheetHeight() === "rest") return;
@@ -2075,21 +2076,20 @@ function restingHeights(panel) {
 }
 function settleSheet(panel, name, px) {
   const clear = () => ["height", "max-height", "transition", "overflow", "transform", "opacity"].forEach((p) => panel.style.removeProperty(p));
-  // A card let go to close settles onto the search capsule as it rises from its tucked strip: the card's bottom edge
-  // comes to rest just above the capsule's top while it folds down towards that edge and fades, then it closes
+  // A card let go to close settles onto the search sheet's tucked strip: its bottom edge comes to rest just above the
+  // strip while it folds down towards it and fades, then it closes. The sheet stays tucked (.keep-tucked) until the
+  // person slides it up, so nothing springs up under the card as it goes
   if (name === "gone") {
-    const app = $("app"), sheet = $("filters");
-    app.classList.add("releasing");   // the capsule rises now, in step with the card (styles.css)
-    const capsuleTop = app.clientHeight - parseFloat(getComputedStyle(sheet).bottom) - sheet.offsetHeight;
+    const app = $("app"), stripTop = $("filters").getBoundingClientRect().top - app.getBoundingClientRect().top;
+    app.classList.add("keep-tucked");
     panel.style.transformOrigin = "50% 100%";
     panel.style.transition = "transform 0.32s var(--ease), opacity 0.26s ease-in";
-    panel.style.transform = `translateY(${capsuleTop - 8 - (panel.offsetTop + panel.offsetHeight)}px) scale(0.94, 0.5)`;
+    panel.style.transform = `translateY(${stripTop - 8 - (panel.offsetTop + panel.offsetHeight)}px) scale(0.94, 0.5)`;
     panel.style.opacity = "0";
     setTimeout(() => {
       swallowClickUntil = 0;   // not the stray click the drag guard drops
       panel.querySelector(".x").click();
       clear(); panel.style.removeProperty("transform-origin");
-      app.classList.remove("releasing");
     }, 330);
     return;
   }
@@ -2114,7 +2114,7 @@ document.addEventListener("pointerdown", (e) => {
   const panel = (zone || card).closest(".panel");
   // While a card shows, the resting sheet is tucked below the screen with only its top showing, so a drag starts
   // from that sliver rather than from the whole capsule
-  const tucked = panel.id === "filters" && sheetHeight() === "rest" && (state.view !== "map" || $("area").innerHTML !== "");
+  const tucked = panel.id === "filters" && sheetHeight() === "rest" && (state.view !== "map" || $("area").innerHTML !== "" || $("app").classList.contains("keep-tucked"));
   drag = { panel, body: !!card, id: e.pointerId, x0: e.clientX, y0: e.clientY, h0: tucked ? 44 : panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false, frame: 0 };
 });
 // Safari starts scrolling a card's content as soon as a finger moves on it, and then stops sending the drag. While a
