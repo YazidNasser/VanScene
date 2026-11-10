@@ -2071,11 +2071,14 @@ function restingHeights(panel) {
   panel.style.transition = "none";
   const heights = (filters ? SHEET_HEIGHTS : ["shrunk", "open", "tall"]).map((h) => { tryOn(h); return [h, panel.offsetHeight]; });
   tryOn(was);
-  return filters ? heights : [["gone", 0], ...heights];
+  // A swipe down closes a card in one go; shrunk stays a resting height only for a card that's already shrunk (a tap on
+  // its handle shrinks it), so a short drag doesn't throw it away
+  return filters ? heights : [["gone", 0], ...heights.filter(([h]) => h !== "shrunk" || was === "shrunk")];
 }
 function settleSheet(panel, name, px) {
   const low = name === "rest" || name === "shrunk" || name === "gone";
-  const apply = () => panel.id === "filters" ? setSheet(name) : name === "gone" ? panel.querySelector(".x").click() : setCard(panel, name);
+  const close = () => { swallowClickUntil = 0; panel.querySelector(".x").click(); };   // not the stray click the drag guard drops
+  const apply = () => panel.id === "filters" ? setSheet(name) : name === "gone" ? close() : setCard(panel, name);
   if (!low) apply();   // going up: show the content as it rises; going down: hide it once there
   if (!low && panel.id === "filters") releaseCard();
   panel.style.transition = ["height", "left", "right", "bottom", "border-radius"].map((p) => p + " 0.28s var(--ease)").join(", ");
@@ -2086,14 +2089,19 @@ function settleSheet(panel, name, px) {
 // A wide target matters on a phone, where the thin handle alone took a precise touch
 const GRAB = ".sheet-handle, .filters-top, .filters:not(.open), .card-head, .cmp-head";
 document.addEventListener("pointerdown", (e) => {
-  const zone = e.target.closest(GRAB);
-  if (!zone || !isPhone() || e.button > 0) return;
-  const panel = zone.closest(".panel");
+  if (!isPhone() || e.button > 0) return;
+  // A card's content can be pulled down too, once it's scrolled to its top, as phone sheets work
+  const zone = e.target.closest(GRAB), card = !zone && e.target.closest(".area, .compare, .trends");
+  if (!zone && !(card && card.scrollTop <= 0)) return;
+  const panel = (zone || card).closest(".panel");
   // While a card shows, the resting sheet is tucked below the screen with only its top showing, so a drag starts
   // from that sliver rather than from the whole capsule
   const tucked = panel.id === "filters" && sheetHeight() === "rest" && (state.view !== "map" || $("area").innerHTML !== "");
-  drag = { panel, id: e.pointerId, x0: e.clientX, y0: e.clientY, h0: tucked ? 44 : panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false, frame: 0 };
+  drag = { panel, body: !!card, id: e.pointerId, x0: e.clientX, y0: e.clientY, h0: tucked ? 44 : panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false, frame: 0 };
 });
+// Safari starts scrolling a card's content as soon as a finger moves on it, and then stops sending the drag. While a
+// card scrolled to its top is pulled down, keep the browser from taking the gesture; pulled up, its content scrolls
+document.addEventListener("touchmove", (e) => { if (drag?.body && e.touches[0].clientY > drag.y0) e.preventDefault(); }, { passive: false });
 document.addEventListener("pointermove", (e) => {
   const d = drag;
   if (!d || e.pointerId !== d.id) return;
@@ -2101,7 +2109,7 @@ document.addEventListener("pointermove", (e) => {
   if (!d.moved) {
     const dx = Math.abs(e.clientX - d.x0), dy = Math.abs(e.clientY - y0);
     if (dy < 8 && dx < 8) return;   // not a drag yet: could still be a tap on the search or a button
-    if (dx > dy) { drag = null; return; }   // a sideways swipe isn't for the sheet
+    if (dx > dy || (d.body && e.clientY < y0)) { drag = null; return; }   // sideways isn't for the sheet, nor up on a card's content
     d.moved = true;
     try { panel.setPointerCapture(e.pointerId); } catch (err) {}   // keep the finger if it slides off the sheet
     d.heights = restingHeights(panel);   // read once the drag starts, so a plain tap costs nothing
