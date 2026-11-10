@@ -742,9 +742,10 @@ map.getPane("heat").style.pointerEvents = "none";
 map.getPane("heat").appendChild(heat._canvas);
 heat._canvas.style.transformOrigin = "0 0";      // what _animateZoom above expects (leaflet.heat sets 50% 50%)
 
-// Crossfade from the old heat to the new one when the filters change, instead of swapping it in one frame
+// Crossfade from the old heat to the new one when the filters change, instead of swapping it in one frame: a copy of
+// the old picture fades out in a pane of its own while the heat pane fades back in (see .heat-snap-pane)
 function fadeHeat() {
-  const old = heat._canvas;
+  const old = heat._canvas, pane = map.getPane("heat");
   if (reduceMotion || !old.width || !old.height) return;
   const snap = document.createElement("canvas");
   snap.width = old.width;
@@ -752,16 +753,18 @@ function fadeHeat() {
   snap.getContext("2d").drawImage(old, 0, 0);
   snap.className = "leaflet-layer heat-snap";
   snap.style.transform = old.style.transform;
-  old.parentNode.appendChild(snap);
-  old.style.transition = "none";
-  old.style.opacity = 0;
+  const holder = L.DomUtil.create("div", "leaflet-pane heat-snap-pane", map.getPane("mapPane"));
+  holder.append(snap);
+  pane.style.transition = "none";
+  pane.style.opacity = 0;
+  getComputedStyle(pane).opacity;   // take the hidden state now, so it fades back even if the redraw holds up the timer
   // A timer, not animation frames: frames pause in background tabs and would leave the heat hidden
   setTimeout(() => {
-    old.style.transition = "";
-    old.style.opacity = "";
-    snap.style.opacity = 0;
+    pane.style.transition = "";
+    pane.style.opacity = "";
+    holder.style.opacity = 0;
   }, 40);
-  setTimeout(() => snap.remove(), 600);
+  setTimeout(() => holder.remove(), 600);
 }
 
 // Circles for the two areas (Compare view): the true 500 m edge, drawn faint so the handle at the centre is what reads first
