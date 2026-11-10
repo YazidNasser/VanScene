@@ -2075,15 +2075,15 @@ function restingHeights(panel) {
 }
 function settleSheet(panel, name, px) {
   const clear = () => ["height", "max-height", "transition", "overflow", "transform", "opacity"].forEach((p) => panel.style.removeProperty(p));
-  // A card let go to close glides down into the search capsule as it rises from its tucked strip: the card's top lands
-  // on the capsule's top while it shrinks a little and fades, and it closes once it has melted in
+  // A card let go to close settles onto the search capsule as it rises from its tucked strip: the card's bottom edge
+  // comes to rest just above the capsule's top while it folds down towards that edge and fades, then it closes
   if (name === "gone") {
     const app = $("app"), sheet = $("filters");
     app.classList.add("releasing");   // the capsule rises now, in step with the card (styles.css)
     const capsuleTop = app.clientHeight - parseFloat(getComputedStyle(sheet).bottom) - sheet.offsetHeight;
-    panel.style.transformOrigin = "50% 0";
+    panel.style.transformOrigin = "50% 100%";
     panel.style.transition = "transform 0.32s var(--ease), opacity 0.26s ease-in";
-    panel.style.transform = `translateY(${capsuleTop - panel.offsetTop}px) scale(0.94)`;
+    panel.style.transform = `translateY(${capsuleTop - 8 - (panel.offsetTop + panel.offsetHeight)}px) scale(0.94, 0.5)`;
     panel.style.opacity = "0";
     setTimeout(() => {
       swallowClickUntil = 0;   // not the stray click the drag guard drops
