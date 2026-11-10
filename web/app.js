@@ -1716,7 +1716,7 @@ function setView(view) {
   panelScroll[state.view] = $(PANEL_FOR[state.view]).scrollTop;   // remember the panel you're leaving
   state.view = view;
   $("app").dataset.view = view;
-  for (const b of document.querySelectorAll(".views button, .rail button")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
+  for (const b of document.querySelectorAll(".views button, .rail button[data-view]")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
   if (view === "compare" && !state.a && state.selected) { state.a = state.selected; state.nextSlot = "b"; }
   syncCircles();
   enter($(PANEL_FOR[view]));
@@ -1992,7 +1992,7 @@ function showError(devHint) {
 }
 
 // Header buttons: views and theme
-for (const b of document.querySelectorAll(".views button, .rail button")) {
+for (const b of document.querySelectorAll(".views button, .rail button[data-view]")) {
   b.addEventListener("click", () => {
     if (!state.data) return;
     if (isPhone()) closeFilters();   // the open filters hide every view panel, so the tap would look like it did nothing
@@ -2041,7 +2041,6 @@ function closeFilters() { setSheet("rest"); }
 // back to the map view. Putting the sheet back down then shows the map and the search. It waits for the card to fade
 // out, and keeps the card if the sheet went straight back down (just a peek)
 function releaseCard() {
-  $("app").classList.remove("keep-tucked");   // slid up by hand: from now on it rests as the full capsule again
   if (state.view === "map" && !state.selected) return;
   setTimeout(() => {
     if (sheetHeight() === "rest") return;
@@ -2055,6 +2054,8 @@ $("filters-handle").addEventListener("click", () => {
 });
 // (Searching in Compare places an area by name, so there the search leaves the Compare card be)
 $("search").addEventListener("focus", () => { if (isPhone()) { setSheet("full"); if (state.view === "map") releaseCard(); } });   // typing lifts the sheet clear of the keyboard
+// Phones: the bottom bar's search lifts the sheet first, as a hidden box can't take focus (or bring up the keyboard)
+$("rail-search").addEventListener("click", () => { setSheet("full"); $("search").focus(); });
 // Dragging any sheet's handle moves the sheet with the finger, as on iPhone. On release it settles at the nearest
 // height it can rest at (the filters: rest, half, full; a card: shrunk or open), carried on a step by a quick flick.
 // A tap still works through the handle's own click; after a drag, the click the browser may send as well is ignored
@@ -2080,12 +2081,10 @@ function restingHeights(panel) {
 }
 function settleSheet(panel, name, px) {
   const clear = () => ["height", "max-height", "transition", "overflow", "transform", "opacity"].forEach((p) => panel.style.removeProperty(p));
-  // A card let go to close settles onto the search sheet's tucked strip: its bottom edge comes to rest just above the
-  // strip while it folds down towards it and fades, then it closes. The sheet stays tucked (.keep-tucked) until the
-  // person slides it up, so nothing springs up under the card as it goes
+  // A card let go to close settles onto the bottom bar: its bottom edge comes to rest just above the bar while it
+  // folds down towards it and fades, then it closes
   if (name === "gone") {
-    const app = $("app"), stripTop = $("filters").getBoundingClientRect().top - app.getBoundingClientRect().top;
-    app.classList.add("keep-tucked");
+    const app = $("app"), stripTop = $("rail").getBoundingClientRect().top - app.getBoundingClientRect().top;
     panel.style.transformOrigin = "50% 100%";
     panel.style.transition = "transform 0.32s var(--ease), opacity 0.26s ease-in";
     panel.style.transform = `translateY(${stripTop - 8 - (panel.offsetTop + panel.offsetHeight)}px) scale(0.94, 0.5)`;
@@ -2105,9 +2104,9 @@ function settleSheet(panel, name, px) {
   panel.style.height = px + "px";
   setTimeout(() => { if (low) apply(); clear(); }, 290);
 }
-// Where a finger can grab a sheet: its handle, the search row, anywhere on the resting capsule, and a card's heading.
+// Where a finger can grab a sheet: its handle, the search row and a card's heading.
 // A wide target matters on a phone, where the thin handle alone took a precise touch
-const GRAB = ".sheet-handle, .filters-top, .filters:not(.open), .card-head, .cmp-head";
+const GRAB = ".sheet-handle, .filters-top, .card-head, .cmp-head";
 document.addEventListener("pointerdown", (e) => {
   if (!isPhone() || e.button > 0) return;
   // A card's content, or the pulled-up sheet's, can be pulled down too once it's scrolled to its top, as phone sheets
@@ -2116,10 +2115,7 @@ document.addEventListener("pointerdown", (e) => {
   const zone = e.target.closest(GRAB), card = !zone && e.target.closest(".area, .compare, .trends, .filters.open");
   if (!zone && !(card && card.scrollTop <= 0)) return;
   const panel = (zone || card).closest(".panel");
-  // While a card shows, the resting sheet is tucked below the screen with only its top showing, so a drag starts
-  // from that sliver rather than from the whole capsule
-  const tucked = panel.id === "filters" && sheetHeight() === "rest" && (state.view !== "map" || $("area").innerHTML !== "" || $("app").classList.contains("keep-tucked"));
-  drag = { panel, body: !!card, id: e.pointerId, x0: e.clientX, y0: e.clientY, h0: tucked ? 44 : panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false, frame: 0 };
+  drag = { panel, body: !!card, id: e.pointerId, x0: e.clientX, y0: e.clientY, h0: panel.offsetHeight, y: e.clientY, t: e.timeStamp, v: 0, moved: false, frame: 0 };
 });
 // Safari starts scrolling a card's content as soon as a finger moves on it, and then stops sending the drag. While a
 // card scrolled to its top is pulled down, keep the browser from taking the gesture; pulled up, its content scrolls.

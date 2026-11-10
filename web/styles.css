@@ -175,7 +175,8 @@ a { color: var(--sea); }
 #map .ab-handle.placing { box-shadow: 0 0 0 4px color-mix(in srgb, var(--slot) 30%, transparent); }   /* a soft ring on the handle a click will move */
 #map .ab-handle.leaflet-drag-target, #map .ab-handle:active { cursor: grabbing; transform: scale(1.1); }
 
-.rail { display: none; }   /* shown when wider screens turn it on, and always on phones, where it floats top right */
+.rail { display: none; }   /* shown when wider screens turn it on, and always on phones, where it's the bottom bar */
+.rail .rail-search { display: none; }   /* phones only */
 .rail button { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--muted); cursor: pointer;
   transition: background-color 0.2s, color 0.2s, transform 0.12s; }
 .rail button svg { width: 18px; height: 18px; transition: transform 0.25s var(--ease); }
@@ -505,28 +506,33 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
 /* ---------------- Phones: the map fills the screen; everything else is in a sheet pulled up from the bottom ---------------- */
 @media (max-width: 760px) {
   /* No header bar: app.js moves the search onto the bottom sheet, the name and theme switch to the sheet's foot and
-     the map key onto the map; the views float top right */
+     the map key onto the map; the views and a search button make a bar along the bottom */
   .site-head { position: absolute; height: 0; padding: 0; border: 0; }
   .head-search, .side-toggle, .views { display: none; }
   .app { overflow: hidden; }   /* the sheet tucked below the screen mustn't make the page scroll */
   .brand-btn { cursor: default; }   /* no sidebar to fold away on phones */
   .filters .brand h1 { font-size: 1.05rem; }
-  /* Map, Compare and Trends as a slim pill of icons, clear of the notch. It steps aside while the sheet is pulled up over it */
-  .rail { display: flex; flex-direction: column; gap: 4px; position: fixed; z-index: 11; top: calc(12px + env(safe-area-inset-top)); right: 12px; padding: 4px; border-radius: 26px;
+  /* Map, Compare, Trends and Search as a floating bar of icons along the bottom, in a thumb's reach and clear of the
+     home bar. The open view sits in a soft inner pill. It steps aside while the sheet is pulled up over it */
+  .rail { display: flex; gap: 4px; position: fixed; z-index: 11; left: 12px; right: 12px; bottom: calc(8px + env(safe-area-inset-bottom)); padding: 5px; border-radius: 30px;
     transition: opacity 0.2s, visibility 0.2s, background-color 0.3s, border-color 0.3s; }
   body:has(.filters.open) .rail { opacity: 0; visibility: hidden; }
-  .rail button { width: 44px; height: 44px; border-radius: 22px; }
+  .rail button, .rail .rail-search { display: grid; flex: 1; width: auto; height: 50px; border-radius: 25px; background: transparent; }
+  .rail button svg { width: 24px; height: 24px; }
+  .rail button[aria-pressed="true"] { background: var(--hover); color: var(--ink); }
 
-  /* The filters are a sheet with three heights. At rest it's a floating capsule holding just
-     the handle and the search. Drag the handle up for half the screen (.open) or all of it (.full), down to step back.
-     Tapping the search goes straight to full, clear of the keyboard */
+  /* The filters are a sheet with three heights. At rest it's put away below the screen; the bar's search button brings
+     it up full with the search ready, clear of the keyboard. Drag the handle down for half the screen (.open), or put it away */
   .filters { top: auto; left: 12px; right: 12px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; max-height: 50%; padding: 0 12px 12px; gap: 14px;
-    border-width: 1px; border-radius: 30px; transition: left 0.3s var(--ease), right 0.3s var(--ease), bottom 0.3s var(--ease), max-height 0.3s var(--ease), border-radius 0.3s var(--ease), transform 0.3s var(--ease); }
+    border-width: 1px; border-radius: 30px; transition: left 0.3s var(--ease), right 0.3s var(--ease), bottom 0.3s var(--ease), max-height 0.3s var(--ease), border-radius 0.3s var(--ease), transform 0.3s var(--ease), visibility 0s 0.3s; }
+  .filters.open { transition-delay: 0s; }   /* shown at once going up, so the search can take focus; hidden only once slid away */
+  .filters:not(.open) { transform: translateY(calc(100% + 16px + env(safe-area-inset-bottom))); visibility: hidden; }
+  .app .filters { animation: none; }   /* no entrance: it starts put away, and the animation's held frame would pin it on screen */
   .filters .sheet-handle { height: 26px; }
   .filters .sheet-handle::before { margin-top: 10px; }
-  /* A finger can grab a sheet by its heading as well as its handle, and the resting capsule anywhere (app.js tells a
-     drag from a tap), so those parts take the swipe instead of the page */
-  :is(.filters-top, .filters:not(.open), .card-head, .cmp-head) { touch-action: none; }
+  /* A finger can grab a sheet by its heading as well as its handle (app.js tells a drag from a tap), so those parts
+     take the swipe instead of the page */
+  :is(.filters-top, .card-head, .cmp-head) { touch-action: none; }
   .filters-top { display: flex; align-items: center; gap: 8px; }
   .filters .search { height: 44px; border-radius: 22px; }
   .filters .theme-toggle { width: 40px; height: 40px; background: var(--surface-2); border-color: transparent; }
@@ -545,17 +551,9 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .app[data-view] :is(.area, .compare, .trends) { animation-fill-mode: backwards; transition: opacity 0.25s var(--ease), transform 0.3s var(--ease), visibility 0s; }
   .app:has(.filters.open) :is(.area, .compare, .trends) { opacity: 0; transform: translateY(16px); visibility: hidden; pointer-events: none;
     transition: opacity 0.2s, transform 0.25s var(--ease), visibility 0s 0.25s; }
-  .filters:not(.open) { overflow: visible; }   /* let the suggestions hang outside the short capsule */
   /* No scroll bars on the sheets and cards: they're scrolled with a finger, and the bar only crowds the rounded edge */
   .panel { scrollbar-width: none; }
   .panel::-webkit-scrollbar { display: none; }
-  /* While a card is showing (Compare, Trends, or a picked spot), the resting capsule tucks below the screen with just
-     its handle along the bottom edge, and the card takes its place, leaving more of the map. Drag the handle up to
-     bring the search and filters back; closing the card brings the capsule back too */
-  .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .filters:not(.open), #app.keep-tucked .filters:not(.open) { transform: translateY(calc(100% - 36px)); }
-  /* (.keep-tucked: after a card is swiped closed, the sheet stays tucked until it's slid up; app.js) */
-  /* That leaves its top 44px showing above the phone's home bar (the safe area), a strip a thumb can catch without
-     setting off the system's own swipe up from the very bottom edge */
 
   /* The map key as a small frosted chip in the top left: Fewer, the ramp, More */
   .app > .legend { position: absolute; z-index: 5; top: calc(12px + env(safe-area-inset-top)); left: 12px; width: 190px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 14px;
@@ -567,9 +565,9 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .legend .ends span:last-child { grid-area: 1 / 3; }
   .legend-note { grid-column: 1 / -1; }
 
-  /* The area, Compare and Trends cards float just above the tucked sheet's handle. Their tops stop below the floating buttons */
-  .area, .compare, .trends { left: 12px; right: 12px; bottom: calc(52px + env(safe-area-inset-bottom)); top: auto; width: auto;
-    --card-max: calc(100% - 52px - env(safe-area-inset-bottom) - 190px);   /* the tallest a card gets: 190px clears the pill's 168px */
+  /* The area, Compare and Trends cards float just above the bottom bar. Their tops stop below the key chip */
+  .area, .compare, .trends { left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); top: auto; width: auto;
+    --card-max: calc(100% - 76px - env(safe-area-inset-bottom) - 64px - env(safe-area-inset-top));   /* the tallest a card gets, clear of the key chip */
     max-height: min(var(--card-max), 32%); border-radius: 26px; padding: 0 16px 16px; }
   /* A card opens at a third of the screen so most of the map stays free to tap and pan; drag its handle up for .tall */
   .area.tall, .compare.tall, .trends.tall { max-height: var(--card-max); }
@@ -613,16 +611,16 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .h2h { grid-template-columns: minmax(0, 1fr) 76px 76px; font-size: 0.8rem; }
   #map .leaflet-control-zoom { display: none; }
   #map .leaflet-bottom.leaflet-right { bottom: auto; right: auto; left: 2px; top: calc(54px + env(safe-area-inset-top)); }   /* the scale, under the key chip */
-  /* Notes as a small pill just above the search capsule, the thing they point to, rather than a box over the key in the
-     corner. While a card holds the bottom, they sit just under the top row instead */
-  .toast { top: auto; bottom: calc(112px + env(safe-area-inset-bottom)); left: 50%; max-width: calc(100% - 48px); padding: 8px 12px; gap: 8px; border-radius: 14px; font-size: 0.8rem; }
+  /* Notes as a small pill just above the bottom bar, rather than a box over the key in the corner. While a card holds
+     the bottom, they sit just under the top row instead */
+  .toast { top: auto; bottom: calc(80px + env(safe-area-inset-bottom)); left: 50%; max-width: calc(100% - 48px); padding: 8px 12px; gap: 8px; border-radius: 14px; font-size: 0.8rem; }
   .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .toast { top: calc(60px + env(safe-area-inset-top)); bottom: auto; }
   /* The same frosted glass as wider screens on everything over the map, so the map shows softly through */
   .panel, .app > .legend { background: var(--glass); border-color: var(--glass-edge);
     -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
     --surface-2: var(--glass-fill); --bar-bg: var(--glass-fill-2); --faint: var(--muted); }
   /* Kept light for speed: every blurred layer is redrawn each frame the map moves under it, which phones feel. So the
-     blur is softer than on wider screens with no colour boost, the small views pill and key chip are near-solid with
+     blur is softer than on wider screens with no colour boost, the views bar and key chip are near-solid with
      no blur, and the area rings drop their soft shadow */
   .rail, .app > .legend { background: color-mix(in srgb, var(--surface) 92%, transparent); -webkit-backdrop-filter: none; backdrop-filter: none; }
   :root[data-theme] #map .leaflet-overlay-pane path { filter: none; }
