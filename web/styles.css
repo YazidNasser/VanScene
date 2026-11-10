@@ -615,6 +615,7 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .compare.incomplete .cmp .big { font-size: 1.15rem; }
   .h2h { grid-template-columns: minmax(0, 1fr) 76px 76px; font-size: 0.8rem; }
   #map .leaflet-control-zoom { display: none; }
+  .leaflet-heat-pane, .heat-snap-pane { transition: opacity 0.9s ease-in-out; }   /* a slower, softer crossfade (fadeHeat), which read as a pop on a phone */
   #map .leaflet-bottom.leaflet-right { bottom: auto; right: auto; left: 2px; top: calc(54px + env(safe-area-inset-top)); }   /* the scale, under the key chip */
   /* Notes as a small pill just above the bottom bar, rather than a box over the key in the corner. While a card holds
      the bottom, they sit just under the top row instead */
