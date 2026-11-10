@@ -545,8 +545,8 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   /* While a card is showing (Compare, Trends, or a picked spot), the resting capsule tucks below the screen with just
      its handle along the bottom edge, and the card takes its place, leaving more of the map. Drag the handle up to
      bring the search and filters back; closing the card brings the capsule back too */
-  .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .filters:not(.open) { transform: translateY(calc(100% - 36px)); }
-  #app.releasing .filters:not(.open) { transform: none; }   /* a card being closed: the capsule rises to meet it (app.js) */
+  .app:is(:not([data-view="map"]), :has(.area:not(:empty))) .filters:not(.open), #app.keep-tucked .filters:not(.open) { transform: translateY(calc(100% - 36px)); }
+  /* (.keep-tucked: after a card is swiped closed, the sheet stays tucked until it's slid up; app.js) */
   /* That leaves its top 44px showing above the phone's home bar (the safe area), a strip a thumb can catch without
      setting off the system's own swipe up from the very bottom edge */
 
