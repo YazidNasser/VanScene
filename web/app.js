@@ -2074,7 +2074,8 @@ function restingHeights(panel) {
   const filters = panel.id === "filters", was = filters ? sheetHeight() : cardHeight(panel);
   const tryOn = (h) => filters ? setSheet(h) : setCard(panel, h);
   panel.style.transition = "none";
-  const heights = (filters ? SHEET_HEIGHTS : ["shrunk", "open", "tall"]).map((h) => { tryOn(h); return [h, panel.offsetHeight]; });
+  // (the filters at rest are put away below the screen, so a drag let go low shrinks them to nothing)
+  const heights = (filters ? SHEET_HEIGHTS : ["shrunk", "open", "tall"]).map((h) => { tryOn(h); return [h, filters && h === "rest" ? 0 : panel.offsetHeight]; });
   tryOn(was);
   // A swipe down closes a card in one go; shrunk stays a resting height only for a card that's already shrunk (a tap on
   // its handle shrinks it), so a short drag doesn't throw it away
@@ -2103,7 +2104,9 @@ function settleSheet(panel, name, px) {
   if (!low && panel.id === "filters") releaseCard();
   panel.style.transition = ["height", "left", "right", "bottom", "border-radius"].map((p) => p + " 0.28s var(--ease)").join(", ");
   panel.style.height = px + "px";
-  setTimeout(() => { if (low) apply(); clear(); }, 290);
+  // Going down, the lower height is put on while the drag's own transitions still hold, so the put-away sheet drops out
+  // of sight at once rather than popping back to full size as it slides away
+  setTimeout(() => { if (low) { apply(); void panel.offsetHeight; } clear(); }, 290);
 }
 // Where a finger can grab a sheet: its handle, the search row, a card's heading, and the bottom bar (phones), which
 // pulls the put-away filters sheet up from nothing.
@@ -2137,7 +2140,8 @@ document.addEventListener("pointermove", (e) => {
     try { panel.setPointerCapture(e.pointerId); } catch (err) {}   // keep the finger if it slides off the sheet
     d.heights = restingHeights(panel);   // read once the drag starts, so a plain tap costs nothing
     if (panel.id === "filters" && sheetHeight() === "rest") setSheet("half");   // let the content show as it's pulled up
-    panel.style.transition = "none"; panel.style.maxHeight = "none"; panel.style.overflow = "hidden";
+    // Held at its starting height from the first move, or it shows at full height for a frame before the drag sizes it
+    panel.style.transition = "none"; panel.style.maxHeight = "none"; panel.style.overflow = "hidden"; panel.style.height = d.h0 + "px";
   }
   d.v = (e.clientY - d.y) / Math.max(1, e.timeStamp - d.t);   // px per ms, downward positive
   d.y = e.clientY; d.t = e.timeStamp;
@@ -2146,7 +2150,7 @@ document.addEventListener("pointermove", (e) => {
     d.frame = 0;
     if (drag !== d) return;
     const lo = d.heights[0][1], hi = d.heights[d.heights.length - 1][1];
-    panel.style.height = Math.max(Math.min(d.h0, lo - 30), Math.min(hi + 30, d.h0 - (d.y - y0))) + "px";
+    panel.style.height = Math.max(0, Math.min(d.h0, lo - 30), Math.min(hi + 30, d.h0 - (d.y - y0))) + "px";
   });
 });
 function endDrag(e) {
