@@ -2211,6 +2211,10 @@ setSidebar(startOpen);
 function setRail(on) {
   document.body.classList.toggle("rail-on", on);
   $("rail-toggle").setAttribute("aria-pressed", String(on));
+  // The rail names its views itself when the pointer is over it, so the browser's own tooltip would only repeat it
+  for (const b of $("rail").querySelectorAll("button")) {
+    if (on) { b.dataset.title = b.title; b.removeAttribute("title"); } else if (b.dataset.title) b.title = b.dataset.title;
+  }
 }
 // The shapes the bar flows through like slime on its way into the rail: it stretches as it runs right along the
 // bottom, splats flat against the edge, shoots up it in a long drip, pulls its tail in and wobbles to rest.
