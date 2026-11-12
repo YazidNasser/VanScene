@@ -235,6 +235,13 @@ a { color: var(--sea); }
      deeper shadow too; the header and drawer sit flush to the edges, where a shadow would only split their seam */
   :root[data-theme="dark"] :is(.site-head, .panel) { --glass: rgba(50, 60, 80, 0.86); --glass-edge: rgba(230, 235, 241, 0.2); }
   :root[data-theme="dark"] :is(body:not(.rail-on) .rail, .area, .compare, .trends) { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 10px 28px rgba(0, 0, 0, 0.4); }
+  /* With the panels lighter, the search box and the crime-type picker (once a step lighter than them) and the zoom
+     buttons (still the old dark card) blended in; each steps up again with its own rim. Shadows are left to their
+     own rules, so the search box's hover and focus looks still work */
+  :root[data-theme="dark"] :is(.head-search .search, .panel .picker) { --search-bg: #414c63; border-color: rgba(230, 235, 241, 0.22); }
+  :root[data-theme="dark"] #map .leaflet-bar { border-color: rgba(230, 235, 241, 0.22); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 10px 28px rgba(0, 0, 0, 0.4); }
+  :root[data-theme="dark"] #map .leaflet-bar a { background: #3a455b; border-bottom-color: rgba(230, 235, 241, 0.14); }
+  :root[data-theme="dark"] #map .leaflet-bar a:hover { background: #46526a; }
   /* The header's rail button (rail-on) moves the bar into a slim rail docked to the right edge, flush under the
      header: as tall as its buttons and rounded only at the free corner, the mirror of the filters drawer. Being
      short, it leaves the zoom buttons and credits where they are; only an open card steps left to clear it */
