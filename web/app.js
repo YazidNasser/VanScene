@@ -2245,9 +2245,9 @@ $("rail-toggle").addEventListener("click", () => {
     setRail(on);
     const to = box(rail.getBoundingClientRect());
     const frames = on ? slimeFrames(from, to, page.width) : slimeFrames(to, from, page.width).reverse().map((k) => ({ ...k, offset: 1 - k.offset }));
-    rail.animate(frames, { duration: 850, easing: "cubic-bezier(0.45, 0.05, 0.35, 1)" })
+    rail.animate(frames, { duration: 600, easing: "cubic-bezier(0.45, 0.05, 0.35, 1)" })
       .finished.then(() => body.classList.remove("rail-morph"));   // and fade back in once it has settled
-  }, 100);
+  }, 60);
 });
 try { localStorage.removeItem("rail"); } catch (e) {}   // clear the choice older versions saved
 

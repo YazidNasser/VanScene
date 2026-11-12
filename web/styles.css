@@ -240,7 +240,7 @@ a { color: var(--sea); }
   body.rail-on .site-head::after { right: var(--rail-w); }   /* header and rail meet as one sheet of glass */
   /* While the bar flows into the rail or back like slime (rail-morph, see slimeFrames in app.js), its icons fade
      out and the glass alone changes shape, so nothing inside gets squeezed */
-  .rail button { transition: opacity 0.1s, background-color 0.2s, color 0.2s, transform 0.12s; }
+  .rail button { transition: opacity 0.06s, background-color 0.2s, color 0.2s, transform 0.12s; }
   body.rail-morph .rail { overflow: hidden; }
   body.rail-morph .rail > * { opacity: 0; }
   /* The open card steps aside with the rail, in step with the zoom buttons beside it */
