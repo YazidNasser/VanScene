@@ -145,6 +145,9 @@ a { color: var(--sea); }
   #map .leaflet-bottom { transition: right 0.25s ease-in-out; }   /* glides aside with the panels and the rail */
   .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 436px; }   /* the 420px panel + 16px gutter */
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 360px; }   /* an open area card: 344px + 16px */
+  /* With the right-edge rail in (see below), the cards step 60px left, so the zoom buttons beside them do too */
+  body.rail-on .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 496px; }
+  body.rail-on .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 420px; }
 }
 @media (min-width: 761px) and (max-width: 1150px) {
   .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 356px; }   /* the slimmer 340px panels */
@@ -152,6 +155,8 @@ a { color: var(--sea); }
   /* The bottom bar centres itself in the slimmer gap too */
   body:has(.app:is([data-view="trends"], [data-view="compare"])) { --bar-r: 356px; }
   body:has(.app[data-view="map"] .area:not(:empty)) { --bar-r: 316px; }
+  body.rail-on .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 416px; }
+  body.rail-on .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 376px; }
 }
 /* A soft shadow under the area circles rather than an outline, just enough to lift a thin ring off the heat */
 #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.7)); }   /* a pale edge lifts the grey ring off the heat */
@@ -195,9 +200,11 @@ a { color: var(--sea); }
   body.side-hidden .site-head::after { left: 0; }
   .site-head .theme-toggle { background: transparent; }
   /* The search sits in the true middle of the header, lined up with the views bar at the bottom */
-  .head-search { position: absolute; left: 50%; top: 10px; width: min(420px, calc(100% - 440px)); transform: translateX(-50%); }
+  .head-search { position: absolute; z-index: 1; left: 50%; top: 10px; width: min(420px, calc(100% - 440px)); transform: translateX(-50%); }
+  /* (The z-index: the centring transform keeps its list's own z-index inside it, so without this the header's
+     bottom line, drawn later, ran across the open neighbourhood list) */
   .head-search .search { flex: 1 1 auto; }
-  .site-head .theme-toggle { margin-left: auto; }   /* the search no longer pushes it right, so it holds the corner itself */
+  #rail-toggle { margin-left: auto; }   /* the search no longer pushes the right-hand buttons over, so the first of them holds them in the corner */
   /* The filters are a drawer docked to the left edge, flush under the header: as tall as their content, rounded only
      at the free corner. The header's sidebar button (or the name) slides it away to give the map the whole width */
   .filters { top: var(--top); left: 0; max-height: calc(100% - var(--top)); border-width: 0 1px 1px 0; border-radius: 0 0 16px 0; }
@@ -222,6 +229,41 @@ a { color: var(--sea); }
   .rail button svg { width: 22px; height: 22px; }
   .rail button[aria-pressed="true"] { background: color-mix(in srgb, var(--ink) 16%, transparent); color: var(--ink); }
   .rail button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  /* The header's rail button (rail-on) moves the bar into a slim rail docked to the right edge, flush under the
+     header: as tall as its buttons and rounded only at the free corner, the mirror of the filters drawer. Being
+     short, it leaves the zoom buttons and credits where they are; only an open card steps left to clear it */
+  body { --rail-w: 60px; }
+  body.rail-on .rail { flex-direction: column; align-items: center; gap: 8px; top: 58px; right: 0; bottom: auto; left: auto; width: var(--rail-w);
+    padding: 12px 0; transform: none; border-width: 0 0 1px 1px; border-radius: 0 0 0 16px; box-shadow: none; }
+  body.rail-on .rail :is(button, .rail-search) { width: 44px; height: 44px; }
+  /* Under the pointer (or with a key moving through it) the rail widens to the left and names each view beside its
+     icon, as social apps' slim sidebars do. Each button becomes a row with its icon held at the right, so the icons
+     stay put as it opens; the open view's soft pill stretches under its name */
+  body.rail-on .panel.rail { transition: width 0.2s var(--ease), left 0.25s ease-in-out, background-color 0.3s, border-color 0.3s; }
+  body.rail-on .rail:is(:hover, :has(:focus-visible)) { width: 172px; box-shadow: var(--control-shadow); }
+  body.rail-on .rail :is(button, .rail-search) { display: flex; flex-direction: row-reverse; align-items: center; justify-content: flex-start; gap: 10px;
+    width: calc(100% - 16px); padding: 0 11px; border-radius: 12px; overflow: hidden; }
+  body.rail-on .rail button svg { flex: none; }
+  .rail-label { display: none; }
+  body.rail-on .rail-label { display: block; white-space: nowrap; font-size: 0.92rem; font-weight: 600; opacity: 0; transition: opacity 0.15s; }
+  body.rail-on .rail:is(:hover, :has(:focus-visible)) .rail-label { opacity: 1; transition-delay: 0.05s; }
+  /* Along the bottom, the same names pop up one at a time instead: a small bubble over the button under the pointer */
+  body:not(.rail-on) .rail button { position: relative; }
+  body:not(.rail-on) .rail-label { display: block; position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translate(-50%, 4px);
+    padding: 5px 10px; border-radius: 8px; background: var(--ink); color: var(--surface); font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+    pointer-events: none; opacity: 0; transition: opacity 0.15s, transform 0.15s var(--ease); }
+  body:not(.rail-on) .rail-label::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border: 5px solid transparent; border-top-color: var(--ink); }
+  body:not(.rail-on) .rail button:focus-visible .rail-label { opacity: 1; transform: translate(-50%, 0); }
+  @media (hover: hover) { body:not(.rail-on) .rail button:hover .rail-label { opacity: 1; transform: translate(-50%, 0); } }
+  body.rail-on :is(.area, .compare, .trends) { right: calc(var(--rail-w) + 16px); }
+  body.rail-on .site-head::after { right: var(--rail-w); }   /* header and rail meet as one sheet of glass */
+  /* While the bar flows into the rail or back like slime (rail-morph, see slimeFrames in app.js), its icons fade
+     out and the glass alone changes shape, so nothing inside gets squeezed */
+  .rail button { transition: opacity 0.06s, background-color 0.2s, color 0.2s, transform 0.12s; }
+  body.rail-morph .rail { overflow: hidden; }
+  body.rail-morph .rail > * { opacity: 0; }
+  /* The open card steps aside with the rail, in step with the zoom buttons beside it */
+  .app :is(.area, .compare, .trends) { transition: right 0.25s ease-in-out, background-color 0.3s, color 0.3s, border-color 0.3s; }
   /* Solid where the browser can't blur, or the person has asked for less transparency */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .site-head, .panel { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .site-head, .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }

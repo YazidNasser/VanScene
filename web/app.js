@@ -2206,6 +2206,49 @@ phoneQuery.addEventListener("change", () => setSidebar(!document.body.classList.
 let startOpen = true;
 try { startOpen = localStorage.getItem("sidebar") !== "hidden"; } catch (e) {}
 setSidebar(startOpen);
+// The rail button moves the views bar from the bottom of the map into a slim rail down the right edge, and back.
+// Not remembered: every visit opens with the bar at the bottom, where newcomers look for it first
+function setRail(on) {
+  document.body.classList.toggle("rail-on", on);
+  $("rail-toggle").setAttribute("aria-pressed", String(on));
+}
+// The shapes the bar flows through like slime on its way into the rail: it stretches as it runs right along the
+// bottom, splats flat against the edge, shoots up it in a long drip, pulls its tail in and wobbles to rest.
+// The way back plays them in reverse. bar and rail are the two resting boxes, in the page's coordinates
+function slimeFrames(bar, rail, edge) {
+  const f = (offset, x, y, w, h, r) => ({ offset, left: x + "px", top: y + "px", width: w + "px", height: h + "px",
+    borderRadius: r, right: "auto", bottom: "auto", transform: "none" });
+  const floor = bar.bottom, pill = bar.height / 2 + "px";
+  return [
+    f(0, bar.left, bar.top, bar.width, bar.height, pill),
+    f(0.28, bar.left + bar.width * 0.35, floor - bar.height * 0.78, bar.width * 1.45, bar.height * 0.78, pill),
+    f(0.44, edge - bar.width * 0.72, floor - bar.height * 1.12, bar.width * 0.72, bar.height * 1.12, `${pill} 0 0 ${pill}`),
+    f(0.54, edge - rail.width * 1.3, floor - bar.height * 2.2, rail.width * 1.3, bar.height * 2.2, "40px 0 0 40px"),
+    f(0.72, edge - rail.width * 0.75, rail.top, rail.width * 0.75, floor - rail.top, "0 0 0 30px"),
+    f(0.86, edge - rail.width * 0.92, rail.top, rail.width * 0.92, rail.height * 1.15, "0 0 0 26px"),
+    f(0.94, edge - rail.width * 1.06, rail.top, rail.width * 1.06, rail.height * 0.95, "0 0 0 14px"),
+    f(1, rail.left, rail.top, rail.width, rail.height, "0 0 0 16px"),
+  ];
+}
+// The bar changes shape (a row becomes a column), which CSS can't animate, so the switch moves the glass itself
+// through slimeFrames. People who asked for less motion get the switch at once
+$("rail-toggle").addEventListener("click", () => {
+  const body = document.body, rail = $("rail");
+  if (body.classList.contains("rail-morph")) return;   // mid-switch: let it finish
+  const on = !body.classList.contains("rail-on");
+  if (reduceMotion) { setRail(on); return; }
+  body.classList.add("rail-morph");   // the icons fade out first
+  setTimeout(() => {
+    const page = body.getBoundingClientRect(), box = (r) => ({ left: r.left - page.left, top: r.top - page.top,
+      width: r.width, height: r.height, bottom: r.bottom - page.top });
+    const from = box(rail.getBoundingClientRect());
+    setRail(on);
+    const to = box(rail.getBoundingClientRect());
+    const frames = on ? slimeFrames(from, to, page.width) : slimeFrames(to, from, page.width).reverse().map((k) => ({ ...k, offset: 1 - k.offset }));
+    rail.animate(frames, { duration: 450, easing: "cubic-bezier(0.45, 0.05, 0.35, 1)" })
+      .finished.then(() => body.classList.remove("rail-morph"));   // and fade back in once it has settled
+  }, 60);
+});
 try { localStorage.removeItem("rail"); } catch (e) {}   // clear the choice older versions saved
 
 function syncThemeButton() {
