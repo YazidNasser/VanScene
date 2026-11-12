@@ -1719,7 +1719,7 @@ function setView(view) {
   panelScroll[state.view] = $(PANEL_FOR[state.view]).scrollTop;   // remember the panel you're leaving
   state.view = view;
   $("app").dataset.view = view;
-  for (const b of document.querySelectorAll(".views button, .rail button[data-view]")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
+  for (const b of document.querySelectorAll(".rail button[data-view]")) b.setAttribute("aria-pressed", String(b.dataset.view === view));
   if (view === "compare" && !state.a && state.selected) { state.a = state.selected; state.nextSlot = "b"; }
   syncCircles();
   enter($(PANEL_FOR[view]));
@@ -1996,8 +1996,8 @@ function showError(devHint) {
   $("status").classList.add("show");
 }
 
-// Header buttons: views and theme
-for (const b of document.querySelectorAll(".views button, .rail button[data-view]")) {
+// The views bar along the bottom: Map, Compare and Trends
+for (const b of document.querySelectorAll(".rail button[data-view]")) {
   b.addEventListener("click", () => {
     if (!state.data) return;
     if (isPhone()) closeFilters();   // the open filters hide every view panel, so the tap would look like it did nothing
@@ -2059,9 +2059,12 @@ $("filters-handle").addEventListener("click", () => {
 });
 // (Searching in Compare places an area by name, so there the search leaves the Compare card be)
 $("search").addEventListener("focus", () => { if (isPhone()) { setSheet("full"); if (state.view === "map") releaseCard(); } });   // typing lifts the sheet clear of the keyboard
-// Phones: the bottom bar's search brings the sheet up halfway, so the year, type and time can be picked first;
-// tapping the search box there then takes it to full with the keyboard
-$("rail-search").addEventListener("click", () => { setSheet("half"); releaseCard(); });
+// The bottom bar's search. Wider screens: it jumps into the search box in the header. Phones: it brings the sheet
+// up halfway, so the year, type and time can be picked first; tapping the search box there takes it to full
+$("rail-search").addEventListener("click", () => {
+  if (!isPhone()) { $("search").focus(); return; }
+  setSheet("half"); releaseCard();
+});
 // Dragging any sheet's handle moves the sheet with the finger, as on iPhone. On release it settles at the nearest
 // height it can rest at (the filters: rest, half, full; a card: shrunk or open), carried on a step by a quick flick.
 // A tap still works through the handle's own click; after a drag, the click the browser may send as well is ignored
@@ -2203,13 +2206,6 @@ phoneQuery.addEventListener("change", () => setSidebar(!document.body.classList.
 let startOpen = true;
 try { startOpen = localStorage.getItem("sidebar") !== "hidden"; } catch (e) {}
 setSidebar(startOpen);
-// The rail button moves the views between the header and a slim rail down the right edge, in every view. Not remembered:
-// every visit opens with the views on top in the header, where newcomers look for them first
-function setRail(on) {
-  document.body.classList.toggle("rail-on", on);
-  $("rail-toggle").setAttribute("aria-pressed", String(on));
-}
-$("rail-toggle").addEventListener("click", () => setRail(!document.body.classList.contains("rail-on")));
 try { localStorage.removeItem("rail"); } catch (e) {}   // clear the choice older versions saved
 
 function syncThemeButton() {
