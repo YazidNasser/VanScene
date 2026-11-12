@@ -2206,6 +2206,19 @@ phoneQuery.addEventListener("change", () => setSidebar(!document.body.classList.
 let startOpen = true;
 try { startOpen = localStorage.getItem("sidebar") !== "hidden"; } catch (e) {}
 setSidebar(startOpen);
+// The rail button moves the views bar from the bottom of the map into a slim rail down the right edge, and back.
+// Not remembered: every visit opens with the bar at the bottom, where newcomers look for it first
+function setRail(on) {
+  document.body.classList.toggle("rail-on", on);
+  $("rail-toggle").setAttribute("aria-pressed", String(on));
+}
+// The bar changes shape (a row becomes a column), which CSS can't animate, so a view transition morphs the old
+// picture into the new one. Browsers without it, or people who asked for less motion, get the switch at once
+$("rail-toggle").addEventListener("click", () => {
+  const on = !document.body.classList.contains("rail-on");
+  if (document.startViewTransition && !reduceMotion) document.startViewTransition(() => setRail(on));
+  else setRail(on);
+});
 try { localStorage.removeItem("rail"); } catch (e) {}   // clear the choice older versions saved
 
 function syncThemeButton() {

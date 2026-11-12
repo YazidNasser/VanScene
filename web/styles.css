@@ -145,6 +145,10 @@ a { color: var(--sea); }
   #map .leaflet-bottom { transition: right 0.25s ease-in-out; }   /* glides aside with the panels and the rail */
   .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 436px; }   /* the 420px panel + 16px gutter */
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 360px; }   /* an open area card: 344px + 16px */
+  /* With the right-edge rail in (see below), all of that steps a further 60px left */
+  body.rail-on .app[data-view="map"] #map .leaflet-bottom.leaflet-right { right: 60px; }
+  body.rail-on .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 496px; }
+  body.rail-on .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 420px; }
 }
 @media (min-width: 761px) and (max-width: 1150px) {
   .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 356px; }   /* the slimmer 340px panels */
@@ -152,6 +156,8 @@ a { color: var(--sea); }
   /* The bottom bar centres itself in the slimmer gap too */
   body:has(.app:is([data-view="trends"], [data-view="compare"])) { --bar-r: 356px; }
   body:has(.app[data-view="map"] .area:not(:empty)) { --bar-r: 316px; }
+  body.rail-on .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 416px; }
+  body.rail-on .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 376px; }
 }
 /* A soft shadow under the area circles rather than an outline, just enough to lift a thin ring off the heat */
 #map .leaflet-overlay-pane path { filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.7)); }   /* a pale edge lifts the grey ring off the heat */
@@ -197,7 +203,7 @@ a { color: var(--sea); }
   /* The search sits in the true middle of the header, lined up with the views bar at the bottom */
   .head-search { position: absolute; left: 50%; top: 10px; width: min(420px, calc(100% - 440px)); transform: translateX(-50%); }
   .head-search .search { flex: 1 1 auto; }
-  .site-head .theme-toggle { margin-left: auto; }   /* the search no longer pushes it right, so it holds the corner itself */
+  #rail-toggle { margin-left: auto; }   /* the search no longer pushes the right-hand buttons over, so the first of them holds them in the corner */
   /* The filters are a drawer docked to the left edge, flush under the header: as tall as their content, rounded only
      at the free corner. The header's sidebar button (or the name) slides it away to give the map the whole width */
   .filters { top: var(--top); left: 0; max-height: calc(100% - var(--top)); border-width: 0 1px 1px 0; border-radius: 0 0 16px 0; }
@@ -222,6 +228,22 @@ a { color: var(--sea); }
   .rail button svg { width: 22px; height: 22px; }
   .rail button[aria-pressed="true"] { background: color-mix(in srgb, var(--ink) 16%, transparent); color: var(--ink); }
   .rail button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  /* The header's rail button (rail-on) moves the bar into a slim rail down the right edge, flush under the header.
+     While it's there the cards, zoom buttons and credits step left to clear it */
+  body { --rail-w: 60px; }
+  body.rail-on .rail { flex-direction: column; align-items: center; gap: 8px; top: 58px; right: 0; bottom: 0; left: auto; width: var(--rail-w);
+    padding: 12px 0; transform: none; border-width: 0 0 0 1px; border-radius: 0; box-shadow: none; }
+  body.rail-on .rail :is(button, .rail-search) { width: 44px; height: 44px; }
+  body.rail-on :is(.area, .compare, .trends) { right: calc(var(--rail-w) + 16px); }
+  body.rail-on #map .leaflet-bottom.leaflet-left { right: var(--rail-w); }
+  body.rail-on .site-head::after { right: var(--rail-w); }   /* header and rail meet as one sheet of glass */
+  /* Named, so the switch (a view transition, see setRail) glides the bar and the open card into place
+     instead of fading between two copies */
+  .rail { view-transition-name: views-bar; }
+  .area { view-transition-name: area-card; }
+  .compare { view-transition-name: compare-card; }
+  .trends { view-transition-name: trends-card; }
+  ::view-transition-group(*) { animation-duration: 0.3s; animation-timing-function: ease-in-out; }
   /* Solid where the browser can't blur, or the person has asked for less transparency */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .site-head, .panel { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .site-head, .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
@@ -506,6 +528,11 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .area, .compare { max-height: calc(100% - var(--top) - 104px); }
   .trends { bottom: 88px; }
   .filters { max-height: calc(100% - var(--top) - 88px); }
+  /* With the bar moved to the right-edge rail, the bottom is free again */
+  body.rail-on #map .leaflet-bottom.leaflet-right .leaflet-control-zoom { margin-bottom: 31px; }
+  body.rail-on :is(.area, .compare) { max-height: calc(100% - var(--top) - 53px); }
+  body.rail-on .trends { bottom: 37px; }
+  body.rail-on .filters { max-height: calc(100% - var(--top)); }
 }
 
 @keyframes cmp-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } }
