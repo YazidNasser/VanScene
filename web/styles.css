@@ -239,25 +239,14 @@ a { color: var(--sea); }
   body.rail-on :is(.area, .compare, .trends) { right: calc(var(--rail-w) + 16px); }
   body.rail-on #map .leaflet-bottom.leaflet-left { right: var(--rail-w); }
   body.rail-on .site-head::after { right: var(--rail-w); }   /* header and rail meet as one sheet of glass */
-  /* The switch is a view transition (see setRail). The bar and the rail get different names, so rather than one
-     shape stretching corner to corner, the old one glides off to the right and the new one slides in from the
-     right edge just behind it. The open card is named too, so it glides its 60px instead of fading between copies */
-  .rail { view-transition-name: views-bar; }
-  body.rail-on .rail { view-transition-name: views-rail; }
-  .area { view-transition-name: area-card; }
-  .compare { view-transition-name: compare-card; }
-  .trends { view-transition-name: trends-card; }
-  ::view-transition-group(*) { animation-duration: 0.35s; animation-timing-function: var(--ease); }
-  ::view-transition-old(views-bar) { animation: bar-off-right 0.35s cubic-bezier(0.55, 0, 0.75, 0.2) both; }
-  ::view-transition-new(views-rail) { animation: rail-in 0.4s 0.12s var(--ease) both; }
-  ::view-transition-old(views-rail) { animation: rail-out 0.3s cubic-bezier(0.55, 0, 0.75, 0.2) both; }
-  ::view-transition-new(views-bar) { animation: bar-in-from-right 0.45s 0.1s var(--ease) both; }
-}
-@keyframes bar-off-right { to { transform: translateX(45vw); opacity: 0; } }
-@keyframes bar-in-from-right { from { transform: translateX(45vw); opacity: 0; } }
-@keyframes rail-in { from { transform: translateX(100%); } }
-@keyframes rail-out { to { transform: translateX(100%); } }
-@media (min-width: 761px) {
+  /* The switch, in two steps (see the rail button in app.js): the bar or rail glides away off the right edge
+     (rail-away), changes shape out of sight, then the other slides in from there. The real element moves the whole
+     way, so the glass keeps its blur and nothing flashes. Going away speeds up; coming in slows to a stop */
+  .panel.rail { transition: left 0.25s ease-in-out, transform 0.32s var(--ease), opacity 0.32s var(--ease), background-color 0.3s, border-color 0.3s; }
+  body.rail-away .panel.rail { transition: transform 0.22s cubic-bezier(0.5, 0, 0.75, 0), opacity 0.22s cubic-bezier(0.5, 0, 0.75, 0); }
+  body.rail-away .rail { transform: translateX(calc(-50% + 50vw + 100%)); opacity: 0; }   /* the bar: past the right edge */
+  body.rail-away.rail-on .rail { transform: translateX(100%); opacity: 0; }   /* the rail: just past it */
+  .app :is(.area, .compare, .trends) { transition: right 0.32s var(--ease), background-color 0.3s, color 0.3s, border-color 0.3s; }   /* the open card steps aside with the rail */
   /* Solid where the browser can't blur, or the person has asked for less transparency */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .site-head, .panel { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .site-head, .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }

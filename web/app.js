@@ -2212,12 +2212,23 @@ function setRail(on) {
   document.body.classList.toggle("rail-on", on);
   $("rail-toggle").setAttribute("aria-pressed", String(on));
 }
-// The bar changes shape (a row becomes a column), which CSS can't animate, so a view transition morphs the old
-// picture into the new one. Browsers without it, or people who asked for less motion, get the switch at once
+// The bar changes shape (a row becomes a column), which CSS can't animate, so it does it out of sight: the current
+// shape glides off the right edge, swaps there, and the new one slides back in. People who asked for less motion
+// get the switch at once
 $("rail-toggle").addEventListener("click", () => {
-  const on = !document.body.classList.contains("rail-on");
-  if (document.startViewTransition && !reduceMotion) document.startViewTransition(() => setRail(on));
-  else setRail(on);
+  const body = document.body;
+  if (body.classList.contains("rail-away")) return;   // mid-switch: let it finish
+  const on = !body.classList.contains("rail-on");
+  if (reduceMotion) { setRail(on); return; }
+  body.classList.add("rail-away");
+  setTimeout(() => {
+    const rail = $("rail");
+    rail.style.transition = "none";   // jump between the two hidden spots, rather than glide between them
+    setRail(on);
+    void rail.offsetWidth;   // lets that jump land before the slide back in is turned on again
+    rail.style.transition = "";
+    body.classList.remove("rail-away");
+  }, 220);   // the glide away's length in styles.css
 });
 try { localStorage.removeItem("rail"); } catch (e) {}   // clear the choice older versions saved
 
