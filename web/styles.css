@@ -145,8 +145,7 @@ a { color: var(--sea); }
   #map .leaflet-bottom { transition: right 0.25s ease-in-out; }   /* glides aside with the panels and the rail */
   .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 436px; }   /* the 420px panel + 16px gutter */
   .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 360px; }   /* an open area card: 344px + 16px */
-  /* With the right-edge rail in (see below), all of that steps a further 60px left */
-  body.rail-on .app[data-view="map"] #map .leaflet-bottom.leaflet-right { right: 60px; }
+  /* With the right-edge rail in (see below), the cards step 60px left, so the zoom buttons beside them do too */
   body.rail-on .app:is([data-view="trends"], [data-view="compare"]) #map .leaflet-bottom.leaflet-right { right: 496px; }
   body.rail-on .app[data-view="map"]:has(.area:not(:empty)) #map .leaflet-bottom.leaflet-right { right: 420px; }
 }
@@ -230,23 +229,26 @@ a { color: var(--sea); }
   .rail button svg { width: 22px; height: 22px; }
   .rail button[aria-pressed="true"] { background: color-mix(in srgb, var(--ink) 16%, transparent); color: var(--ink); }
   .rail button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-  /* The header's rail button (rail-on) moves the bar into a slim rail down the right edge, flush under the header.
-     While it's there the cards, zoom buttons and credits step left to clear it */
-  body { --rail-w: 60px; }
-  body.rail-on .rail { flex-direction: column; align-items: center; gap: 8px; top: 58px; right: 0; bottom: 0; left: auto; width: var(--rail-w);
-    padding: 12px 0; transform: none; border-width: 0 0 0 1px; border-radius: 0; box-shadow: none; }
+  /* The header's rail button (rail-on) moves the bar into a slim rail docked to the right edge, flush under the
+     header: as tall as its buttons and rounded only at the free corner, the mirror of the filters drawer. Being
+     short, it leaves the zoom buttons and credits where they are; only an open card steps left to clear it */
+  /* overflow-x: while the bar is out past the right edge the page would be wider than the window, and the
+     scrollbar that brought up lifted the zoom buttons and credits for a moment */
+  body { --rail-w: 60px; overflow-x: clip; }
+  body.rail-on .rail { flex-direction: column; align-items: center; gap: 8px; top: 58px; right: 0; bottom: auto; left: auto; width: var(--rail-w);
+    padding: 12px 0; transform: none; border-width: 0 0 1px 1px; border-radius: 0 0 0 16px; box-shadow: none; }
   body.rail-on .rail :is(button, .rail-search) { width: 44px; height: 44px; }
   body.rail-on :is(.area, .compare, .trends) { right: calc(var(--rail-w) + 16px); }
-  body.rail-on #map .leaflet-bottom.leaflet-left { right: var(--rail-w); }
   body.rail-on .site-head::after { right: var(--rail-w); }   /* header and rail meet as one sheet of glass */
-  /* The switch, in two steps (see the rail button in app.js): the bar or rail glides away off the right edge
-     (rail-away), changes shape out of sight, then the other slides in from there. The real element moves the whole
-     way, so the glass keeps its blur and nothing flashes. Going away speeds up; coming in slows to a stop */
-  .panel.rail { transition: left 0.25s ease-in-out, transform 0.32s var(--ease), opacity 0.32s var(--ease), background-color 0.3s, border-color 0.3s; }
-  body.rail-away .panel.rail { transition: transform 0.22s cubic-bezier(0.5, 0, 0.75, 0), opacity 0.22s cubic-bezier(0.5, 0, 0.75, 0); }
+  /* The switch, in two steps (see the rail button in app.js): the bar or rail eases away off the right edge
+     (rail-away), changes shape out of sight, then the other eases in from there. The real element moves the whole
+     way, so the glass keeps its blur and nothing flashes. Both steps start and end gently, at an unhurried pace */
+  .panel.rail { transition: left 0.25s ease-in-out, transform 0.55s cubic-bezier(0.25, 0.8, 0.3, 1), opacity 0.4s ease-out, background-color 0.3s, border-color 0.3s; }
+  body.rail-away .panel.rail { transition: transform 0.5s cubic-bezier(0.45, 0, 0.55, 1), opacity 0.35s 0.15s ease-in; }
   body.rail-away .rail { transform: translateX(calc(-50% + 50vw + 100%)); opacity: 0; }   /* the bar: past the right edge */
   body.rail-away.rail-on .rail { transform: translateX(100%); opacity: 0; }   /* the rail: just past it */
-  .app :is(.area, .compare, .trends) { transition: right 0.32s var(--ease), background-color 0.3s, color 0.3s, border-color 0.3s; }   /* the open card steps aside with the rail */
+  /* The open card steps aside with the rail, in step with the zoom buttons beside it */
+  .app :is(.area, .compare, .trends) { transition: right 0.25s ease-in-out, background-color 0.3s, color 0.3s, border-color 0.3s; }
   /* Solid where the browser can't blur, or the person has asked for less transparency */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .site-head, .panel { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .site-head, .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
@@ -531,11 +533,6 @@ body, .site-head, .panel, .picker, .search { transition: background-color 0.3s, 
   .area, .compare { max-height: calc(100% - var(--top) - 104px); }
   .trends { bottom: 88px; }
   .filters { max-height: calc(100% - var(--top) - 88px); }
-  /* With the bar moved to the right-edge rail, the bottom is free again */
-  body.rail-on #map .leaflet-bottom.leaflet-right .leaflet-control-zoom { margin-bottom: 31px; }
-  body.rail-on :is(.area, .compare) { max-height: calc(100% - var(--top) - 53px); }
-  body.rail-on .trends { bottom: 37px; }
-  body.rail-on .filters { max-height: calc(100% - var(--top)); }
 }
 
 @keyframes cmp-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } }

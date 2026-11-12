@@ -2228,7 +2228,7 @@ $("rail-toggle").addEventListener("click", () => {
     void rail.offsetWidth;   // lets that jump land before the slide back in is turned on again
     rail.style.transition = "";
     body.classList.remove("rail-away");
-  }, 220);   // the glide away's length in styles.css
+  }, 500);   // the glide away's length in styles.css
 });
 try { localStorage.removeItem("rail"); } catch (e) {}   // clear the choice older versions saved
 
