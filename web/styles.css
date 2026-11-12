@@ -201,7 +201,9 @@ a { color: var(--sea); }
   body.side-hidden .site-head::after { left: 0; }
   .site-head .theme-toggle { background: transparent; }
   /* The search sits in the true middle of the header, lined up with the views bar at the bottom */
-  .head-search { position: absolute; left: 50%; top: 10px; width: min(420px, calc(100% - 440px)); transform: translateX(-50%); }
+  .head-search { position: absolute; z-index: 1; left: 50%; top: 10px; width: min(420px, calc(100% - 440px)); transform: translateX(-50%); }
+  /* (The z-index: the centring transform keeps its list's own z-index inside it, so without this the header's
+     bottom line, drawn later, ran across the open neighbourhood list) */
   .head-search .search { flex: 1 1 auto; }
   #rail-toggle { margin-left: auto; }   /* the search no longer pushes the right-hand buttons over, so the first of them holds them in the corner */
   /* The filters are a drawer docked to the left edge, flush under the header: as tall as their content, rounded only
@@ -237,13 +239,25 @@ a { color: var(--sea); }
   body.rail-on :is(.area, .compare, .trends) { right: calc(var(--rail-w) + 16px); }
   body.rail-on #map .leaflet-bottom.leaflet-left { right: var(--rail-w); }
   body.rail-on .site-head::after { right: var(--rail-w); }   /* header and rail meet as one sheet of glass */
-  /* Named, so the switch (a view transition, see setRail) glides the bar and the open card into place
-     instead of fading between two copies */
+  /* The switch is a view transition (see setRail). The bar and the rail get different names, so rather than one
+     shape stretching corner to corner, the old one glides off to the right and the new one slides in from the
+     right edge just behind it. The open card is named too, so it glides its 60px instead of fading between copies */
   .rail { view-transition-name: views-bar; }
+  body.rail-on .rail { view-transition-name: views-rail; }
   .area { view-transition-name: area-card; }
   .compare { view-transition-name: compare-card; }
   .trends { view-transition-name: trends-card; }
-  ::view-transition-group(*) { animation-duration: 0.3s; animation-timing-function: ease-in-out; }
+  ::view-transition-group(*) { animation-duration: 0.35s; animation-timing-function: var(--ease); }
+  ::view-transition-old(views-bar) { animation: bar-off-right 0.35s cubic-bezier(0.55, 0, 0.75, 0.2) both; }
+  ::view-transition-new(views-rail) { animation: rail-in 0.4s 0.12s var(--ease) both; }
+  ::view-transition-old(views-rail) { animation: rail-out 0.3s cubic-bezier(0.55, 0, 0.75, 0.2) both; }
+  ::view-transition-new(views-bar) { animation: bar-in-from-right 0.45s 0.1s var(--ease) both; }
+}
+@keyframes bar-off-right { to { transform: translateX(45vw); opacity: 0; } }
+@keyframes bar-in-from-right { from { transform: translateX(45vw); opacity: 0; } }
+@keyframes rail-in { from { transform: translateX(100%); } }
+@keyframes rail-out { to { transform: translateX(100%); } }
+@media (min-width: 761px) {
   /* Solid where the browser can't blur, or the person has asked for less transparency */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .site-head, .panel { background: var(--surface); } }
   @media (prefers-reduced-transparency: reduce) { .site-head, .panel { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; } }
