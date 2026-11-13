@@ -1119,7 +1119,7 @@ function updateHeat() {
       `${Math.abs(rate - 1) < 0.1 ? "about the same as the average hour" : `about ${rate.toFixed(1)}× the average hour`}.</span>`;
   }
   $("citywide").innerHTML = n
-    ? `<strong data-count="${count}" data-key="city">${fmt(count)}</strong> reported city-wide ${periodLabel()}${share}`
+    ? `<strong data-count="${count}" data-key="city">${fmt(count)}</strong> reported across all of Vancouver ${periodLabel()}${share}`
     : `Pick a year to see reported incidents.`;
   countUp($("citywide"));
 }
@@ -1158,9 +1158,6 @@ function panelPadding(bounds) {
   for (const el of document.querySelectorAll(".panel, .site-head")) {   // on wider screens the header floats over the map too
     const rr = el.getBoundingClientRect();
     if (!rr.width || !rr.height || getComputedStyle(el).display === "none") continue;
-    // The views bar along the bottom is narrow but sits in the middle, not a corner: as a corner card it could be
-    // taken for a block over the whole left half, which pushed the city off to the right
-    if (el.id === "rail" && !document.body.classList.contains("rail-on")) { pad.b = Math.max(pad.b, mr.bottom - rr.top); continue; }
     if (rr.width < W * 0.6) {
       const left = rr.left - mr.left < W / 2;
       const side = left ? "l" : "r", across = left ? rr.right - mr.left : mr.right - rr.left;
@@ -2184,8 +2181,7 @@ document.addEventListener("click", (e) => {
   if (performance.now() < swallowClickUntil && e.target.closest(".panel")) { e.preventDefault(); e.stopPropagation(); swallowClickUntil = 0; }
 }, true);
 // Wider screens: the header's sidebar button, or the name beside it, slides the filters drawer away to give the map the
-// whole width, and the name folds down to the mark. Not remembered: every visit opens with the filters showing,
-// so newcomers see what they can pick before anything else
+// whole width, and the name folds down to the mark. The choice is remembered
 function setSidebar(open) {
   document.body.classList.toggle("side-hidden", !open);
   const label = open ? "Hide filters" : "Show filters", brand = $("brand-btn"), live = !isPhone();
@@ -2200,54 +2196,16 @@ function setSidebar(open) {
     ["aria-label", "aria-expanded", "aria-controls", "title"].forEach((a) => brand.removeAttribute(a));
   }
 }
-$("side-toggle").addEventListener("click", () => setSidebar(document.body.classList.contains("side-hidden")));
-$("brand-btn").addEventListener("click", () => { if (!isPhone()) setSidebar(document.body.classList.contains("side-hidden")); });
+function toggleSidebar(open) {
+  setSidebar(open);
+  try { localStorage.setItem("sidebar", open ? "open" : "hidden"); } catch (e) {}
+}
+$("side-toggle").addEventListener("click", () => toggleSidebar(document.body.classList.contains("side-hidden")));
+$("brand-btn").addEventListener("click", () => { if (!isPhone()) toggleSidebar(document.body.classList.contains("side-hidden")); });
 phoneQuery.addEventListener("change", () => setSidebar(!document.body.classList.contains("side-hidden")));
-setSidebar(true);
-try { localStorage.removeItem("sidebar"); } catch (e) {}   // clear the choice older versions saved
-// The rail button moves the views bar from the bottom of the map into a slim rail down the right edge, and back.
-// Not remembered: every visit opens with the bar at the bottom, where newcomers look for it first
-function setRail(on) {
-  document.body.classList.toggle("rail-on", on);
-  $("rail-toggle").setAttribute("aria-pressed", String(on));
-}
-// The shapes the bar flows through like slime on its way into the rail: it stretches as it runs right along the
-// bottom, splats flat against the edge, shoots up it in a long drip, pulls its tail in and wobbles to rest.
-// The way back plays them in reverse. bar and rail are the two resting boxes, in the page's coordinates
-function slimeFrames(bar, rail, edge) {
-  const f = (offset, x, y, w, h, r) => ({ offset, left: x + "px", top: y + "px", width: w + "px", height: h + "px",
-    borderRadius: r, right: "auto", bottom: "auto", transform: "none" });
-  const floor = bar.bottom, pill = bar.height / 2 + "px";
-  return [
-    f(0, bar.left, bar.top, bar.width, bar.height, pill),
-    f(0.28, bar.left + bar.width * 0.35, floor - bar.height * 0.78, bar.width * 1.45, bar.height * 0.78, pill),
-    f(0.44, edge - bar.width * 0.72, floor - bar.height * 1.12, bar.width * 0.72, bar.height * 1.12, `${pill} 0 0 ${pill}`),
-    f(0.54, edge - rail.width * 1.3, floor - bar.height * 2.2, rail.width * 1.3, bar.height * 2.2, "40px 0 0 40px"),
-    f(0.72, edge - rail.width * 0.75, rail.top, rail.width * 0.75, floor - rail.top, "0 0 0 30px"),
-    f(0.86, edge - rail.width * 0.92, rail.top, rail.width * 0.92, rail.height * 1.15, "0 0 0 26px"),
-    f(0.94, edge - rail.width * 1.06, rail.top, rail.width * 1.06, rail.height * 0.95, "0 0 0 14px"),
-    f(1, rail.left, rail.top, rail.width, rail.height, "0 0 0 16px"),
-  ];
-}
-// The bar changes shape (a row becomes a column), which CSS can't animate, so the switch moves the glass itself
-// through slimeFrames. People who asked for less motion get the switch at once
-$("rail-toggle").addEventListener("click", () => {
-  const body = document.body, rail = $("rail");
-  if (body.classList.contains("rail-morph")) return;   // mid-switch: let it finish
-  const on = !body.classList.contains("rail-on");
-  if (reduceMotion) { setRail(on); return; }
-  body.classList.add("rail-morph");   // the icons fade out first
-  setTimeout(() => {
-    const page = body.getBoundingClientRect(), box = (r) => ({ left: r.left - page.left, top: r.top - page.top,
-      width: r.width, height: r.height, bottom: r.bottom - page.top });
-    const from = box(rail.getBoundingClientRect());
-    setRail(on);
-    const to = box(rail.getBoundingClientRect());
-    const frames = on ? slimeFrames(from, to, page.width) : slimeFrames(to, from, page.width).reverse().map((k) => ({ ...k, offset: 1 - k.offset }));
-    rail.animate(frames, { duration: 450, easing: "cubic-bezier(0.45, 0.05, 0.35, 1)" })
-      .finished.then(() => body.classList.remove("rail-morph"));   // and fade back in once it has settled
-  }, 60);
-});
+let startOpen = true;
+try { startOpen = localStorage.getItem("sidebar") !== "hidden"; } catch (e) {}
+setSidebar(startOpen);
 try { localStorage.removeItem("rail"); } catch (e) {}   // clear the choice older versions saved
 
 function syncThemeButton() {
